@@ -24,6 +24,7 @@ export interface Producer {
   name: string
   contact: string
   colmeiaId: string
+  pixKey?: string
 }
 
 export interface Product {

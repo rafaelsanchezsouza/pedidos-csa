@@ -25,8 +25,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-interface ProducerForm { name: string; contact: string }
-const emptyProducerForm: ProducerForm = { name: '', contact: '' }
+interface ProducerForm { name: string; contact: string; pixKey: string }
+const emptyProducerForm: ProducerForm = { name: '', contact: '', pixKey: '' }
 
 interface MemberForm {
   name: string
@@ -98,7 +98,7 @@ export function AdminPage() {
 
   function openEditProducer(p: Producer) {
     setEditingProducer(p)
-    setProducerForm({ name: p.name, contact: p.contact })
+    setProducerForm({ name: p.name, contact: p.contact, pixKey: p.pixKey ?? '' })
     setProducerDialog(true)
   }
 
@@ -271,13 +271,14 @@ export function AdminPage() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Contato</TableHead>
+                <TableHead>Chave Pix</TableHead>
                 <TableHead className="w-24"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {producers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                     Nenhum produtor cadastrado.
                   </TableCell>
                 </TableRow>
@@ -286,6 +287,7 @@ export function AdminPage() {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.name}</TableCell>
                     <TableCell>{p.contact}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{p.pixKey || '—'}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => openEditProducer(p)}>
@@ -318,6 +320,10 @@ export function AdminPage() {
             <div className="space-y-1">
               <Label>Contato</Label>
               <Input value={producerForm.contact} onChange={(e) => setProducerForm((f) => ({ ...f, contact: e.target.value }))} placeholder="+55 11 99999-9999" />
+            </div>
+            <div className="space-y-1">
+              <Label>Chave Pix</Label>
+              <Input value={producerForm.pixKey} onChange={(e) => setProducerForm((f) => ({ ...f, pixKey: e.target.value }))} placeholder="CPF, e-mail, telefone ou chave aleatória" />
             </div>
           </div>
           <DialogFooter>

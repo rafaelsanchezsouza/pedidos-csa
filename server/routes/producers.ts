@@ -7,6 +7,7 @@ interface ProducerDoc {
   name: string
   contact: string
   colmeiaId: string
+  pixKey?: string
 }
 
 router.get('/', async (req: Request, res: Response) => {
