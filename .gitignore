@@ -30,6 +30,11 @@ npm-debug.log*
 # Firebase
 .firebase/
 firebase-debug.log
+pedidos-csa-firebase-adminsdk-*.json
+
+# Ambientes separados
+.env.development
+.env.production
 
 # Misc
 coverage/
