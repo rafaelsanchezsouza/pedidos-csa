@@ -304,6 +304,31 @@ export function AdminPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Dialog: produtor */}
+      <Dialog open={producerDialog} onOpenChange={setProducerDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingProducer ? 'Editar Produtor' : 'Novo Produtor'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>Nome</Label>
+              <Input value={producerForm.name} onChange={(e) => setProducerForm((f) => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>Contato</Label>
+              <Input value={producerForm.contact} onChange={(e) => setProducerForm((f) => ({ ...f, contact: e.target.value }))} placeholder="+55 11 99999-9999" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProducerDialog(false)}>Cancelar</Button>
+            <Button onClick={handleSaveProducer} disabled={savingProducer || !producerForm.name}>
+              {savingProducer ? 'Salvando...' : editingProducer ? 'Salvar' : 'Criar e adicionar oferta'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog: novo membro */}
       <Dialog open={memberDialog} onOpenChange={setMemberDialog}>
         <DialogContent>
