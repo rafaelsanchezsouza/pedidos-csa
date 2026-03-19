@@ -15,11 +15,13 @@ import {
 } from '@/components/ui/select'
 
 export function LoginPage() {
-  const { firebaseUser, colmeia, colmeias, loading, login, selectColmeia } = useAuth()
+  const { firebaseUser, colmeia, colmeias, loading, authError, login, selectColmeia } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  const displayError = error || authError
 
   if (!loading && firebaseUser && colmeia) {
     return <Navigate to="/pedidos" replace />
@@ -104,7 +106,7 @@ export function LoginPage() {
                 autoComplete="current-password"
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {displayError && <p className="text-sm text-destructive">{displayError}</p>}
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? 'Entrando...' : 'Entrar'}
             </Button>

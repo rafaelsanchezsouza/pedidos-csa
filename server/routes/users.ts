@@ -13,6 +13,8 @@ interface UserDoc {
   deliveryType: 'colmeia' | 'entrega'
   colmeiaId: string
   role: 'admin' | 'user' | 'superadmin' | 'produtor'
+  disabled?: boolean
+  deleted?: boolean
 }
 
 router.get('/me', async (req: Request, res: Response) => {
@@ -75,12 +77,28 @@ router.post('/create-member', async (req: Request, res: Response) => {
   }
 })
 
-// Admin atualiza dados de qualquer usuário
+// Admin atualiza dados de qualquer usuário (inclui disable/enable via campo disabled)
 router.put('/:uid', async (req: Request, res: Response) => {
   try {
+    const uid = req.params['uid'] as string
     const updates = req.body as Partial<UserDoc>
-    await updateDoc<UserDoc>('users', req.params['uid'] as string, updates)
-    res.json({ id: req.params['uid'], ...updates })
+    if ('disabled' in updates) {
+      await admin.auth().updateUser(uid, { disabled: !!updates.disabled })
+    }
+    await updateDoc<UserDoc>('users', uid, updates)
+    res.json({ id: uid, ...updates })
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// Admin exclui usuário (soft-delete no Firestore + remove do Firebase Auth)
+router.delete('/:uid', async (req: Request, res: Response) => {
+  try {
+    const uid = req.params['uid'] as string
+    await admin.auth().deleteUser(uid)
+    await updateDoc<UserDoc>('users', uid, { deleted: true, disabled: true })
+    res.json({ success: true })
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }

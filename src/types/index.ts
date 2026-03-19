@@ -15,6 +15,8 @@ export interface User {
   deliveryType: 'colmeia' | 'entrega'
   colmeiaId: string
   role: 'admin' | 'user' | 'superadmin' | 'produtor'
+  disabled?: boolean
+  deleted?: boolean
 }
 
 export interface Producer {

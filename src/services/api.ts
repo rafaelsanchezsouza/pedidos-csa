@@ -65,6 +65,11 @@ export const offeringsApi = {
       method: 'POST',
       body: JSON.stringify({ rawMessage, colmeiaId }),
     }, colmeiaId),
+  fallback: (weekStart: string, colmeiaId: string, producerId?: string) =>
+    request<WeeklyOffering[]>('/offerings/fallback', {
+      method: 'POST',
+      body: JSON.stringify({ weekStart, colmeiaId, producerId }),
+    }, colmeiaId),
 }
 
 export const ordersApi = {
@@ -102,4 +107,10 @@ export const usersApi = {
     request<User>('/users/create-member', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
   update: (uid: string, data: Partial<User>, colmeiaId: string) =>
     request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
+  disable: (uid: string, colmeiaId: string) =>
+    request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify({ disabled: true }) }, colmeiaId),
+  enable: (uid: string, colmeiaId: string) =>
+    request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify({ disabled: false }) }, colmeiaId),
+  delete: (uid: string, colmeiaId: string) =>
+    request<{ success: boolean }>(`/users/${uid}`, { method: 'DELETE' }, colmeiaId),
 }
