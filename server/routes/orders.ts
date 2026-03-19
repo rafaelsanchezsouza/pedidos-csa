@@ -127,6 +127,23 @@ router.get('/consolidated-text', async (req: Request, res: Response) => {
   }
 })
 
+// GET /api/orders/history?colmeiaId=&userId= (userId opcional, apenas admin)
+router.get('/history', async (req: Request, res: Response) => {
+  try {
+    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    if (!colmeiaId) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
+    const userId = (req.query.userId as string) || req.user!.uid
+    const orders = await listDocs<OrderDoc>('orders', [
+      ['userId', '==', userId],
+      ['colmeiaId', '==', colmeiaId],
+    ])
+    orders.sort((a, b) => b.weekId.localeCompare(a.weekId))
+    res.json(orders)
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data = req.body as Omit<OrderDoc, 'dateCreated' | 'dateUpdated'>

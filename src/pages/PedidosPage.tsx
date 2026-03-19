@@ -6,14 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-
-function getWeekStart(date = new Date()): string {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  return d.toISOString().split('T')[0]
-}
+import { getWeekStart, isFixoWeek } from '@/lib/weekUtils'
 
 export function PedidosPage() {
   const { user, colmeia } = useAuth()
@@ -25,6 +18,9 @@ export function PedidosPage() {
   const [message, setMessage] = useState('')
 
   const weekId = getWeekStart()
+  const quinzenal = user?.frequency === 'quinzenal'
+  const fixoThisWeek = isFixoWeek(weekId)
+  const showFixo = !quinzenal || fixoThisWeek
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -115,6 +111,14 @@ export function PedidosPage() {
         )}
       </div>
 
+      {quinzenal && !fixoThisWeek && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="py-3 text-sm text-amber-800">
+            Esta semana você não recebe itens fixos (frequência quinzenal). Apenas extras estão disponíveis.
+          </CardContent>
+        </Card>
+      )}
+
       {offerings.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
@@ -122,13 +126,16 @@ export function PedidosPage() {
           </CardContent>
         </Card>
       ) : (
-        offerings.map((offering) => (
+        offerings.map((offering) => {
+          const visibleItems = offering.items.filter((i) => showFixo || i.type !== 'fixo')
+          if (visibleItems.length === 0) return null
+          return (
           <Card key={offering.id}>
             <CardHeader>
               <CardTitle className="text-lg">{offering.producerName}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {offering.items.map((item) => (
+              {visibleItems.map((item) => (
                 <div key={item.productId} className="flex items-center justify-between gap-4">
                   <div className="flex-1">
                     <span className="font-medium">{item.productName}</span>
@@ -151,7 +158,8 @@ export function PedidosPage() {
               ))}
             </CardContent>
           </Card>
-        ))
+          )
+        })
       )}
 
       {offerings.length > 0 && (

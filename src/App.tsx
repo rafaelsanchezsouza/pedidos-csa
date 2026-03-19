@@ -9,6 +9,8 @@ import { AdminPage } from '@/pages/AdminPage'
 import { ConsolidadoPage } from '@/pages/ConsolidadoPage'
 import { PagamentosPage } from '@/pages/PagamentosPage'
 import { PerfilPage } from '@/pages/PerfilPage'
+import { HistoricoPage } from '@/pages/HistoricoPage'
+import { EntregasPage } from '@/pages/EntregasPage'
 import { ReactNode } from 'react'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
@@ -78,6 +80,15 @@ function AppRoutes() {
         />
         <Route path="/pagamentos" element={<PagamentosPage />} />
         <Route path="/perfil" element={<PerfilPage />} />
+        <Route path="/historico" element={<HistoricoPage />} />
+        <Route
+          path="/entregas"
+          element={
+            <ProtectedRoute adminOnly>
+              <EntregasPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
     </Routes>
   )

@@ -67,6 +67,15 @@
 - **Pedido é editável mesmo após ser enviado** (status `enviado` não bloqueia edição)
 - Pedido consolidado (admin): soma de todos os pedidos da semana por produto, para envio ao produtor via WhatsApp
 
+## Frequência Quinzenal
+
+- Usuários `semanal`: recebem itens fixos toda semana
+- Usuários `quinzenal`: recebem itens fixos apenas em **semanas ISO ímpares** (1, 3, 5...)
+- Extras estão disponíveis para todos independente da frequência
+- Implementação: `isFixoWeek(weekStart) = getISOWeekNumber(weekStart) % 2 === 1`
+- Na página de pedidos: itens fixos são ocultados para quinzenais em semanas pares
+- Na visão de entregas: quinzenais são excluídos da lista em semanas sem fixo
+
 ## Pagamentos
 
 - Relatório mensal: individual (por usuário) e consolidado (admin)
