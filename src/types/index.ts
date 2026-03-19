@@ -82,6 +82,8 @@ export interface Payment {
   proofUrl?: string
   verified: boolean
   amount: number
+  dateCreated: string
+  dateUpdated: string
 }
 
 export interface ParsedProduct {

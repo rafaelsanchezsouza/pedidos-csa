@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { listDocs, createDoc, updateDoc } from '../repositories/firestore.js'
-import { parseProducerMessage } from '../services/openai.js'
+import { parseProducerMessage } from '../services/parseMessage/index.js'
 
 const router = Router()
 

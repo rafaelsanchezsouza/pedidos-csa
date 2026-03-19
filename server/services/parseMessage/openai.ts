@@ -1,26 +1,9 @@
 import OpenAI from 'openai'
+import type { ExistingProduct, ParsedProduct, MessageParser } from './types.js'
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-interface ExistingProduct {
-  id: string
-  name: string
-  unit: string
-  price: number
-}
-
-interface ParsedProduct {
-  name: string
-  unit: string
-  price: number
-  type: 'fixo' | 'extra'
-  matchedProductId?: string
-}
-
-export async function parseProducerMessage(
-  rawMessage: string,
-  existingProducts: ExistingProduct[]
-): Promise<ParsedProduct[]> {
+export const parseProducerMessage: MessageParser = async (rawMessage, existingProducts) => {
   const systemPrompt = `Você é um assistente especializado em extrair informações de mensagens de produtores de CSA (Comunidade que Sustenta a Agricultura) em português brasileiro.
 
 Dado o texto de uma mensagem de WhatsApp de um produtor, extraia os produtos disponíveis.

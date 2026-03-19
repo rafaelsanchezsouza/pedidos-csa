@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { listDocs, createDoc, updateDoc } from '../repositories/firestore.js'
+import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
 
 const router = Router()
 
@@ -48,6 +48,80 @@ router.get('/consolidated', async (req: Request, res: Response) => {
       ['weekId', '==', weekId],
     ])
     res.json(orders)
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// GET /api/orders/consolidated-text?weekId=&colmeiaId=&producerId=
+router.get('/consolidated-text', async (req: Request, res: Response) => {
+  try {
+    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    const weekId = req.query.weekId as string
+    const producerId = req.query.producerId as string
+    if (!colmeiaId || !weekId || !producerId) {
+      res.status(400).json({ message: 'colmeiaId, weekId e producerId obrigatórios' }); return
+    }
+
+    const [orders, offering] = await Promise.all([
+      listDocs<OrderDoc>('orders', [
+        ['colmeiaId', '==', colmeiaId],
+        ['weekId', '==', weekId],
+        ['status', '==', 'enviado'],
+      ]),
+      listDocs<{ producerName: string; items: Array<{ productId: string; productName: string; unit: string; type: string }> }>(
+        'weekly_offerings',
+        [['colmeiaId', '==', colmeiaId], ['weekStart', '==', weekId], ['producerId', '==', producerId]]
+      ),
+    ])
+
+    const producerName = offering[0]?.producerName ?? 'Produtor'
+    const producerItemIds = new Set((offering[0]?.items ?? []).map((i) => i.productId))
+
+    // Aggregate quantities by product across all orders
+    const totals = new Map<string, { name: string; unit: string; qty: number; type: string }>()
+    for (const order of orders) {
+      for (const item of order.items) {
+        if (!producerItemIds.has(item.productId)) continue
+        const existing = totals.get(item.productId)
+        if (existing) {
+          existing.qty += item.qty
+        } else {
+          const offeringItem = offering[0]?.items.find((i) => i.productId === item.productId)
+          totals.set(item.productId, {
+            name: item.productName,
+            unit: item.unit,
+            qty: item.qty,
+            type: offeringItem?.type ?? 'extra',
+          })
+        }
+      }
+    }
+
+    const fixo = [...totals.values()].filter((i) => i.type === 'fixo')
+    const extra = [...totals.values()].filter((i) => i.type === 'extra')
+
+    const formatItems = (items: typeof fixo) =>
+      items.map((i) => `${i.name} (${i.unit}) — ${i.qty}`).join('\n')
+
+    const lines: string[] = [
+      `*Pedido CSA — Semana de ${weekId}*`,
+      `*${producerName}*`,
+      '',
+    ]
+    if (fixo.length > 0) {
+      lines.push('*Fixo:*')
+      lines.push(formatItems(fixo))
+      lines.push('')
+    }
+    if (extra.length > 0) {
+      lines.push('*Extras:*')
+      lines.push(formatItems(extra))
+      lines.push('')
+    }
+    lines.push(`Total de membros: ${orders.length}`)
+
+    res.json({ text: lines.join('\n') })
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }

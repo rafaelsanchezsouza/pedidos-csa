@@ -6,6 +6,8 @@ import { PedidosPage } from '@/pages/PedidosPage'
 import { CatalogoPage } from '@/pages/CatalogoPage'
 import { OfertasPage } from '@/pages/OfertasPage'
 import { AdminPage } from '@/pages/AdminPage'
+import { ConsolidadoPage } from '@/pages/ConsolidadoPage'
+import { PagamentosPage } from '@/pages/PagamentosPage'
 import { ReactNode } from 'react'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
@@ -65,6 +67,15 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/consolidado"
+          element={
+            <ProtectedRoute adminOnly>
+              <ConsolidadoPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/pagamentos" element={<PagamentosPage />} />
       </Route>
     </Routes>
   )

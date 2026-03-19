@@ -8,6 +8,7 @@ import productsRouter from './routes/products.js'
 import producersRouter from './routes/producers.js'
 import offeringsRouter from './routes/offerings.js'
 import ordersRouter from './routes/orders.js'
+import paymentsRouter from './routes/payments.js'
 import usersRouter from './routes/users.js'
 import { db } from './repositories/firestore.js'
 
@@ -53,6 +54,7 @@ app.use('/api/products', productsRouter)
 app.use('/api/producers', producersRouter)
 app.use('/api/offerings', offeringsRouter)
 app.use('/api/orders', ordersRouter)
+app.use('/api/payments', paymentsRouter)
 app.use('/api/users', usersRouter)
 
 app.listen(PORT, () => {
