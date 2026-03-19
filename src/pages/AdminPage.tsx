@@ -27,21 +27,48 @@ import {
 interface ProducerForm { name: string; contact: string }
 const emptyProducerForm: ProducerForm = { name: '', contact: '' }
 
+interface MemberForm {
+  name: string
+  email: string
+  password: string
+  address: string
+  contact: string
+  frequency: User['frequency']
+  deliveryType: User['deliveryType']
+  role: User['role']
+}
+const emptyMemberForm: MemberForm = {
+  name: '', email: '', password: '', address: '', contact: '',
+  frequency: 'semanal', deliveryType: 'colmeia', role: 'user',
+}
+
+const roleLabel: Record<User['role'], string> = {
+  user: 'Membro', admin: 'Admin', superadmin: 'Super Admin', produtor: 'Produtor',
+}
+
 export function AdminPage() {
   const { colmeia, refreshUser } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [producers, setProducers] = useState<Producer[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Producer dialog
   const [producerDialog, setProducerDialog] = useState(false)
   const [editingProducer, setEditingProducer] = useState<Producer | null>(null)
   const [producerForm, setProducerForm] = useState<ProducerForm>(emptyProducerForm)
   const [savingProducer, setSavingProducer] = useState(false)
 
+  // Role dialog
   const [userRoleDialog, setUserRoleDialog] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [newRole, setNewRole] = useState<User['role']>('user')
   const [savingUser, setSavingUser] = useState(false)
+
+  // New member dialog
+  const [memberDialog, setMemberDialog] = useState(false)
+  const [memberForm, setMemberForm] = useState<MemberForm>(emptyMemberForm)
+  const [savingMember, setSavingMember] = useState(false)
+  const [memberError, setMemberError] = useState('')
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -60,6 +87,7 @@ export function AdminPage() {
 
   useEffect(() => { load() }, [load])
 
+  // --- Produtores ---
   function openCreateProducer() {
     setEditingProducer(null)
     setProducerForm(emptyProducerForm)
@@ -94,6 +122,7 @@ export function AdminPage() {
     await load()
   }
 
+  // --- Role ---
   function openEditUserRole(u: User) {
     setEditingUser(u)
     setNewRole(u.role)
@@ -101,10 +130,10 @@ export function AdminPage() {
   }
 
   async function handleSaveUserRole() {
-    if (!editingUser) return
+    if (!editingUser || !colmeia) return
     setSavingUser(true)
     try {
-      await usersApi.updateMe({ role: newRole })
+      await usersApi.update(editingUser.id, { role: newRole }, colmeia.id)
       setUserRoleDialog(false)
       await load()
       await refreshUser()
@@ -113,11 +142,30 @@ export function AdminPage() {
     }
   }
 
-  const roleLabel: Record<User['role'], string> = {
-    user: 'Membro',
-    admin: 'Admin',
-    superadmin: 'Super Admin',
-    produtor: 'Produtor',
+  // --- Novo membro ---
+  function openCreateMember() {
+    setMemberForm(emptyMemberForm)
+    setMemberError('')
+    setMemberDialog(true)
+  }
+
+  async function handleSaveMember() {
+    if (!colmeia) return
+    setSavingMember(true)
+    setMemberError('')
+    try {
+      await usersApi.createMember({ ...memberForm, colmeiaId: colmeia.id }, colmeia.id)
+      setMemberDialog(false)
+      await load()
+    } catch (err) {
+      setMemberError(err instanceof Error ? err.message : 'Erro ao criar membro')
+    } finally {
+      setSavingMember(false)
+    }
+  }
+
+  function setMember(field: keyof MemberForm, value: string) {
+    setMemberForm((prev) => ({ ...prev, [field]: value }))
   }
 
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
@@ -133,6 +181,11 @@ export function AdminPage() {
         </TabsList>
 
         <TabsContent value="usuarios">
+          <div className="flex justify-end mb-4">
+            <Button onClick={openCreateMember}>
+              <Plus className="mr-2 h-4 w-4" /> Novo Membro
+            </Button>
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -176,7 +229,7 @@ export function AdminPage() {
         <TabsContent value="produtores">
           <div className="flex justify-end mb-4">
             <Button onClick={openCreateProducer}>
-              <Plus className="mr-2" /> Novo Produtor
+              <Plus className="mr-2 h-4 w-4" /> Novo Produtor
             </Button>
           </div>
           <Table>
@@ -217,37 +270,85 @@ export function AdminPage() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={producerDialog} onOpenChange={setProducerDialog}>
+      {/* Dialog: novo membro */}
+      <Dialog open={memberDialog} onOpenChange={setMemberDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingProducer ? 'Editar Produtor' : 'Novo Produtor'}</DialogTitle>
+            <DialogTitle>Novo Membro</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Nome</Label>
-              <Input
-                value={producerForm.name}
-                onChange={(e) => setProducerForm({ ...producerForm, name: e.target.value })}
-              />
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Nome</Label>
+                <Input value={memberForm.name} onChange={(e) => setMember('name', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>Contato</Label>
+                <Input value={memberForm.contact} onChange={(e) => setMember('contact', e.target.value)} placeholder="+55 11 99999-9999" />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Contato (WhatsApp)</Label>
-              <Input
-                value={producerForm.contact}
-                onChange={(e) => setProducerForm({ ...producerForm, contact: e.target.value })}
-                placeholder="+55 11 99999-9999"
-              />
+            <div className="space-y-1">
+              <Label>Endereço</Label>
+              <Input value={memberForm.address} onChange={(e) => setMember('address', e.target.value)} />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>E-mail</Label>
+                <Input type="email" value={memberForm.email} onChange={(e) => setMember('email', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>Senha inicial</Label>
+                <Input type="password" value={memberForm.password} onChange={(e) => setMember('password', e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label>Função</Label>
+                <Select value={memberForm.role} onValueChange={(v) => setMember('role', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Membro</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="produtor">Produtor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Frequência</Label>
+                <Select value={memberForm.frequency} onValueChange={(v) => setMember('frequency', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="semanal">Semanal</SelectItem>
+                    <SelectItem value="quinzenal">Quinzenal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Retirada</Label>
+                <Select value={memberForm.deliveryType} onValueChange={(v) => setMember('deliveryType', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="colmeia">Na colmeia</SelectItem>
+                    <SelectItem value="entrega">Entrega</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {memberError && <p className="text-sm text-destructive">{memberError}</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setProducerDialog(false)}>Cancelar</Button>
-            <Button onClick={handleSaveProducer} disabled={savingProducer || !producerForm.name}>
-              {savingProducer ? 'Salvando...' : 'Salvar'}
+            <Button variant="outline" onClick={() => setMemberDialog(false)}>Cancelar</Button>
+            <Button
+              onClick={handleSaveMember}
+              disabled={savingMember || !memberForm.name || !memberForm.email || !memberForm.password}
+            >
+              {savingMember ? 'Criando...' : 'Criar membro'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: editar role */}
       <Dialog open={userRoleDialog} onOpenChange={setUserRoleDialog}>
         <DialogContent>
           <DialogHeader>
@@ -257,9 +358,7 @@ export function AdminPage() {
             <div className="space-y-2">
               <Label>Função</Label>
               <Select value={newRole} onValueChange={(v) => setNewRole(v as User['role'])}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">Membro</SelectItem>
                   <SelectItem value="produtor">Produtor</SelectItem>
