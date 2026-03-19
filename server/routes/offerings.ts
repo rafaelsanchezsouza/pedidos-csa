@@ -128,24 +128,38 @@ router.post('/fallback', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data = req.body as Omit<OfferingDoc, 'dateCreated'>
-    const offering = await createDoc<OfferingDoc>('weekly_offerings', {
-      ...data,
-      dateCreated: new Date().toISOString(),
-    })
+    const existingProducts = await listDocs<ProductDoc>('products', [['colmeiaId', '==', data.colmeiaId]])
+    const catalogIds = new Set(existingProducts.map((p) => p.id))
+    const dateUpdated = new Date().toISOString()
+
+    // Resolve itens: cria produtos novos quando não existirem no catálogo
+    const resolvedItems: OfferingItem[] = await Promise.all(
+      data.items.map(async (item) => {
+        if (catalogIds.has(item.productId)) return item
+        const created = await createDoc<ProductDoc>('products', {
+          name: item.productName,
+          unit: item.unit,
+          price: item.price,
+          producerId: data.producerId,
+          colmeiaId: data.colmeiaId,
+          dateUpdated,
+        })
+        return { ...item, productId: created.id }
+      })
+    )
 
     // Atualiza preço no catálogo para itens matched com preço informado
-    const itemsWithPrice = data.items.filter((i) => i.price > 0)
-    if (itemsWithPrice.length > 0) {
-      const existingProducts = await listDocs<ProductDoc>('products', [['colmeiaId', '==', data.colmeiaId]])
-      const catalogIds = new Set(existingProducts.map((p) => p.id))
-      const dateUpdated = new Date().toISOString()
-      await Promise.all(
-        itemsWithPrice
-          .filter((i) => catalogIds.has(i.productId))
-          .map((i) => updateDoc<ProductDoc>('products', i.productId, { price: i.price, dateUpdated }))
-      )
-    }
+    await Promise.all(
+      resolvedItems
+        .filter((i) => i.price > 0 && catalogIds.has(i.productId))
+        .map((i) => updateDoc<ProductDoc>('products', i.productId, { price: i.price, dateUpdated }))
+    )
 
+    const offering = await createDoc<OfferingDoc>('weekly_offerings', {
+      ...data,
+      items: resolvedItems,
+      dateCreated: new Date().toISOString(),
+    })
     res.status(201).json(offering)
   } catch (err) {
     res.status(500).json({ message: String(err) })
