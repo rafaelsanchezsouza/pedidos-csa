@@ -53,13 +53,16 @@ router.post('/parse', async (req: Request, res: Response) => {
     if (!id) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
 
     const existingProducts = await listDocs<ProductDoc>('products', [['colmeiaId', '==', id]])
-    const parsed = await parseProducerMessage(rawMessage, existingProducts.map((p) => ({
-      id: p.id,
-      name: p.name,
-      unit: p.unit,
-      price: p.price,
-    })))
-    res.json(parsed)
+    const catalog = existingProducts.map((p) => ({ id: p.id, name: p.name, unit: p.unit, price: p.price }))
+    const parsed = await parseProducerMessage(rawMessage, catalog)
+
+    // Enriquece com preço do catálogo quando não discriminado na mensagem
+    const priceMap = new Map(catalog.map((p) => [p.id, p.price]))
+    const enriched = parsed.map((item) => ({
+      ...item,
+      price: item.price === 0 && item.matchedProductId ? (priceMap.get(item.matchedProductId) ?? 0) : item.price,
+    }))
+    res.json(enriched)
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
@@ -129,6 +132,20 @@ router.post('/', async (req: Request, res: Response) => {
       ...data,
       dateCreated: new Date().toISOString(),
     })
+
+    // Atualiza preço no catálogo para itens matched com preço informado
+    const itemsWithPrice = data.items.filter((i) => i.price > 0)
+    if (itemsWithPrice.length > 0) {
+      const existingProducts = await listDocs<ProductDoc>('products', [['colmeiaId', '==', data.colmeiaId]])
+      const catalogIds = new Set(existingProducts.map((p) => p.id))
+      const dateUpdated = new Date().toISOString()
+      await Promise.all(
+        itemsWithPrice
+          .filter((i) => catalogIds.has(i.productId))
+          .map((i) => updateDoc<ProductDoc>('products', i.productId, { price: i.price, dateUpdated }))
+      )
+    }
+
     res.status(201).json(offering)
   } catch (err) {
     res.status(500).json({ message: String(err) })
