@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
-import { db, listDocs, createDoc, updateDoc } from '../repositories/firestore.js'
+import admin from 'firebase-admin'
+import { db, listDocs, updateDoc } from '../repositories/firestore.js'
 
 const router = Router()
 
@@ -46,12 +47,40 @@ router.get('/', async (req: Request, res: Response) => {
   }
 })
 
+// Auto-registro: cria doc Firestore para o usuário já autenticado
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data = req.body as UserDoc
     const uid = req.user!.uid
     await db.collection('users').doc(uid).set(data)
     res.status(201).json({ id: uid, ...data })
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// Admin cria novo membro: cria conta no Firebase Auth + doc no Firestore
+router.post('/create-member', async (req: Request, res: Response) => {
+  try {
+    const { email, password, ...profile } = req.body as UserDoc & { password: string }
+    if (!email || !password) {
+      res.status(400).json({ message: 'email e password obrigatórios' }); return
+    }
+    const authUser = await admin.auth().createUser({ email, password })
+    const data: UserDoc = { email, ...profile }
+    await db.collection('users').doc(authUser.uid).set(data)
+    res.status(201).json({ id: authUser.uid, ...data })
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// Admin atualiza dados de qualquer usuário
+router.put('/:uid', async (req: Request, res: Response) => {
+  try {
+    const updates = req.body as Partial<UserDoc>
+    await updateDoc<UserDoc>('users', req.params['uid'] as string, updates)
+    res.json({ id: req.params['uid'], ...updates })
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }

@@ -98,4 +98,8 @@ export const usersApi = {
   list: (colmeiaId: string) => request<User[]>(`/users?colmeiaId=${colmeiaId}`, {}, colmeiaId),
   create: (data: Omit<User, 'id'>) =>
     request<User>('/users', { method: 'POST', body: JSON.stringify(data) }),
+  createMember: (data: Omit<User, 'id'> & { password: string }, colmeiaId: string) =>
+    request<User>('/users/create-member', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
+  update: (uid: string, data: Partial<User>, colmeiaId: string) =>
+    request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
 }
