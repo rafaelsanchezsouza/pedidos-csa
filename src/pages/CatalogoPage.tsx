@@ -40,7 +40,7 @@ export function CatalogoPage() {
   const [editing, setEditing] = useState<Product | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [saving, setSaving] = useState(false)
-  const [filterProducer, setFilterProducer] = useState('')
+  const [filterProducer, setFilterProducer] = useState('todos')
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -103,7 +103,7 @@ export function CatalogoPage() {
   const producerName = (id: string) => producers.find((p) => p.id === id)?.name ?? '-'
 
   const visibleProducts = products
-    .filter((p) => !filterProducer || p.producerId === filterProducer)
+    .filter((p) => filterProducer === 'todos' || p.producerId === filterProducer)
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
@@ -122,7 +122,7 @@ export function CatalogoPage() {
           <SelectValue placeholder="Todos os produtores" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Todos os produtores</SelectItem>
+          <SelectItem value="todos">Todos os produtores</SelectItem>
           {producers.map((p) => (
             <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
           ))}
