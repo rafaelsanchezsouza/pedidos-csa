@@ -53,18 +53,21 @@ export function HistoricoPage() {
   const [users, setUsers] = useState<User[]>([])
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     if (!colmeia || !user) return
     setLoading(true)
+    setError('')
     try {
-      const userId = isAdmin && selectedUserId ? selectedUserId : user.id
       const [ords, us] = await Promise.all([
         ordersApi.getHistory(colmeia.id, isAdmin && selectedUserId ? selectedUserId : undefined),
         isAdmin ? usersApi.list(colmeia.id) : Promise.resolve([]),
       ])
       setOrders(ords)
       if (isAdmin) setUsers(us)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar histórico')
     } finally {
       setLoading(false)
     }
@@ -92,6 +95,8 @@ export function HistoricoPage() {
           </Select>
         )}
       </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {loading ? (
         <div className="text-muted-foreground">Carregando...</div>
