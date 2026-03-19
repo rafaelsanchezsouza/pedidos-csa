@@ -4,6 +4,9 @@ node_modules/
 # Build output
 dist/
 dist-ssr/
+dist-server/
+vite.config.js
+vite.config.d.ts
 
 # Environment variables
 .env
@@ -30,7 +33,10 @@ npm-debug.log*
 # Firebase
 .firebase/
 firebase-debug.log
-pedidos-csa-firebase-adminsdk-*.json
+*-firebase-adminsdk-*.json
+
+# Claude Code
+.claude/settings.local.json
 
 # Ambientes separados
 .env.development
@@ -38,3 +44,4 @@ pedidos-csa-firebase-adminsdk-*.json
 
 # Misc
 coverage/
+mensagem_produtor_*.txt

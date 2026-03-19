@@ -5,6 +5,11 @@
 - Seja extremamente conciso; sacrifique gramática pela concisão
 - Respostas curtas e diretas; sem preâmbulo
 
+## Branches e ambientes
+- **`dev`** → ambiente de desenvolvimento (`pedidos-csa-dev`); todo trabalho novo vai aqui
+- **`main`** → produção (`pedidos-csa`); só recebe PR vindo de `dev`
+- Nunca commitar diretamente em `main`; PR `dev → main` = migração para produção
+
 ## Commits
 - Formato conventional commits (feat/fix/refactor/docs/chore)
 - **Sem** co-authorship footer do Claude
