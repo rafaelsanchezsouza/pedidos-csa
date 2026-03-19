@@ -15,6 +15,7 @@ interface AuthContextType {
   colmeia: Colmeia | null
   colmeias: Colmeia[]
   loading: boolean
+  authError: string
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   selectColmeia: (colmeiaId: string) => void
@@ -27,6 +28,7 @@ export const AuthContext = createContext<AuthContextType>({
   colmeia: null,
   colmeias: [],
   loading: true,
+  authError: '',
   login: async () => {},
   logout: async () => {},
   selectColmeia: () => {},
@@ -39,8 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [colmeia, setColmeia] = useState<Colmeia | null>(null)
   const [colmeias, setColmeias] = useState<Colmeia[]>([])
   const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState('')
 
   async function loadUserData(fbUser: FirebaseUser) {
+    setAuthError('')
     try {
       const [me, allColmeias] = await Promise.all([
         usersApi.getMe(),
@@ -57,9 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (found) setColmeia(found)
         }
       }
-    } catch {
+    } catch (err) {
       setUser(null)
       setColmeias([])
+      setAuthError(err instanceof Error ? err.message : 'Erro ao carregar dados do usuário')
     }
   }
 
@@ -105,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ firebaseUser, user, colmeia, colmeias, loading, login, logout, selectColmeia, refreshUser }}
+      value={{ firebaseUser, user, colmeia, colmeias, loading, authError, login, logout, selectColmeia, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

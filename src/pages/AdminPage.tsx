@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Pencil, Trash2, Ban, CheckCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { usersApi, producersApi } from '@/services/api'
 import type { User, Producer } from '@/types'
@@ -48,6 +49,7 @@ const roleLabel: Record<User['role'], string> = {
 
 export function AdminPage() {
   const { colmeia, refreshUser } = useAuth()
+  const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
   const [producers, setProducers] = useState<Producer[]>([])
   const [loading, setLoading] = useState(true)
@@ -106,11 +108,15 @@ export function AdminPage() {
     try {
       if (editingProducer) {
         await producersApi.update(editingProducer.id, producerForm, colmeia.id)
+        setProducerDialog(false)
+        await load()
       } else {
-        await producersApi.create({ ...producerForm, colmeiaId: colmeia.id }, colmeia.id)
+        const created = await producersApi.create({ ...producerForm, colmeiaId: colmeia.id }, colmeia.id)
+        setProducerDialog(false)
+        await load()
+        // Fluxo: após criar produtor, ir direto para adicionar oferta
+        navigate(`/ofertas?producerId=${created.id}`)
       }
-      setProducerDialog(false)
-      await load()
     } finally {
       setSavingProducer(false)
     }
@@ -140,6 +146,23 @@ export function AdminPage() {
     } finally {
       setSavingUser(false)
     }
+  }
+
+  // --- Disable / Delete usuário ---
+  async function handleToggleDisable(u: User) {
+    if (!colmeia) return
+    if (u.disabled) {
+      await usersApi.enable(u.id, colmeia.id)
+    } else {
+      await usersApi.disable(u.id, colmeia.id)
+    }
+    await load()
+  }
+
+  async function handleDeleteUser(u: User) {
+    if (!colmeia || !confirm(`Excluir permanentemente "${u.name}"? O histórico de pedidos será preservado.`)) return
+    await usersApi.delete(u.id, colmeia.id)
+    await load()
   }
 
   // --- Novo membro ---
@@ -197,16 +220,19 @@ export function AdminPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.length === 0 ? (
+              {users.filter((u) => !u.deleted).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                     Nenhum usuário encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.name}</TableCell>
+                users.filter((u) => !u.deleted).map((u) => (
+                  <TableRow key={u.id} className={u.disabled ? 'opacity-50' : ''}>
+                    <TableCell className="font-medium">
+                      {u.name}
+                      {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
+                    </TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>
                       <Badge variant={u.role === 'admin' || u.role === 'superadmin' ? 'default' : 'secondary'}>
@@ -215,9 +241,17 @@ export function AdminPage() {
                     </TableCell>
                     <TableCell className="capitalize">{u.frequency}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => openEditUserRole(u)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditUserRole(u)} title="Alterar função">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)} title={u.disabled ? 'Habilitar' : 'Desabilitar'}>
+                          {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)} title="Excluir">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

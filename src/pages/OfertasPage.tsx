@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Sparkles, Check, X } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Plus, Sparkles, Check, X, History } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi } from '@/services/api'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
@@ -34,6 +35,7 @@ function getWeekStart(date = new Date()): string {
 
 export function OfertasPage() {
   const { colmeia } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [offerings, setOfferings] = useState<WeeklyOffering[]>([])
   const [producers, setProducers] = useState<Producer[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -44,6 +46,7 @@ export function OfertasPage() {
   const [parsing, setParsing] = useState(false)
   const [parsed, setParsed] = useState<ParsedProduct[] | null>(null)
   const [saving, setSaving] = useState(false)
+  const [fallingBack, setFallingBack] = useState<string | null>(null)
 
   const weekId = getWeekStart()
 
@@ -66,11 +69,34 @@ export function OfertasPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Auto-abre dialog se producerId vier por URL (fluxo: Admin → Novo Produtor)
+  useEffect(() => {
+    const pid = searchParams.get('producerId')
+    if (pid && producers.length > 0) {
+      setSelectedProducerId(pid)
+      setRawMessage('')
+      setParsed(null)
+      setDialogOpen(true)
+      setSearchParams({}, { replace: true })
+    }
+  }, [producers, searchParams, setSearchParams])
+
   function openDialog() {
     setSelectedProducerId('')
     setRawMessage('')
     setParsed(null)
     setDialogOpen(true)
+  }
+
+  async function handleFallback(producerId: string) {
+    if (!colmeia) return
+    setFallingBack(producerId)
+    try {
+      await offeringsApi.fallback(weekId, colmeia.id, producerId)
+      await load()
+    } finally {
+      setFallingBack(null)
+    }
   }
 
   async function handleParse() {
@@ -137,7 +163,30 @@ export function OfertasPage() {
         </Button>
       </div>
 
-      {offerings.length === 0 ? (
+      {/* Produtores sem oferta nesta semana */}
+      {producers
+        .filter((p) => !offerings.some((o) => o.producerId === p.id))
+        .map((p) => (
+          <Card key={p.id} className="border-dashed opacity-70">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-lg text-muted-foreground">{p.name}</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleFallback(p.id)}
+                disabled={fallingBack === p.id}
+              >
+                <History className="mr-2 h-4 w-4" />
+                {fallingBack === p.id ? 'Copiando...' : 'Usar semana anterior'}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Sem oferta para esta semana.</p>
+            </CardContent>
+          </Card>
+        ))}
+
+      {offerings.length === 0 && producers.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             Nenhuma oferta cadastrada para esta semana.

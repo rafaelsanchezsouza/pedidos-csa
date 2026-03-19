@@ -65,6 +65,63 @@ router.post('/parse', async (req: Request, res: Response) => {
   }
 })
 
+// POST /api/offerings/fallback — copia última oferta de produtores sem oferta na semana
+router.post('/fallback', async (req: Request, res: Response) => {
+  try {
+    const { weekStart, colmeiaId: bodyColmeiaId, producerId } = req.body as {
+      weekStart: string; colmeiaId: string; producerId?: string
+    }
+    const colmeiaId = bodyColmeiaId || req.colmeiaId
+    if (!colmeiaId || !weekStart) {
+      res.status(400).json({ message: 'weekStart e colmeiaId obrigatórios' }); return
+    }
+
+    // Produtores a processar
+    const producerFilter: Array<[string, FirebaseFirestore.WhereFilterOp, unknown]> = [
+      ['colmeiaId', '==', colmeiaId],
+    ]
+    if (producerId) producerFilter.push(['id', '==', producerId])
+
+    // Ofertas já existentes nesta semana
+    const thisWeek = await listDocs<OfferingDoc>('weekly_offerings', [
+      ['colmeiaId', '==', colmeiaId],
+      ['weekStart', '==', weekStart],
+      ...(producerId ? [['producerId', '==', producerId] as [string, FirebaseFirestore.WhereFilterOp, unknown]] : []),
+    ])
+    const alreadyHas = new Set(thisWeek.map((o) => o.producerId))
+
+    // Todas as ofertas anteriores da colmeia
+    const allOfferings = await listDocs<OfferingDoc>('weekly_offerings', [
+      ['colmeiaId', '==', colmeiaId],
+    ])
+
+    // Para cada produtor sem oferta esta semana, buscar a mais recente
+    const producerIds = producerId
+      ? [producerId]
+      : [...new Set(allOfferings.map((o) => o.producerId))].filter((pid) => !alreadyHas.has(pid))
+
+    const created: OfferingDoc[] = []
+    for (const pid of producerIds) {
+      if (alreadyHas.has(pid)) continue
+      const previous = allOfferings
+        .filter((o) => o.producerId === pid && o.weekStart < weekStart)
+        .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
+      if (!previous[0]) continue
+      const fallback = await createDoc<OfferingDoc>('weekly_offerings', {
+        ...previous[0],
+        weekStart,
+        rawMessage: undefined,
+        dateCreated: new Date().toISOString(),
+      })
+      created.push(fallback)
+    }
+
+    res.status(201).json(created)
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data = req.body as Omit<OfferingDoc, 'dateCreated'>
