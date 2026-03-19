@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Sparkles, Check, X, History } from 'lucide-react'
+import { Plus, Wand2, Check, X, History } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi } from '@/services/api'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
@@ -252,8 +252,8 @@ export function OfertasPage() {
                 disabled={parsing || !rawMessage.trim()}
                 className="w-full"
               >
-                <Sparkles className="mr-2" />
-                {parsing ? 'Analisando com IA...' : 'Analisar com IA'}
+                <Wand2 className="mr-2" />
+                {parsing ? 'Gerando...' : 'Gerar Oferta'}
               </Button>
             </div>
 
