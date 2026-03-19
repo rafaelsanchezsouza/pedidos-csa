@@ -78,6 +78,8 @@ export const ordersApi = {
     request<Order[]>(`/orders/consolidated?weekId=${weekId}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
   getConsolidatedText: (weekId: string, colmeiaId: string, producerId: string) =>
     request<{ text: string }>(`/orders/consolidated-text?weekId=${weekId}&colmeiaId=${colmeiaId}&producerId=${producerId}`, {}, colmeiaId),
+  getHistory: (colmeiaId: string, userId?: string) =>
+    request<Order[]>(`/orders/history?colmeiaId=${colmeiaId}${userId ? `&userId=${userId}` : ''}`, {}, colmeiaId),
 }
 
 export const paymentsApi = {
