@@ -92,11 +92,10 @@ router.get('/consolidated-text', async (req: Request, res: Response) => {
     ]
 
     for (const order of relevantOrders) {
-      const memberItems = order.items
+      lines.push(order.userName)
+      order.items
         .filter((i) => producerItemIds.has(i.productId))
-        .map((i) => `${i.qty} ${i.productName}`)
-        .join(', ')
-      lines.push(`${order.userName}: ${memberItems}`)
+        .forEach((i) => lines.push(`  ${i.qty} ${i.unit} ${i.productName}`))
     }
 
     lines.push('')
