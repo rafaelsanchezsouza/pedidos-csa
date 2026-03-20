@@ -85,9 +85,8 @@
 - Uma fatura (`PaymentDoc`) por usuário **por produtor** por mês — chave única: `(userId, colmeiaId, month, producerName)`
 - Fatura criada/atualizada automaticamente ao salvar pedido com `status: 'enviado'`
 - Valor recalculado a partir de todos os pedidos `enviado` do usuário no mês, somando itens por produtor
-- Se pedido for alterado (inclusive de volta para `rascunho`), todos os PaymentDocs do usuário/mês são recalculados
+- Se pedido for alterado (inclusive de volta para `rascunho`), todos os PaymentDocs do usuário/mês são recalculados; se amount zerar, o documento permanece (não é removido)
 - `producerName` é denormalizado no `OrderItem` no momento do pedido — necessário para agrupamento correto
 - Usuário envia comprovante por fatura (por produtor) → URL armazenada em `proofUrl` da fatura específica
 - Admin verifica cada fatura individualmente → marca `verified: true`; outras faturas do mesmo usuário não são afetadas
 - Mês representado como string `"YYYY-MM"`
-- Dados históricos (orders anteriores à adição de `producerName` no `OrderItem`) não são migrados; itens sem `producerName` são agrupados sob `"(sem produtor)"`

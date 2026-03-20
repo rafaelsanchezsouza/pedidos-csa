@@ -48,7 +48,7 @@ export async function upsertPaymentsForOrder(
   const byProducer = new Map<string, number>()
   for (const order of monthOrders) {
     for (const item of order.items) {
-      const producer = item.producerName ?? '(sem produtor)'
+      const producer = item.producerName
       byProducer.set(producer, (byProducer.get(producer) ?? 0) + item.price * item.qty)
     }
   }
