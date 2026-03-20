@@ -81,48 +81,26 @@ router.get('/consolidated-text', async (req: Request, res: Response) => {
     const producerName = offering[0]?.producerName ?? 'Produtor'
     const producerItemIds = new Set((offering[0]?.items ?? []).map((i) => i.productId))
 
-    // Aggregate quantities by product across all orders
-    const totals = new Map<string, { name: string; unit: string; qty: number; type: string }>()
-    for (const order of orders) {
-      for (const item of order.items) {
-        if (!producerItemIds.has(item.productId)) continue
-        const existing = totals.get(item.productId)
-        if (existing) {
-          existing.qty += item.qty
-        } else {
-          const offeringItem = offering[0]?.items.find((i) => i.productId === item.productId)
-          totals.set(item.productId, {
-            name: item.productName,
-            unit: item.unit,
-            qty: item.qty,
-            type: offeringItem?.type ?? 'extra',
-          })
-        }
-      }
-    }
-
-    const fixo = [...totals.values()].filter((i) => i.type === 'fixo')
-    const extra = [...totals.values()].filter((i) => i.type === 'extra')
-
-    const formatItems = (items: typeof fixo) =>
-      items.map((i) => `${i.name} (${i.unit}) — ${i.qty}`).join('\n')
+    const relevantOrders = orders.filter((o) =>
+      o.items.some((i) => producerItemIds.has(i.productId))
+    )
 
     const lines: string[] = [
       `*Pedido CSA — Semana de ${weekId}*`,
       `*${producerName}*`,
       '',
     ]
-    if (fixo.length > 0) {
-      lines.push('*Fixo:*')
-      lines.push(formatItems(fixo))
-      lines.push('')
+
+    for (const order of relevantOrders) {
+      const memberItems = order.items
+        .filter((i) => producerItemIds.has(i.productId))
+        .map((i) => `${i.qty} ${i.productName}`)
+        .join(', ')
+      lines.push(`${order.userName}: ${memberItems}`)
     }
-    if (extra.length > 0) {
-      lines.push('*Extras:*')
-      lines.push(formatItems(extra))
-      lines.push('')
-    }
-    lines.push(`Total de membros: ${orders.length}`)
+
+    lines.push('')
+    lines.push(`Total de membros: ${relevantOrders.length}`)
 
     res.json({ text: lines.join('\n') })
   } catch (err) {

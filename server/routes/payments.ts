@@ -6,7 +6,7 @@ const router = Router()
 interface OrderItem {
   price: number
   qty: number
-  producerName?: string
+  producerName: string
 }
 
 interface OrderDoc {
