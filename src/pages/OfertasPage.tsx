@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Plus, Wand2, Check, X, History, Pencil } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi } from '@/services/api'
+import { getWeekStart } from '@/lib/weekUtils'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,13 +26,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-function getWeekStart(date = new Date()): string {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  return d.toISOString().split('T')[0]
-}
 
 export function OfertasPage() {
   const { colmeia } = useAuth()
@@ -63,6 +57,8 @@ export function OfertasPage() {
       setOfferings(offs)
       setProducers(prods)
       setProducts(prdsrs)
+    } catch (err) {
+      console.error('[OfertasPage] erro:', err)
     } finally {
       setLoading(false)
     }
