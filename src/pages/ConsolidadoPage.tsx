@@ -91,6 +91,24 @@ export function ConsolidadoPage() {
         </select>
       </div>
 
+      {sentOrders.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Por membro</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {sentOrders.map((order) => (
+              <div key={order.id} className="text-sm flex gap-2">
+                <span className="font-medium w-36 shrink-0">{order.userName}</span>
+                <span className="text-muted-foreground">
+                  {order.items.map((i) => `${i.qty} ${i.productName}`).join(', ')}
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {offerings.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
