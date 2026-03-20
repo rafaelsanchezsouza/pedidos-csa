@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, ordersApi } from '@/services/api'
 import type { WeeklyOffering, Order, OrderItem } from '@/types'
+import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { getWeekStart, isFixoWeek } from '@/lib/weekUtils'
 
 export function PedidosPage() {
@@ -44,9 +44,8 @@ export function PedidosPage() {
 
   useEffect(() => { load() }, [load])
 
-  function setQty(productId: string, val: string) {
-    const n = parseInt(val, 10)
-    setQuantities((prev) => ({ ...prev, [productId]: isNaN(n) || n < 0 ? 0 : n }))
+  function setQty(productId: string, n: number) {
+    setQuantities((prev) => ({ ...prev, [productId]: Math.max(0, n) }))
   }
 
   async function handleSave() {
@@ -91,7 +90,7 @@ export function PedidosPage() {
     }
   }
 
-  const total = offerings.flatMap((o) => o.items).reduce((sum, item) => {
+  const total = offerings.flatMap((o) => o.items.filter((i) => showFixo || i.type !== 'fixo')).reduce((sum, item) => {
     return sum + item.price * (quantities[item.productId] || 0)
   }, 0)
 
@@ -147,13 +146,27 @@ export function PedidosPage() {
                   <span className="text-sm text-muted-foreground w-16 text-right">
                     R$ {item.price.toFixed(2)}
                   </span>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={quantities[item.productId] || 0}
-                    onChange={(e) => setQty(item.productId, e.target.value)}
-                    className="w-20 text-center"
-                  />
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setQty(item.productId, (quantities[item.productId] || 0) - 1)}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-8 text-center text-sm font-medium tabular-nums">
+                      {quantities[item.productId] || 0}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setQty(item.productId, (quantities[item.productId] || 0) + 1)}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </CardContent>
