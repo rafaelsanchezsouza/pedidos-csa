@@ -155,11 +155,27 @@ router.post('/', async (req: Request, res: Response) => {
         .map((i) => updateDoc<ProductDoc>('products', i.productId, { price: i.price, dateUpdated }))
     )
 
-    const offering = await createDoc<OfferingDoc>('weekly_offerings', {
-      ...data,
-      items: resolvedItems,
-      dateCreated: new Date().toISOString(),
-    })
+    // Substitui se já existir oferta do mesmo produtor na mesma semana
+    const existing = await listDocs<OfferingDoc>('weekly_offerings', [
+      ['colmeiaId', '==', data.colmeiaId],
+      ['producerId', '==', data.producerId],
+      ['weekStart', '==', data.weekStart],
+    ])
+
+    let offering
+    if (existing[0]) {
+      await updateDoc<OfferingDoc>('weekly_offerings', existing[0].id, {
+        items: resolvedItems,
+        rawMessage: data.rawMessage,
+      })
+      offering = { ...existing[0], items: resolvedItems, rawMessage: data.rawMessage }
+    } else {
+      offering = await createDoc<OfferingDoc>('weekly_offerings', {
+        ...data,
+        items: resolvedItems,
+        dateCreated: new Date().toISOString(),
+      })
+    }
     res.status(201).json(offering)
   } catch (err) {
     res.status(500).json({ message: String(err) })
