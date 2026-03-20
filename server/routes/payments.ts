@@ -6,10 +6,12 @@ const router = Router()
 interface OrderItem {
   price: number
   qty: number
+  producerName?: string
 }
 
 interface OrderDoc {
   userId: string
+  userName: string
   colmeiaId: string
   weekId: string
   items: OrderItem[]
@@ -21,6 +23,7 @@ interface PaymentDoc {
   userName: string
   colmeiaId: string
   month: string
+  producerName: string
   amount: number
   proofUrl?: string
   verified: boolean
@@ -28,10 +31,57 @@ interface PaymentDoc {
   dateUpdated: string
 }
 
-function calcAmount(orders: (OrderDoc & { id: string })[]) {
-  return orders
-    .filter((o) => o.status === 'enviado')
-    .reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.price * i.qty, 0), 0)
+// Recalcula e faz upsert dos PaymentDocs por produtor para o usuário/mês
+export async function upsertPaymentsForOrder(
+  userId: string,
+  userName: string,
+  colmeiaId: string,
+  month: string,
+) {
+  const orders = await listDocs<OrderDoc>('orders', [
+    ['userId', '==', userId],
+    ['colmeiaId', '==', colmeiaId],
+  ])
+  const monthOrders = orders.filter((o) => o.status === 'enviado' && o.weekId.startsWith(month))
+
+  // Agrupar por producerName
+  const byProducer = new Map<string, number>()
+  for (const order of monthOrders) {
+    for (const item of order.items) {
+      const producer = item.producerName ?? '(sem produtor)'
+      byProducer.set(producer, (byProducer.get(producer) ?? 0) + item.price * item.qty)
+    }
+  }
+
+  const existing = await listDocs<PaymentDoc>('payments', [
+    ['userId', '==', userId],
+    ['colmeiaId', '==', colmeiaId],
+    ['month', '==', month],
+  ])
+  const existingByProducer = new Map(existing.map((p) => [p.producerName, p]))
+
+  const now = new Date().toISOString()
+
+  await Promise.all(
+    [...byProducer.entries()].map(async ([producerName, amount]) => {
+      const prev = existingByProducer.get(producerName)
+      if (prev) {
+        await updateDoc<PaymentDoc>('payments', prev.id, { amount, dateUpdated: now })
+      } else {
+        await createDoc<PaymentDoc>('payments', {
+          userId,
+          userName,
+          colmeiaId,
+          month,
+          producerName,
+          amount,
+          verified: false,
+          dateCreated: now,
+          dateUpdated: now,
+        })
+      }
+    }),
+  )
 }
 
 // GET /api/payments/my?month=YYYY-MM&colmeiaId=
@@ -45,7 +95,7 @@ router.get('/my', async (req: Request, res: Response) => {
       ['colmeiaId', '==', colmeiaId],
       ['month', '==', month],
     ])
-    res.json(payments[0] ?? null)
+    res.json(payments)
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
@@ -62,53 +112,6 @@ router.get('/', async (req: Request, res: Response) => {
       ['month', '==', month],
     ])
     res.json(payments)
-  } catch (err) {
-    res.status(500).json({ message: String(err) })
-  }
-})
-
-// POST /api/payments — upsert: recalcula amount com base nos pedidos enviados do mês
-router.post('/', async (req: Request, res: Response) => {
-  try {
-    const { userId, userName, colmeiaId: bodyColmeiaId, month } = req.body as {
-      userId: string; userName: string; colmeiaId: string; month: string
-    }
-    const colmeiaId = bodyColmeiaId || req.colmeiaId
-    if (!colmeiaId || !userId || !month) {
-      res.status(400).json({ message: 'userId, colmeiaId e month obrigatórios' }); return
-    }
-
-    const orders = await listDocs<OrderDoc>('orders', [
-      ['userId', '==', userId],
-      ['colmeiaId', '==', colmeiaId],
-    ])
-    const monthOrders = orders.filter((o) => o.weekId.startsWith(month))
-    const amount = calcAmount(monthOrders as (OrderDoc & { id: string })[])
-
-    const existing = await listDocs<PaymentDoc>('payments', [
-      ['userId', '==', userId],
-      ['colmeiaId', '==', colmeiaId],
-      ['month', '==', month],
-    ])
-
-    const now = new Date().toISOString()
-
-    if (existing[0]) {
-      await updateDoc<PaymentDoc>('payments', existing[0].id, { amount, dateUpdated: now })
-      res.json({ ...existing[0], amount, dateUpdated: now })
-    } else {
-      const payment = await createDoc<PaymentDoc>('payments', {
-        userId,
-        userName,
-        colmeiaId,
-        month,
-        amount,
-        verified: false,
-        dateCreated: now,
-        dateUpdated: now,
-      })
-      res.status(201).json(payment)
-    }
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }

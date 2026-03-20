@@ -73,6 +73,8 @@ export function PedidosPage() {
               unit: item.unit,
               price: item.price,
               qty,
+              offeringId: off.id,
+              producerName: off.producerName,
             })
           }
         })

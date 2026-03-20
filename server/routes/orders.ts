@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
+import { upsertPaymentsForOrder } from './payments.js'
 
 const router = Router()
 
@@ -9,6 +10,8 @@ interface OrderItem {
   unit: string
   price: number
   qty: number
+  offeringId: string
+  producerName: string
 }
 
 interface OrderDoc {
@@ -149,6 +152,9 @@ router.post('/', async (req: Request, res: Response) => {
     const data = req.body as Omit<OrderDoc, 'dateCreated' | 'dateUpdated'>
     const now = new Date().toISOString()
     const order = await createDoc<OrderDoc>('orders', { ...data, dateCreated: now, dateUpdated: now })
+    if (order.status === 'enviado') {
+      await upsertPaymentsForOrder(order.userId, order.userName, order.colmeiaId, order.weekId.slice(0, 7))
+    }
     res.status(201).json(order)
   } catch (err) {
     res.status(500).json({ message: String(err) })
@@ -159,6 +165,14 @@ router.put('/:id', async (req: Request, res: Response) => {
   try {
     const updates = { ...req.body as Partial<OrderDoc>, dateUpdated: new Date().toISOString() }
     await updateDoc<OrderDoc>('orders', req.params['id'] as string, updates)
+    const updated = updates as OrderDoc & { weekId?: string }
+    if (updated.status === 'enviado' || updated.status === 'rascunho') {
+      // Precisamos do weekId e dados do usuário — buscar do doc existente
+      const existing = await getDoc<OrderDoc>('orders', req.params['id'] as string)
+      if (existing) {
+        await upsertPaymentsForOrder(existing.userId, existing.userName, existing.colmeiaId, existing.weekId.slice(0, 7))
+      }
+    }
     res.json({ id: req.params['id'], ...updates })
   } catch (err) {
     res.status(500).json({ message: String(err) })

@@ -22,12 +22,13 @@
 ## Catálogo de Produtos
 
 - Produto possui: nome, unidade, preço, produtor, colmeia
-- Preço deve ser atualizado quando produtor informar novo valor
-- Ao fazer parsing de mensagem: verificar via OpenAI se produto já existe no catálogo (variações de escrita, abreviações)
-- Se produto novo for identificado no parsing → adicionar ao catálogo
+- Matching com catálogo: **inferência fuzzy local** (distância de Levenshtein), não OpenAI (OpenAI disponível mas inativo)
+- Preço ausente na mensagem + produto matched → preencher com preço do catálogo
+- Preço discriminado na oferta → atualizar preço no catálogo ao salvar oferta
+- Produto não existente no catálogo ao salvar oferta → criar automaticamente (nome, unidade, preço, produtor)
 - Produto pode ser editado ou removido pelo admin
 
-## Parsing de Mensagens de Produtores (OpenAI)
+## Parsing de Mensagens de Produtores
 
 ### Geraldo
 - Mensagem contém **somente extras** com preço
@@ -47,7 +48,7 @@
 - `type: 'extra'` → keywords: "extra", "estra", "disponível extra"
 - Preço ausente → default `0` (a ser preenchido manualmente ou buscado no catálogo)
 - Unidade ausente → default `"unid"`
-- Matching com catálogo: fuzzy (variações ortográficas, abreviações) via OpenAI
+- Matching com catálogo: fuzzy local (Levenshtein); OpenAI disponível como alternativa via `server/services/parseMessage/index.ts`
 - Se `matchedProductId` retornado → item vinculado ao produto existente no catálogo
 
 ### Fallback semana anterior
@@ -57,6 +58,7 @@
 
 - Admin faz parsing da mensagem → revisa resultado → salva como `WeeklyOffering`
 - Uma `WeeklyOffering` por produtor por semana (identificada por `weekStart` + `producerId`)
+- Criar nova oferta para produtor+semana que já existe → **substitui** a existente (upsert), nunca duplica
 - `weekStart`: data da segunda-feira da semana (ISO 8601)
 - Campos preservados: `rawMessage` (original), `items[]` (parseados), `producerName` (denormalizado)
 
@@ -65,6 +67,8 @@
 - Um pedido por usuário por semana (`userId` + `weekId` únicos)
 - Status: `rascunho` → `enviado`
 - **Pedido é editável mesmo após ser enviado** (status `enviado` não bloqueia edição)
+- O mesmo produto ofertado por produtores diferentes é **independente**: usuário pode pedir quantidades distintas de cada produtor
+- Chave interna de quantidade: `offeringId + productId`
 - Pedido consolidado (admin): soma de todos os pedidos da semana por produto, para envio ao produtor via WhatsApp
 
 ## Frequência Quinzenal
@@ -78,7 +82,12 @@
 
 ## Pagamentos
 
-- Relatório mensal: individual (por usuário) e consolidado (admin)
-- Usuário envia comprovante → armazenado como URL (`proofUrl`) no Firebase Storage
-- Admin verifica pagamento → marca `verified: true`
+- Uma fatura (`PaymentDoc`) por usuário **por produtor** por mês — chave única: `(userId, colmeiaId, month, producerName)`
+- Fatura criada/atualizada automaticamente ao salvar pedido com `status: 'enviado'`
+- Valor recalculado a partir de todos os pedidos `enviado` do usuário no mês, somando itens por produtor
+- Se pedido for alterado (inclusive de volta para `rascunho`), todos os PaymentDocs do usuário/mês são recalculados
+- `producerName` é denormalizado no `OrderItem` no momento do pedido — necessário para agrupamento correto
+- Usuário envia comprovante por fatura (por produtor) → URL armazenada em `proofUrl` da fatura específica
+- Admin verifica cada fatura individualmente → marca `verified: true`; outras faturas do mesmo usuário não são afetadas
 - Mês representado como string `"YYYY-MM"`
+- Dados históricos (orders anteriores à adição de `producerName` no `OrderItem`) não são migrados; itens sem `producerName` são agrupados sob `"(sem produtor)"`
