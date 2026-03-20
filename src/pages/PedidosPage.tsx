@@ -34,7 +34,12 @@ export function PedidosPage() {
       setOrder(myOrder)
       if (myOrder) {
         const q: Record<string, number> = {}
-        myOrder.items.forEach((i) => { q[i.productId] = i.qty })
+        offs.forEach((off) => {
+          off.items.forEach((item) => {
+            const saved = myOrder.items.find((oi) => oi.productId === item.productId)
+            if (saved) q[`${off.id}_${item.productId}`] = saved.qty
+          })
+        })
         setQuantities(q)
       }
     } finally {
@@ -44,8 +49,12 @@ export function PedidosPage() {
 
   useEffect(() => { load() }, [load])
 
-  function setQty(productId: string, n: number) {
-    setQuantities((prev) => ({ ...prev, [productId]: Math.max(0, n) }))
+  function qtyKey(offeringId: string, productId: string) {
+    return `${offeringId}_${productId}`
+  }
+
+  function setQty(key: string, n: number) {
+    setQuantities((prev) => ({ ...prev, [key]: Math.max(0, n) }))
   }
 
   async function handleSave() {
@@ -56,7 +65,7 @@ export function PedidosPage() {
       const items: OrderItem[] = []
       offerings.forEach((off) => {
         off.items.forEach((item) => {
-          const qty = quantities[item.productId] || 0
+          const qty = quantities[qtyKey(off.id, item.productId)] || 0
           if (qty > 0) {
             items.push({
               productId: item.productId,
@@ -90,12 +99,10 @@ export function PedidosPage() {
     }
   }
 
-  const uniqueItems = new Map(
-    offerings.flatMap((o) => o.items.filter((i) => showFixo || i.type !== 'fixo'))
-      .map((i) => [i.productId, i])
-  )
-  const total = Array.from(uniqueItems.values()).reduce((sum, item) => {
-    return sum + item.price * (quantities[item.productId] || 0)
+  const total = offerings.reduce((sum, off) => {
+    return sum + off.items
+      .filter((i) => showFixo || i.type !== 'fixo')
+      .reduce((s, item) => s + item.price * (quantities[qtyKey(off.id, item.productId)] || 0), 0)
   }, 0)
 
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
@@ -138,8 +145,11 @@ export function PedidosPage() {
               <CardTitle className="text-lg">{offering.producerName}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {visibleItems.map((item) => (
-                <div key={item.productId} className="flex items-center justify-between gap-4">
+              {visibleItems.map((item) => {
+                const key = qtyKey(offering.id, item.productId)
+                const qty = quantities[key] || 0
+                return (
+                <div key={key} className="flex items-center justify-between gap-4">
                   <div className="flex-1">
                     <span className="font-medium">{item.productName}</span>
                     <span className="text-muted-foreground text-sm ml-2">({item.unit})</span>
@@ -151,28 +161,19 @@ export function PedidosPage() {
                     R$ {item.price.toFixed(2)}
                   </span>
                   <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setQty(item.productId, (quantities[item.productId] || 0) - 1)}
-                    >
+                    <Button variant="outline" size="icon" className="h-8 w-8"
+                      onClick={() => setQty(key, qty - 1)}>
                       <Minus className="h-3 w-3" />
                     </Button>
-                    <span className="w-8 text-center text-sm font-medium tabular-nums">
-                      {quantities[item.productId] || 0}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setQty(item.productId, (quantities[item.productId] || 0) + 1)}
-                    >
+                    <span className="w-8 text-center text-sm font-medium tabular-nums">{qty}</span>
+                    <Button variant="outline" size="icon" className="h-8 w-8"
+                      onClick={() => setQty(key, qty + 1)}>
                       <Plus className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </CardContent>
           </Card>
           )
