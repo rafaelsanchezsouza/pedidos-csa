@@ -90,7 +90,11 @@ export function PedidosPage() {
     }
   }
 
-  const total = offerings.flatMap((o) => o.items.filter((i) => showFixo || i.type !== 'fixo')).reduce((sum, item) => {
+  const uniqueItems = new Map(
+    offerings.flatMap((o) => o.items.filter((i) => showFixo || i.type !== 'fixo'))
+      .map((i) => [i.productId, i])
+  )
+  const total = Array.from(uniqueItems.values()).reduce((sum, item) => {
     return sum + item.price * (quantities[item.productId] || 0)
   }, 0)
 
