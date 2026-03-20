@@ -62,6 +62,7 @@ export async function upsertPaymentsForOrder(
 
   const now = new Date().toISOString()
 
+  // Upsert produtores com saldo > 0
   await Promise.all(
     [...byProducer.entries()].map(async ([producerName, amount]) => {
       const prev = existingByProducer.get(producerName)
@@ -81,6 +82,13 @@ export async function upsertPaymentsForOrder(
         })
       }
     }),
+  )
+
+  // Zerar docs de produtores que não aparecem mais nos pedidos enviados
+  await Promise.all(
+    [...existingByProducer.entries()]
+      .filter(([producerName]) => !byProducer.has(producerName))
+      .map(([, doc]) => updateDoc<PaymentDoc>('payments', doc.id, { amount: 0, dateUpdated: now })),
   )
 }
 
