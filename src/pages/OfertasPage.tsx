@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Sparkles, Check, X, History } from 'lucide-react'
+import { Plus, Wand2, Check, X, History, Pencil } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi } from '@/services/api'
+import { getWeekStart } from '@/lib/weekUtils'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,13 +26,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-function getWeekStart(date = new Date()): string {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  return d.toISOString().split('T')[0]
-}
 
 export function OfertasPage() {
   const { colmeia } = useAuth()
@@ -47,6 +41,7 @@ export function OfertasPage() {
   const [parsed, setParsed] = useState<ParsedProduct[] | null>(null)
   const [saving, setSaving] = useState(false)
   const [fallingBack, setFallingBack] = useState<string | null>(null)
+  const [editing, setEditing] = useState<WeeklyOffering | null>(null)
 
   const weekId = getWeekStart()
 
@@ -62,6 +57,8 @@ export function OfertasPage() {
       setOfferings(offs)
       setProducers(prods)
       setProducts(prdsrs)
+    } catch (err) {
+      console.error('[OfertasPage] erro:', err)
     } finally {
       setLoading(false)
     }
@@ -82,9 +79,24 @@ export function OfertasPage() {
   }, [producers, searchParams, setSearchParams])
 
   function openDialog() {
+    setEditing(null)
     setSelectedProducerId('')
     setRawMessage('')
     setParsed(null)
+    setDialogOpen(true)
+  }
+
+  function openEdit(off: WeeklyOffering) {
+    setEditing(off)
+    setSelectedProducerId(off.producerId)
+    setRawMessage(off.rawMessage ?? '')
+    setParsed(off.items.map((i) => ({
+      name: i.productName,
+      unit: i.unit,
+      price: i.price,
+      type: i.type,
+      matchedProductId: i.productId,
+    })))
     setDialogOpen(true)
   }
 
@@ -134,14 +146,18 @@ export function OfertasPage() {
         price: p.price,
         type: p.type,
       }))
-      await offeringsApi.create({
-        producerId: selectedProducerId,
-        producerName: producer?.name ?? '',
-        colmeiaId: colmeia.id,
-        items,
-        weekStart: weekId,
-        rawMessage,
-      }, colmeia.id)
+      if (editing) {
+        await offeringsApi.update(editing.id, { items, rawMessage }, colmeia.id)
+      } else {
+        await offeringsApi.create({
+          producerId: selectedProducerId,
+          producerName: producer?.name ?? '',
+          colmeiaId: colmeia.id,
+          items,
+          weekStart: weekId,
+          rawMessage,
+        }, colmeia.id)
+      }
       setDialogOpen(false)
       await load()
     } finally {
@@ -195,8 +211,11 @@ export function OfertasPage() {
       ) : (
         offerings.map((off) => (
           <Card key={off.id}>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg">{off.producerName}</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => openEdit(off)}>
+                <Pencil className="h-4 w-4" />
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -221,12 +240,12 @@ export function OfertasPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nova Oferta</DialogTitle>
+            <DialogTitle>{editing ? 'Editar Oferta' : 'Nova Oferta'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Produtor</Label>
-              <Select value={selectedProducerId} onValueChange={setSelectedProducerId}>
+              <Select value={selectedProducerId} onValueChange={setSelectedProducerId} disabled={!!editing}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o produtor..." />
                 </SelectTrigger>
@@ -252,8 +271,8 @@ export function OfertasPage() {
                 disabled={parsing || !rawMessage.trim()}
                 className="w-full"
               >
-                <Sparkles className="mr-2" />
-                {parsing ? 'Analisando com IA...' : 'Analisar com IA'}
+                <Wand2 className="mr-2" />
+                {parsing ? 'Gerando...' : 'Gerar Oferta'}
               </Button>
             </div>
 

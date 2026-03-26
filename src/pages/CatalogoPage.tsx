@@ -40,6 +40,7 @@ export function CatalogoPage() {
   const [editing, setEditing] = useState<Product | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [filterProducer, setFilterProducer] = useState('todos')
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -101,6 +102,10 @@ export function CatalogoPage() {
 
   const producerName = (id: string) => producers.find((p) => p.id === id)?.name ?? '-'
 
+  const visibleProducts = products
+    .filter((p) => filterProducer === 'todos' || p.producerId === filterProducer)
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
 
   return (
@@ -111,6 +116,18 @@ export function CatalogoPage() {
           <Plus className="mr-2" /> Novo Produto
         </Button>
       </div>
+
+      <Select value={filterProducer} onValueChange={setFilterProducer}>
+        <SelectTrigger className="w-56">
+          <SelectValue placeholder="Todos os produtores" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todos os produtores</SelectItem>
+          {producers.map((p) => (
+            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       <Table>
         <TableHeader>
@@ -123,14 +140,14 @@ export function CatalogoPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {products.length === 0 ? (
+          {visibleProducts.length === 0 ? (
             <TableRow>
               <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                Nenhum produto cadastrado.
+                {products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto para este produtor.'}
               </TableCell>
             </TableRow>
           ) : (
-            products.map((p) => (
+            visibleProducts.map((p) => (
               <TableRow key={p.id}>
                 <TableCell className="font-medium">{p.name}</TableCell>
                 <TableCell>{p.unit}</TableCell>

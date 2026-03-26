@@ -62,6 +62,8 @@ export interface OrderItem {
   unit: string
   price: number
   qty: number
+  offeringId: string
+  producerName: string
 }
 
 export interface Order {
@@ -82,6 +84,7 @@ export interface Payment {
   userName: string
   colmeiaId: string
   month: string
+  producerName: string
   proofUrl?: string
   verified: boolean
   amount: number

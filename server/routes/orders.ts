@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
+import { upsertPaymentsForOrder } from './payments.js'
 
 const router = Router()
 
@@ -9,6 +10,8 @@ interface OrderItem {
   unit: string
   price: number
   qty: number
+  offeringId: string
+  producerName: string
 }
 
 interface OrderDoc {
@@ -78,48 +81,25 @@ router.get('/consolidated-text', async (req: Request, res: Response) => {
     const producerName = offering[0]?.producerName ?? 'Produtor'
     const producerItemIds = new Set((offering[0]?.items ?? []).map((i) => i.productId))
 
-    // Aggregate quantities by product across all orders
-    const totals = new Map<string, { name: string; unit: string; qty: number; type: string }>()
-    for (const order of orders) {
-      for (const item of order.items) {
-        if (!producerItemIds.has(item.productId)) continue
-        const existing = totals.get(item.productId)
-        if (existing) {
-          existing.qty += item.qty
-        } else {
-          const offeringItem = offering[0]?.items.find((i) => i.productId === item.productId)
-          totals.set(item.productId, {
-            name: item.productName,
-            unit: item.unit,
-            qty: item.qty,
-            type: offeringItem?.type ?? 'extra',
-          })
-        }
-      }
-    }
-
-    const fixo = [...totals.values()].filter((i) => i.type === 'fixo')
-    const extra = [...totals.values()].filter((i) => i.type === 'extra')
-
-    const formatItems = (items: typeof fixo) =>
-      items.map((i) => `${i.name} (${i.unit}) — ${i.qty}`).join('\n')
+    const relevantOrders = orders.filter((o) =>
+      o.items.some((i) => producerItemIds.has(i.productId))
+    )
 
     const lines: string[] = [
       `*Pedido CSA — Semana de ${weekId}*`,
       `*${producerName}*`,
       '',
     ]
-    if (fixo.length > 0) {
-      lines.push('*Fixo:*')
-      lines.push(formatItems(fixo))
-      lines.push('')
+
+    for (const order of relevantOrders) {
+      lines.push(order.userName)
+      order.items
+        .filter((i) => producerItemIds.has(i.productId))
+        .forEach((i) => lines.push(`  ${i.qty} ${i.unit} ${i.productName}`))
     }
-    if (extra.length > 0) {
-      lines.push('*Extras:*')
-      lines.push(formatItems(extra))
-      lines.push('')
-    }
-    lines.push(`Total de membros: ${orders.length}`)
+
+    lines.push('')
+    lines.push(`Total de membros: ${relevantOrders.length}`)
 
     res.json({ text: lines.join('\n') })
   } catch (err) {
@@ -149,6 +129,9 @@ router.post('/', async (req: Request, res: Response) => {
     const data = req.body as Omit<OrderDoc, 'dateCreated' | 'dateUpdated'>
     const now = new Date().toISOString()
     const order = await createDoc<OrderDoc>('orders', { ...data, dateCreated: now, dateUpdated: now })
+    if (order.status === 'enviado') {
+      await upsertPaymentsForOrder(order.userId, order.userName, order.colmeiaId, order.weekId.slice(0, 7))
+    }
     res.status(201).json(order)
   } catch (err) {
     res.status(500).json({ message: String(err) })
@@ -159,6 +142,14 @@ router.put('/:id', async (req: Request, res: Response) => {
   try {
     const updates = { ...req.body as Partial<OrderDoc>, dateUpdated: new Date().toISOString() }
     await updateDoc<OrderDoc>('orders', req.params['id'] as string, updates)
+    const updated = updates as OrderDoc & { weekId?: string }
+    if (updated.status === 'enviado' || updated.status === 'rascunho') {
+      // Precisamos do weekId e dados do usuário — buscar do doc existente
+      const existing = await getDoc<OrderDoc>('orders', req.params['id'] as string)
+      if (existing) {
+        await upsertPaymentsForOrder(existing.userId, existing.userName, existing.colmeiaId, existing.weekId.slice(0, 7))
+      }
+    }
     res.json({ id: req.params['id'], ...updates })
   } catch (err) {
     res.status(500).json({ message: String(err) })

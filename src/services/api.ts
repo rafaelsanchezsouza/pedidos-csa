@@ -89,11 +89,9 @@ export const ordersApi = {
 
 export const paymentsApi = {
   getMy: (month: string, colmeiaId: string) =>
-    request<Payment | null>(`/payments/my?month=${month}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
+    request<Payment[]>(`/payments/my?month=${month}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
   list: (month: string, colmeiaId: string) =>
     request<Payment[]>(`/payments?month=${month}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
-  upsert: (data: { userId: string; userName: string; colmeiaId: string; month: string }, colmeiaId: string) =>
-    request<Payment>('/payments', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
   update: (id: string, data: Partial<Payment>, colmeiaId: string) =>
     request<Payment>(`/payments/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
 }

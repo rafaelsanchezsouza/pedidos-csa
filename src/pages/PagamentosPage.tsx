@@ -23,47 +23,106 @@ function statusVariant(p: Payment): 'default' | 'secondary' | 'destructive' {
   return 'destructive'
 }
 
-// --- Visão do usuário ---
+// --- Card de pagamento por produtor (usuário) ---
 
-function UserPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
-  const [month, setMonth] = useState(currentMonth())
-  const [payment, setPayment] = useState<Payment | null>(null)
-  const [loading, setLoading] = useState(true)
+function PaymentCard({
+  payment,
+  colmeiaId,
+  userId,
+  month,
+  onReload,
+}: {
+  payment: Payment
+  colmeiaId: string
+  userId: string
+  month: string
+  onReload: () => void
+}) {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const { uploadProof } = useUploadProof()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      let p = await paymentsApi.getMy(month, colmeiaId)
-      if (!p) {
-        p = await paymentsApi.upsert({ userId: user.id, userName: user.name, colmeiaId, month }, colmeiaId)
-      }
-      setPayment(p)
-    } finally {
-      setLoading(false)
-    }
-  }, [month, colmeiaId, user.id, user.name])
-
-  useEffect(() => { load() }, [load])
-
   async function handleUpload(file: File) {
-    if (!payment) return
     setUploading(true)
     setMessage('')
     try {
-      const url = await uploadProof(file, colmeiaId, user.id, month)
+      const url = await uploadProof(file, colmeiaId, userId, month)
       await paymentsApi.update(payment.id, { proofUrl: url }, colmeiaId)
       setMessage('Comprovante enviado!')
-      await load()
+      onReload()
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Erro ao enviar comprovante')
     } finally {
       setUploading(false)
     }
   }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between text-base">
+          <span>{payment.producerName}</span>
+          <Badge variant={statusVariant(payment)}>{statusLabel(payment)}</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="text-2xl font-bold">R$ {payment.amount.toFixed(2)}</div>
+
+        {payment.proofUrl && (
+          <a
+            href={payment.proofUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Ver comprovante enviado
+          </a>
+        )}
+
+        {!payment.verified && (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
+            />
+            <Button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              variant={payment.proofUrl ? 'secondary' : 'default'}
+              size="sm"
+            >
+              {uploading ? 'Enviando...' : payment.proofUrl ? 'Substituir comprovante' : 'Enviar comprovante'}
+            </Button>
+          </>
+        )}
+
+        {message && <p className="text-sm text-muted-foreground">{message}</p>}
+      </CardContent>
+    </Card>
+  )
+}
+
+// --- Visão do usuário ---
+
+function UserPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
+  const [month, setMonth] = useState(currentMonth())
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setPayments(await paymentsApi.getMy(month, colmeiaId))
+    } finally {
+      setLoading(false)
+    }
+  }, [month, colmeiaId])
+
+  useEffect(() => { load() }, [load])
 
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
 
@@ -79,50 +138,23 @@ function UserPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
         />
       </div>
 
-      {payment && (
+      {payments.length === 0 ? (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>{month}</span>
-              <Badge variant={statusVariant(payment)}>{statusLabel(payment)}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-3xl font-bold">R$ {payment.amount.toFixed(2)}</div>
-
-            {payment.proofUrl && (
-              <a
-                href={payment.proofUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Ver comprovante enviado
-              </a>
-            )}
-
-            {!payment.verified && (
-              <>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*,.pdf"
-                  className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
-                />
-                <Button
-                  onClick={() => fileRef.current?.click()}
-                  disabled={uploading}
-                  variant={payment.proofUrl ? 'secondary' : 'default'}
-                >
-                  {uploading ? 'Enviando...' : payment.proofUrl ? 'Substituir comprovante' : 'Enviar comprovante'}
-                </Button>
-              </>
-            )}
-
-            {message && <p className="text-sm text-muted-foreground">{message}</p>}
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Nenhum pagamento para {month}. Envie um pedido para gerar faturas.
           </CardContent>
         </Card>
+      ) : (
+        payments.map((p) => (
+          <PaymentCard
+            key={p.id}
+            payment={p}
+            colmeiaId={colmeiaId}
+            userId={user.id}
+            month={month}
+            onReload={load}
+          />
+        ))
       )}
     </div>
   )
@@ -184,6 +216,7 @@ function AdminPayments({ colmeiaId }: { colmeiaId: string }) {
               <thead>
                 <tr className="border-b text-muted-foreground">
                   <th className="text-left px-4 py-3">Membro</th>
+                  <th className="text-left px-4 py-3">Produtor</th>
                   <th className="text-right px-4 py-3">Valor</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Comprovante</th>
@@ -194,6 +227,7 @@ function AdminPayments({ colmeiaId }: { colmeiaId: string }) {
                 {payments.map((p) => (
                   <tr key={p.id} className="border-b last:border-0">
                     <td className="px-4 py-3 font-medium">{p.userName}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.producerName}</td>
                     <td className="px-4 py-3 text-right">R$ {p.amount.toFixed(2)}</td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant={statusVariant(p)}>{statusLabel(p)}</Badge>

@@ -34,6 +34,7 @@ export function EntregasPage() {
 
   // Usuários que devem receber esta semana
   const activeUsers = users.filter((u) => {
+    if (u.disabled || u.deleted) return false
     if (u.role === 'admin' || u.role === 'superadmin') return false
     if (u.frequency === 'quinzenal' && !fixoThisWeek) return false
     return true
@@ -46,45 +47,6 @@ export function EntregasPage() {
   // Agrupar por tipo de retirada
   const porColmeia = activeUsers.filter((u) => u.deliveryType === 'colmeia')
   const porEntrega = activeUsers.filter((u) => u.deliveryType === 'entrega')
-
-  function UserRow({ u }: { u: User }) {
-    const order = orderByUser.get(u.id)
-    const extras = order?.items.filter((i) => {
-      // encontrar o tipo do item via order (não temos offering aqui, então usamos status)
-      return true // mostra todos os itens do pedido
-    }) ?? []
-
-    return (
-      <tr className="border-b last:border-0">
-        <td className="py-2 font-medium">
-          <div>{u.name}</div>
-          {u.frequency === 'quinzenal' && (
-            <span className="text-xs text-muted-foreground">quinzenal</span>
-          )}
-        </td>
-        <td className="py-2">
-          {order ? (
-            <div className="space-y-0.5">
-              {order.items.map((item) => (
-                <div key={item.productId} className="text-sm">
-                  {item.productName} × {item.qty} {item.unit}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <span className="text-sm text-muted-foreground">Sem pedido</span>
-          )}
-        </td>
-        <td className="py-2 text-right">
-          {order ? (
-            <Badge variant={order.status === 'enviado' ? 'default' : 'secondary'}>
-              {order.status}
-            </Badge>
-          ) : null}
-        </td>
-      </tr>
-    )
-  }
 
   function DeliveryGroup({ title, userList }: { title: string; userList: User[] }) {
     if (userList.length === 0) return null

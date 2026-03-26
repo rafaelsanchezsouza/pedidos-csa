@@ -53,13 +53,16 @@ router.post('/parse', async (req: Request, res: Response) => {
     if (!id) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
 
     const existingProducts = await listDocs<ProductDoc>('products', [['colmeiaId', '==', id]])
-    const parsed = await parseProducerMessage(rawMessage, existingProducts.map((p) => ({
-      id: p.id,
-      name: p.name,
-      unit: p.unit,
-      price: p.price,
-    })))
-    res.json(parsed)
+    const catalog = existingProducts.map((p) => ({ id: p.id, name: p.name, unit: p.unit, price: p.price }))
+    const parsed = await parseProducerMessage(rawMessage, catalog)
+
+    // Enriquece com preço do catálogo quando não discriminado na mensagem
+    const priceMap = new Map(catalog.map((p) => [p.id, p.price]))
+    const enriched = parsed.map((item) => ({
+      ...item,
+      price: item.price === 0 && item.matchedProductId ? (priceMap.get(item.matchedProductId) ?? 0) : item.price,
+    }))
+    res.json(enriched)
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
@@ -125,10 +128,54 @@ router.post('/fallback', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data = req.body as Omit<OfferingDoc, 'dateCreated'>
-    const offering = await createDoc<OfferingDoc>('weekly_offerings', {
-      ...data,
-      dateCreated: new Date().toISOString(),
-    })
+    const existingProducts = await listDocs<ProductDoc>('products', [['colmeiaId', '==', data.colmeiaId]])
+    const catalogIds = new Set(existingProducts.map((p) => p.id))
+    const dateUpdated = new Date().toISOString()
+
+    // Resolve itens: cria produtos novos quando não existirem no catálogo
+    const resolvedItems: OfferingItem[] = await Promise.all(
+      data.items.map(async (item) => {
+        if (catalogIds.has(item.productId)) return item
+        const created = await createDoc<ProductDoc>('products', {
+          name: item.productName,
+          unit: item.unit,
+          price: item.price,
+          producerId: data.producerId,
+          colmeiaId: data.colmeiaId,
+          dateUpdated,
+        })
+        return { ...item, productId: created.id }
+      })
+    )
+
+    // Atualiza preço no catálogo para itens matched com preço informado
+    await Promise.all(
+      resolvedItems
+        .filter((i) => i.price > 0 && catalogIds.has(i.productId))
+        .map((i) => updateDoc<ProductDoc>('products', i.productId, { price: i.price, dateUpdated }))
+    )
+
+    // Substitui se já existir oferta do mesmo produtor na mesma semana
+    const existing = await listDocs<OfferingDoc>('weekly_offerings', [
+      ['colmeiaId', '==', data.colmeiaId],
+      ['producerId', '==', data.producerId],
+      ['weekStart', '==', data.weekStart],
+    ])
+
+    let offering
+    if (existing[0]) {
+      await updateDoc<OfferingDoc>('weekly_offerings', existing[0].id, {
+        items: resolvedItems,
+        rawMessage: data.rawMessage,
+      })
+      offering = { ...existing[0], items: resolvedItems, rawMessage: data.rawMessage }
+    } else {
+      offering = await createDoc<OfferingDoc>('weekly_offerings', {
+        ...data,
+        items: resolvedItems,
+        dateCreated: new Date().toISOString(),
+      })
+    }
     res.status(201).json(offering)
   } catch (err) {
     res.status(500).json({ message: String(err) })

@@ -134,30 +134,49 @@ export function ConsolidadoPage() {
                 {items.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum item pedido.</p>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-muted-foreground">
-                        <th className="text-left py-1">Produto</th>
-                        <th className="text-left py-1">Unid.</th>
-                        <th className="py-1">Tipo</th>
-                        <th className="text-right py-1">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((item) => (
-                        <tr key={item.name} className="border-b last:border-0">
-                          <td className="py-1.5 font-medium">{item.name}</td>
-                          <td className="py-1.5 text-muted-foreground">{item.unit}</td>
-                          <td className="py-1.5 text-center">
-                            <Badge variant={item.type === 'fixo' ? 'default' : 'secondary'} className="text-xs">
-                              {item.type}
-                            </Badge>
-                          </td>
-                          <td className="py-1.5 text-right font-semibold">{item.qty}</td>
+                  <>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-muted-foreground">
+                          <th className="text-left py-1">Produto</th>
+                          <th className="text-left py-1">Unid.</th>
+                          <th className="py-1">Tipo</th>
+                          <th className="text-right py-1">Total</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {items.map((item) => (
+                          <tr key={item.name} className="border-b last:border-0">
+                            <td className="py-1.5 font-medium">{item.name}</td>
+                            <td className="py-1.5 text-muted-foreground">{item.unit}</td>
+                            <td className="py-1.5 text-center">
+                              <Badge variant={item.type === 'fixo' ? 'default' : 'secondary'} className="text-xs">
+                                {item.type}
+                              </Badge>
+                            </td>
+                            <td className="py-1.5 text-right font-semibold">{item.qty}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    <div className="space-y-1 pt-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Membros</p>
+                      {relevantOrders.map((order) => {
+                        const userItems = order.items.filter((i) =>
+                          offering.items.some((oi) => oi.productId === i.productId)
+                        )
+                        return (
+                          <div key={order.id} className="text-sm flex gap-2">
+                            <span className="font-medium w-36 shrink-0">{order.userName}</span>
+                            <span className="text-muted-foreground">
+                              {userItems.map((i) => `${i.productName} ×${i.qty}`).join(', ')}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
                 )}
 
                 <div className="flex items-center gap-2 pt-1">
