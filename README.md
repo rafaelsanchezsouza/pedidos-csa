@@ -79,12 +79,70 @@ Acesse [http://localhost:5173](http://localhost:5173) e faça login com o usuár
 ## Build para produção
 
 ```bash
-npm run build          # Compila frontend (TypeScript + Vite)
-npm run build:backend  # Compila backend
+npm run build:all      # Frontend + backend
+npm run build          # Apenas frontend
+npm run build:backend  # Apenas backend
 ```
 
 ## Outros comandos
 
 ```bash
 npm run lint   # Verificar erros de lint
+```
+
+---
+
+## Deploy (VM Ubuntu — Oracle Cloud)
+
+### Estrutura na VM
+
+```
+/opt/pedidos-csa/
+├── dist/            ← frontend buildado (servido pelo nginx)
+├── dist-server/     ← backend buildado (Node.js)
+├── node_modules/
+├── package.json
+└── .env             ← variáveis de produção (não está no git)
+```
+
+### Primeira vez: setup da VM
+
+Conecte na VM via SSH, clone o repositório e execute:
+
+```bash
+bash setup-vm.sh
+```
+
+O script instala Node.js 22, nginx e pm2, cria `/opt/pedidos-csa`, configura o nginx como reverse proxy e habilita o pm2 para iniciar no boot.
+
+Depois, abra a porta 80 no console Oracle Cloud:
+**VCN → Security Lists → Add Ingress Rule → TCP 0.0.0.0/0 porta 80**
+
+### Configurar o deploy
+
+Edite as variáveis no topo do `deploy.sh`:
+
+```bash
+VM_USER="ubuntu"
+VM_HOST="SEU_IP_AQUI"
+SSH_KEY="~/.ssh/id_rsa"
+```
+
+### Rodar o deploy
+
+A partir da sua máquina local:
+
+```bash
+bash deploy.sh
+```
+
+O script faz o build, copia os artefatos e o `.env.production` para a VM, instala as dependências e reinicia o processo pm2.
+
+### HTTPS (quando tiver domínio)
+
+Na VM, atualize `server_name _` para `server_name seu-dominio.com` em `/etc/nginx/sites-available/pedidos-csa`, depois:
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d seu-dominio.com
 ```
