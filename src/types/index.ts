@@ -18,6 +18,7 @@ export interface User {
   disabled?: boolean
   deleted?: boolean
   mustChangePassword?: boolean
+  quinzenalParity?: 'par' | 'impar'
 }
 
 export interface Producer {

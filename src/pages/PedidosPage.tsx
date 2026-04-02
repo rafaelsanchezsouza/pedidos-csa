@@ -6,7 +6,7 @@ import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getWeekDelivery, getPresentWeekId, isFixoWeek } from '@/lib/weekUtils'
+import { getWeekDelivery, getPresentWeekId, isUserDeliveryWeek } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
 
 export function PedidosPage() {
@@ -19,9 +19,7 @@ export function PedidosPage() {
   const [message, setMessage] = useState('')
 
   const [weekId, setWeekId] = useState(getPresentWeekId())
-  const quinzenal = user?.frequency === 'quinzenal'
-  const fixoThisWeek = isFixoWeek(weekId)
-  const showFixo = !quinzenal || fixoThisWeek
+  const showFixo = user ? isUserDeliveryWeek(user, weekId) : true
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -126,7 +124,7 @@ export function PedidosPage() {
         <WeekNavigator weekId={weekId} onChange={setWeekId} />
       </div>
 
-      {quinzenal && !fixoThisWeek && (
+      {user?.frequency === 'quinzenal' && !showFixo && (
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="py-3 text-sm text-amber-800">
             Esta semana você não recebe itens fixos (frequência quinzenal). Apenas extras estão disponíveis.

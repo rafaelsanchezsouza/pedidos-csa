@@ -216,13 +216,14 @@ export function AdminPage() {
                 <TableHead>E-mail</TableHead>
                 <TableHead>Função</TableHead>
                 <TableHead>Frequência</TableHead>
+                <TableHead>Semana</TableHead>
                 <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.filter((u) => !u.deleted).length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     Nenhum usuário encontrado.
                   </TableCell>
                 </TableRow>
@@ -240,6 +241,11 @@ export function AdminPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="capitalize">{u.frequency}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {u.frequency === 'quinzenal'
+                        ? u.quinzenalParity === 'impar' ? 'A (ímpares)' : u.quinzenalParity === 'par' ? 'B (pares)' : '—'
+                        : '—'}
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => openEditUserRole(u)} title="Alterar função">

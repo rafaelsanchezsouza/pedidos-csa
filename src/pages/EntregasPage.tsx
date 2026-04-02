@@ -4,7 +4,8 @@ import { ordersApi, usersApi } from '@/services/api'
 import type { Order, User } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getWeekStart, weekOptions, isFixoWeek } from '@/lib/weekUtils'
+import { getWeekStart, isFixoWeek, isUserDeliveryWeek } from '@/lib/weekUtils'
+import { WeekNavigator } from '@/components/WeekNavigator'
 
 export function EntregasPage() {
   const { colmeia } = useAuth()
@@ -36,7 +37,7 @@ export function EntregasPage() {
   const activeUsers = users.filter((u) => {
     if (u.disabled || u.deleted) return false
     if (u.role === 'admin' || u.role === 'superadmin') return false
-    if (u.frequency === 'quinzenal' && !fixoThisWeek) return false
+    if (!isUserDeliveryWeek(u, weekId)) return false
     return true
   })
 
@@ -116,15 +117,7 @@ export function EntregasPage() {
             {fixoThisWeek ? 'Semana de fixo (quinzenais recebem)' : 'Semana sem fixo (quinzenais não recebem)'}
           </p>
         </div>
-        <select
-          value={weekId}
-          onChange={(e) => setWeekId(e.target.value)}
-          className="border rounded px-2 py-1 text-sm"
-        >
-          {weekOptions().map((w) => (
-            <option key={w} value={w}>{w}</option>
-          ))}
-        </select>
+        <WeekNavigator weekId={weekId} onChange={setWeekId} />
       </div>
 
       {activeUsers.length === 0 ? (
