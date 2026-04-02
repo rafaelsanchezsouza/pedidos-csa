@@ -1,12 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, UserCircle, History, Truck } from 'lucide-react'
+import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, UserCircle, Truck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 
 const navItems = [
   { to: '/pedidos', label: 'Meus Pedidos', icon: ShoppingCart, adminOnly: false },
   { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard, adminOnly: false },
-  { to: '/historico', label: 'Histórico', icon: History, adminOnly: false },
   { to: '/entregas', label: 'Entregas', icon: Truck, adminOnly: true },
   { to: '/perfil', label: 'Meu Perfil', icon: UserCircle, adminOnly: false },
   { to: '/ofertas', label: 'Ofertas da Semana', icon: Wheat, adminOnly: true },
