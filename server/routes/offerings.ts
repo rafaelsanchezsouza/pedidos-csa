@@ -49,11 +49,13 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.post('/parse', async (req: Request, res: Response) => {
   try {
-    const { rawMessage, colmeiaId } = req.body as { rawMessage: string; colmeiaId: string }
+    const { rawMessage, colmeiaId, producerId } = req.body as { rawMessage: string; colmeiaId: string; producerId?: string }
     const id = colmeiaId || req.colmeiaId
     if (!id) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
 
-    const existingProducts = await listDocs<ProductDoc>('products', [['colmeiaId', '==', id]])
+    const productFilters: Array<[string, FirebaseFirestore.WhereFilterOp, unknown]> = [['colmeiaId', '==', id]]
+    if (producerId) productFilters.push(['producerId', '==', producerId])
+    const existingProducts = await listDocs<ProductDoc>('products', productFilters)
     const catalog = existingProducts.map((p) => ({ id: p.id, name: p.name, unit: p.unit, price: p.price }))
     const parsed = await parseProducerMessage(rawMessage, catalog)
 
@@ -61,7 +63,7 @@ router.post('/parse', async (req: Request, res: Response) => {
     const priceMap = new Map(catalog.map((p) => [p.id, p.price]))
     const enriched = parsed.map((item) => ({
       ...item,
-      price: item.price === 0 && item.matchedProductId ? (priceMap.get(item.matchedProductId) ?? 0) : item.price,
+      price: item.matchedProductId ? (priceMap.get(item.matchedProductId) ?? item.price) : item.price,
     }))
     res.json(enriched)
   } catch (err) {
@@ -129,14 +131,21 @@ router.post('/fallback', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data = req.body as Omit<OfferingDoc, 'dateCreated'>
-    const existingProducts = await listDocs<ProductDoc>('products', [['colmeiaId', '==', data.colmeiaId]])
-    const catalogIds = new Set(existingProducts.map((p) => p.id))
+    const existingProducts = await listDocs<ProductDoc>('products', [
+      ['colmeiaId', '==', data.colmeiaId],
+      ['producerId', '==', data.producerId],
+    ])
+    const catalogMap = new Map(existingProducts.map((p) => [p.id, { name: p.name }]))
     const dateUpdated = new Date().toISOString()
 
-    // Resolve itens: cria produtos novos quando não existirem no catálogo
+    // Resolve itens: normaliza nome pelo catálogo e atualiza preço/unidade; cria produto novo quando não existir
     const resolvedItems: OfferingItem[] = await Promise.all(
       data.items.map(async (item) => {
-        if (catalogIds.has(item.productId)) return item
+        const cat = catalogMap.get(item.productId)
+        if (cat) {
+          await updateDoc<ProductDoc>('products', item.productId, { price: item.price, unit: item.unit, dateUpdated })
+          return { ...item, productName: cat.name }
+        }
         const created = await createDoc<ProductDoc>('products', {
           name: item.productName,
           unit: item.unit,
@@ -149,12 +158,13 @@ router.post('/', async (req: Request, res: Response) => {
       })
     )
 
-    // Atualiza preço no catálogo para itens matched com preço informado
-    await Promise.all(
-      resolvedItems
-        .filter((i) => i.price > 0 && catalogIds.has(i.productId))
-        .map((i) => updateDoc<ProductDoc>('products', i.productId, { price: i.price, dateUpdated }))
-    )
+    // Deduplica por productId (mesmo produto pode vir com nomes diferentes na mensagem)
+    const seen = new Set<string>()
+    const deduped = resolvedItems.filter((i) => {
+      if (seen.has(i.productId)) return false
+      seen.add(i.productId)
+      return true
+    })
 
     // Substitui se já existir oferta do mesmo produtor na mesma semana
     const existing = await listDocs<OfferingDoc>('weekly_offerings', [
@@ -166,14 +176,14 @@ router.post('/', async (req: Request, res: Response) => {
     let offering
     if (existing[0]) {
       await updateDoc<OfferingDoc>('weekly_offerings', existing[0].id, {
-        items: resolvedItems,
+        items: deduped,
         rawMessage: data.rawMessage,
       })
-      offering = { ...existing[0], items: resolvedItems, rawMessage: data.rawMessage }
+      offering = { ...existing[0], items: deduped, rawMessage: data.rawMessage }
     } else {
       offering = await createDoc<OfferingDoc>('weekly_offerings', {
         ...data,
-        items: resolvedItems,
+        items: deduped,
         dateCreated: new Date().toISOString(),
       })
     }

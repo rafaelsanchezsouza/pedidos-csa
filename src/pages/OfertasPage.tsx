@@ -116,7 +116,7 @@ export function OfertasPage() {
     if (!colmeia || !rawMessage.trim()) return
     setParsing(true)
     try {
-      const result = await offeringsApi.parse(rawMessage, colmeia.id)
+      const result = await offeringsApi.parse(rawMessage, colmeia.id, selectedProducerId)
       setParsed(result)
     } finally {
       setParsing(false)

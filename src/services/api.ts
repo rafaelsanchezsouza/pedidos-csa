@@ -60,10 +60,10 @@ export const offeringsApi = {
     request<WeeklyOffering>('/offerings', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
   update: (id: string, data: Partial<WeeklyOffering>, colmeiaId: string) =>
     request<WeeklyOffering>(`/offerings/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
-  parse: (rawMessage: string, colmeiaId: string) =>
+  parse: (rawMessage: string, colmeiaId: string, producerId: string) =>
     request<ParsedProduct[]>('/offerings/parse', {
       method: 'POST',
-      body: JSON.stringify({ rawMessage, colmeiaId }),
+      body: JSON.stringify({ rawMessage, colmeiaId, producerId }),
     }, colmeiaId),
   fallback: (weekStart: string, colmeiaId: string, producerId?: string) =>
     request<WeeklyOffering[]>('/offerings/fallback', {

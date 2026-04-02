@@ -41,6 +41,7 @@ export function CatalogoPage() {
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [filterProducer, setFilterProducer] = useState('todos')
+  const [filterName, setFilterName] = useState('')
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -104,6 +105,7 @@ export function CatalogoPage() {
 
   const visibleProducts = products
     .filter((p) => filterProducer === 'todos' || p.producerId === filterProducer)
+    .filter((p) => !filterName.trim() || p.name.toLowerCase().includes(filterName.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
@@ -117,17 +119,25 @@ export function CatalogoPage() {
         </Button>
       </div>
 
-      <Select value={filterProducer} onValueChange={setFilterProducer}>
-        <SelectTrigger className="w-56">
-          <SelectValue placeholder="Todos os produtores" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="todos">Todos os produtores</SelectItem>
-          {producers.map((p) => (
-            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex gap-3">
+        <Select value={filterProducer} onValueChange={setFilterProducer}>
+          <SelectTrigger className="w-56">
+            <SelectValue placeholder="Todos os produtores" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os produtores</SelectItem>
+            {producers.map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          placeholder="Buscar por nome..."
+          value={filterName}
+          onChange={(e) => setFilterName(e.target.value)}
+          className="w-56"
+        />
+      </div>
 
       <Table>
         <TableHeader>
