@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, UserCircle, Truck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { ReportarProblema } from '@/components/ReportarProblema'
 
 const navItems = [
   { to: '/pedidos', label: 'Meus Pedidos', icon: ShoppingCart, adminOnly: false },
@@ -45,6 +46,10 @@ export function Sidebar() {
             </NavLink>
           ))}
       </nav>
+
+      <div className="border-t py-2">
+        <ReportarProblema />
+      </div>
     </aside>
   )
 }

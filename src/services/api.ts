@@ -96,6 +96,11 @@ export const paymentsApi = {
     request<Payment>(`/payments/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
 }
 
+export const issuesApi = {
+  create: (data: { title: string; body: string }) =>
+    request<{ url: string; number: number }>('/issues', { method: 'POST', body: JSON.stringify(data) }),
+}
+
 export const usersApi = {
   getMe: (colmeiaId?: string) => request<User>('/users/me', {}, colmeiaId),
   updateMe: (data: Partial<User>, colmeiaId?: string) =>
