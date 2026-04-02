@@ -71,8 +71,6 @@ export function ConsolidadoPage() {
 
   const sentOrders = orders.filter((o) => o.status === 'enviado')
 
-  if (loading) return <div className="text-muted-foreground">Carregando...</div>
-
   return (
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
@@ -91,7 +89,9 @@ export function ConsolidadoPage() {
         </select>
       </div>
 
-      {offerings.length === 0 ? (
+      {loading ? (
+        <div className="py-8 text-center text-muted-foreground">Carregando...</div>
+      ) : offerings.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             Nenhuma oferta registrada para esta semana.

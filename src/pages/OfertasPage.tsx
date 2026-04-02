@@ -165,8 +165,6 @@ export function OfertasPage() {
     }
   }
 
-  if (loading) return <div className="text-muted-foreground">Carregando...</div>
-
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
@@ -193,67 +191,73 @@ export function OfertasPage() {
         </div>
       </div>
 
-      {/* Produtores sem oferta nesta semana */}
-      {producers
-        .filter((p) => !offerings.some((o) => o.producerId === p.id))
-        .map((p) => (
-          <Card key={p.id} className="border-dashed opacity-70">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg text-muted-foreground">{p.name}</CardTitle>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleFallback(p.id)}
-                  disabled={fallingBack === p.id}
-                >
-                  <History className="mr-2 h-4 w-4" />
-                  {fallingBack === p.id ? 'Copiando...' : 'Usar semana anterior'}
-                </Button>
-                <Button size="sm" onClick={() => openDialog(p.id)}>
-                  <Plus className="mr-2 h-4 w-4" /> Nova Oferta
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Sem oferta para esta semana.</p>
-            </CardContent>
-          </Card>
-        ))}
-
-      {offerings.length === 0 && producers.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Nenhuma oferta cadastrada para esta semana.
-          </CardContent>
-        </Card>
+      {loading ? (
+        <div className="py-8 text-center text-muted-foreground">Carregando...</div>
       ) : (
-        offerings.map((off) => (
-          <Card key={off.id}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg">{off.producerName}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => openEdit(off)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {off.items.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span>{item.productName}</span>
-                      <span className="text-muted-foreground">({item.unit})</span>
-                      <Badge variant={item.type === 'fixo' ? 'default' : 'secondary'} className="text-xs">
-                        {item.type}
-                      </Badge>
-                    </div>
-                    <span className="font-medium">R$ {item.price.toFixed(2)}</span>
+        <>
+          {/* Produtores sem oferta nesta semana */}
+          {producers
+            .filter((p) => !offerings.some((o) => o.producerId === p.id))
+            .map((p) => (
+              <Card key={p.id} className="border-dashed opacity-70">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-lg text-muted-foreground">{p.name}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleFallback(p.id)}
+                      disabled={fallingBack === p.id}
+                    >
+                      <History className="mr-2 h-4 w-4" />
+                      {fallingBack === p.id ? 'Copiando...' : 'Usar semana anterior'}
+                    </Button>
+                    <Button size="sm" onClick={() => openDialog(p.id)}>
+                      <Plus className="mr-2 h-4 w-4" /> Nova Oferta
+                    </Button>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Sem oferta para esta semana.</p>
+                </CardContent>
+              </Card>
+            ))}
+
+          {offerings.length === 0 && producers.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Nenhuma oferta cadastrada para esta semana.
+              </CardContent>
+            </Card>
+          ) : (
+            offerings.map((off) => (
+              <Card key={off.id}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-lg">{off.producerName}</CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(off)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {off.items.map((item, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span>{item.productName}</span>
+                          <span className="text-muted-foreground">({item.unit})</span>
+                          <Badge variant={item.type === 'fixo' ? 'default' : 'secondary'} className="text-xs">
+                            {item.type}
+                          </Badge>
+                        </div>
+                        <span className="font-medium">R$ {item.price.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
