@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Plus, Wand2, Check, X, History, Pencil } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi } from '@/services/api'
-import { getWeekStart } from '@/lib/weekUtils'
+import { getWeekStart, getWeekDelivery, weekOptions } from '@/lib/weekUtils'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,7 +43,7 @@ export function OfertasPage() {
   const [fallingBack, setFallingBack] = useState<string | null>(null)
   const [editing, setEditing] = useState<WeeklyOffering | null>(null)
 
-  const weekId = getWeekStart()
+  const [weekId, setWeekId] = useState(getWeekStart())
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -174,9 +174,20 @@ export function OfertasPage() {
           <h1 className="text-2xl font-bold">Ofertas da Semana</h1>
           <p className="text-muted-foreground text-sm">Semana de {weekId}</p>
         </div>
-        <Button onClick={openDialog}>
-          <Plus className="mr-2" /> Nova Oferta
-        </Button>
+        <div className="flex items-center gap-3">
+          <select
+            value={weekId}
+            onChange={(e) => setWeekId(e.target.value)}
+            className="border rounded px-2 py-1 text-sm"
+          >
+            {weekOptions().map((w) => (
+              <option key={w} value={w}>{getWeekDelivery(w)}</option>
+            ))}
+          </select>
+          <Button onClick={openDialog}>
+            <Plus className="mr-2" /> Nova Oferta
+          </Button>
+        </div>
       </div>
 
       {/* Produtores sem oferta nesta semana */}
