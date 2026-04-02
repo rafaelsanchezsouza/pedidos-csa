@@ -58,8 +58,8 @@ export function OfertasPage() {
       setOfferings(offs)
       setProducers(prods)
       setProducts(prdsrs)
-    } catch (err) {
-      console.error('[OfertasPage] erro:', err)
+    } catch {
+      // silencioso — erros de carregamento não são exibidos ao usuário aqui
     } finally {
       setLoading(false)
     }
