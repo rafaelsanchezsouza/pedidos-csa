@@ -12,6 +12,7 @@ vite.config.d.ts
 .env
 .env.local
 .env.*.local
+deploy.env
 
 # Editor
 .vscode/

@@ -28,6 +28,7 @@ interface ProductDoc {
   price: number
   producerId: string
   colmeiaId: string
+  dateUpdated: string
 }
 
 router.get('/', async (req: Request, res: Response) => {

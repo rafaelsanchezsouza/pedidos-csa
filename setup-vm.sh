@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Rodar UMA VEZ na VM: bash setup-vm.sh
+# Rodar UMA VEZ na VM: bash setup-vm.sh [dominio-ou-ip]
+# Exemplo: bash setup-vm.sh 140.238.182.233
 set -euo pipefail
 
 APP_DIR="/opt/pedidos-csa"
 NGINX_CONF="/etc/nginx/sites-available/pedidos-csa"
+SERVER_NAME="${1:-_}"
 
 echo "==> [1/5] Instalando Node.js 22..."
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
@@ -18,25 +20,30 @@ sudo mkdir -p "$APP_DIR"
 sudo chown "$USER:$USER" "$APP_DIR"
 
 echo "==> [4/5] Configurando nginx..."
-sudo tee "$NGINX_CONF" > /dev/null <<'EOF'
+sudo tee "$NGINX_CONF" > /dev/null <<EOF
 server {
     listen 80;
-    server_name _;
+    server_name $SERVER_NAME;
+
+    # Headers de segurança
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     # Frontend (SPA)
     root /opt/pedidos-csa/dist;
     index index.html;
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files \$uri \$uri/ /index.html;
     }
 
     # Backend
     location /api/ {
         proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
 }
 EOF
