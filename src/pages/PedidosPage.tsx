@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, ordersApi } from '@/services/api'
 import type { WeeklyOffering, Order, OrderItem } from '@/types'
-import { Minus, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getWeekStart, getWeekDelivery, getPresentWeekId, shiftWeek, isFixoWeek, weekOptions } from '@/lib/weekUtils'
+import { getWeekDelivery, getPresentWeekId, isFixoWeek } from '@/lib/weekUtils'
+import { WeekNavigator } from '@/components/WeekNavigator'
 
 export function PedidosPage() {
   const { user, colmeia } = useAuth()
@@ -122,25 +123,7 @@ export function PedidosPage() {
           </div>
           <p className="text-muted-foreground text-sm">Entrega em {getWeekDelivery(weekId)}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekId(shiftWeek(weekId, -1))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <select
-              value={weekId}
-              onChange={(e) => setWeekId(e.target.value)}
-              className="border rounded px-2 py-1 text-sm"
-            >
-              {weekOptions().map((w) => (
-                <option key={w} value={w}>{getWeekDelivery(w)}</option>
-              ))}
-            </select>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekId(shiftWeek(weekId, 1))} disabled={weekId >= getPresentWeekId()}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <WeekNavigator weekId={weekId} onChange={setWeekId} />
       </div>
 
       {quinzenal && !fixoThisWeek && (

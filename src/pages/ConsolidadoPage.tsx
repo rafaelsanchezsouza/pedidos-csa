@@ -5,28 +5,12 @@ import type { WeeklyOffering, Order } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-
-function getWeekStart(date = new Date()): string {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  return d.toISOString().split('T')[0]
-}
-
-function weekOptions(): string[] {
-  const weeks: string[] = []
-  const d = new Date()
-  for (let i = 0; i < 8; i++) {
-    weeks.push(getWeekStart(d))
-    d.setDate(d.getDate() - 7)
-  }
-  return weeks
-}
+import { getPresentWeekId, getWeekDelivery } from '@/lib/weekUtils'
+import { WeekNavigator } from '@/components/WeekNavigator'
 
 export function ConsolidadoPage() {
   const { colmeia } = useAuth()
-  const [weekId, setWeekId] = useState(getWeekStart())
+  const [weekId, setWeekId] = useState(getPresentWeekId())
   const [offerings, setOfferings] = useState<WeeklyOffering[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,17 +60,9 @@ export function ConsolidadoPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Consolidado</h1>
-          <p className="text-muted-foreground text-sm">{sentOrders.length} pedido(s) enviado(s)</p>
+          <p className="text-muted-foreground text-sm">Entrega em {getWeekDelivery(weekId)} · {sentOrders.length} pedido(s) enviado(s)</p>
         </div>
-        <select
-          value={weekId}
-          onChange={(e) => setWeekId(e.target.value)}
-          className="border rounded px-2 py-1 text-sm"
-        >
-          {weekOptions().map((w) => (
-            <option key={w} value={w}>{w}</option>
-          ))}
-        </select>
+        <WeekNavigator weekId={weekId} onChange={setWeekId} />
       </div>
 
       {loading ? (

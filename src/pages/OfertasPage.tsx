@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Wand2, Check, X, History, Pencil, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Wand2, Check, X, History, Pencil } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi } from '@/services/api'
-import { getWeekStart, getWeekDelivery, getPresentWeekId, shiftWeek, weekOptions } from '@/lib/weekUtils'
+import { getWeekDelivery, getPresentWeekId } from '@/lib/weekUtils'
+import { WeekNavigator } from '@/components/WeekNavigator'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -172,23 +173,7 @@ export function OfertasPage() {
           <h1 className="text-2xl font-bold">Ofertas da Semana</h1>
           <p className="text-muted-foreground text-sm">Entrega em {getWeekDelivery(weekId)}</p>
         </div>
-        <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekId(shiftWeek(weekId, -1))}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <select
-            value={weekId}
-            onChange={(e) => setWeekId(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
-          >
-            {weekOptions().map((w) => (
-              <option key={w} value={w}>{getWeekDelivery(w)}</option>
-            ))}
-          </select>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekId(shiftWeek(weekId, 1))} disabled={weekId >= getPresentWeekId()}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+        <WeekNavigator weekId={weekId} onChange={setWeekId} />
       </div>
 
       {loading ? (
