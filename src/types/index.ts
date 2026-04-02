@@ -17,6 +17,7 @@ export interface User {
   role: 'admin' | 'user' | 'superadmin' | 'produtor'
   disabled?: boolean
   deleted?: boolean
+  mustChangePassword?: boolean
 }
 
 export interface Producer {

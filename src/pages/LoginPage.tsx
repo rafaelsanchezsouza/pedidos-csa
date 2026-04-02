@@ -34,7 +34,7 @@ export function LoginPage() {
     try {
       await login(email, password)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao entrar')
+      setError('E-mail ou senha inválidos.')
     } finally {
       setSubmitting(false)
     }

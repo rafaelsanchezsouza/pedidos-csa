@@ -23,6 +23,29 @@ export function isFixoWeek(weekStart: string): boolean {
   return getISOWeekNumber(weekStart) % 2 === 1
 }
 
+// Retorna a quarta-feira da semana (dia de entrega) a partir do weekStart (segunda)
+export function getWeekDelivery(weekStart: string): string {
+  const d = new Date(weekStart + 'T12:00:00')
+  d.setDate(d.getDate() + 2)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
+// Semana presente usando domingo como início (se hoje é domingo, semana começa na próxima segunda)
+export function getPresentWeekId(): string {
+  const d = new Date()
+  if (d.getDay() === 0) d.setDate(d.getDate() + 1)
+  return getWeekStart(d)
+}
+
+export function shiftWeek(weekStart: string, delta: number): string {
+  const d = new Date(weekStart + 'T12:00:00')
+  d.setDate(d.getDate() + delta * 7)
+  return getWeekStart(d)
+}
+
 export function weekOptions(count = 8): string[] {
   const weeks: string[] = []
   const d = new Date()

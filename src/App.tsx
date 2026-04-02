@@ -11,6 +11,7 @@ import { PagamentosPage } from '@/pages/PagamentosPage'
 import { PerfilPage } from '@/pages/PerfilPage'
 import { HistoricoPage } from '@/pages/HistoricoPage'
 import { EntregasPage } from '@/pages/EntregasPage'
+import { DefinirSenhaPage } from '@/pages/DefinirSenhaPage'
 import { ReactNode } from 'react'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
@@ -18,6 +19,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; 
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>
   if (!firebaseUser || !colmeia) return <Navigate to="/login" replace />
+  if (user?.mustChangePassword) return <Navigate to="/definir-senha" replace />
   if (adminOnly && user?.role !== 'admin' && user?.role !== 'superadmin') {
     return <Navigate to="/pedidos" replace />
   }
@@ -38,6 +40,7 @@ function AppRoutes() {
         }
       />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/definir-senha" element={<DefinirSenhaPage />} />
       <Route
         element={
           <ProtectedRoute>

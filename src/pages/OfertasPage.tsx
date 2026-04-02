@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { Plus, Wand2, Check, X, History, Pencil } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi } from '@/services/api'
-import { getWeekStart } from '@/lib/weekUtils'
+import { getWeekDelivery, getPresentWeekId } from '@/lib/weekUtils'
+import { WeekNavigator } from '@/components/WeekNavigator'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,7 +44,7 @@ export function OfertasPage() {
   const [fallingBack, setFallingBack] = useState<string | null>(null)
   const [editing, setEditing] = useState<WeeklyOffering | null>(null)
 
-  const weekId = getWeekStart()
+  const [weekId, setWeekId] = useState(getPresentWeekId())
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -57,8 +58,8 @@ export function OfertasPage() {
       setOfferings(offs)
       setProducers(prods)
       setProducts(prdsrs)
-    } catch (err) {
-      console.error('[OfertasPage] erro:', err)
+    } catch {
+      // silencioso — erros de carregamento não são exibidos ao usuário aqui
     } finally {
       setLoading(false)
     }
@@ -78,9 +79,9 @@ export function OfertasPage() {
     }
   }, [producers, searchParams, setSearchParams])
 
-  function openDialog() {
+  function openDialog(producerId = '') {
     setEditing(null)
-    setSelectedProducerId('')
+    setSelectedProducerId(producerId)
     setRawMessage('')
     setParsed(null)
     setDialogOpen(true)
@@ -115,7 +116,7 @@ export function OfertasPage() {
     if (!colmeia || !rawMessage.trim()) return
     setParsing(true)
     try {
-      const result = await offeringsApi.parse(rawMessage, colmeia.id)
+      const result = await offeringsApi.parse(rawMessage, colmeia.id, selectedProducerId)
       setParsed(result)
     } finally {
       setParsing(false)
@@ -165,76 +166,83 @@ export function OfertasPage() {
     }
   }
 
-  if (loading) return <div className="text-muted-foreground">Carregando...</div>
-
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Ofertas da Semana</h1>
-          <p className="text-muted-foreground text-sm">Semana de {weekId}</p>
+          <p className="text-muted-foreground text-sm">Entrega em {getWeekDelivery(weekId)}</p>
         </div>
-        <Button onClick={openDialog}>
-          <Plus className="mr-2" /> Nova Oferta
-        </Button>
+        <WeekNavigator weekId={weekId} onChange={setWeekId} />
       </div>
 
-      {/* Produtores sem oferta nesta semana */}
-      {producers
-        .filter((p) => !offerings.some((o) => o.producerId === p.id))
-        .map((p) => (
-          <Card key={p.id} className="border-dashed opacity-70">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg text-muted-foreground">{p.name}</CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleFallback(p.id)}
-                disabled={fallingBack === p.id}
-              >
-                <History className="mr-2 h-4 w-4" />
-                {fallingBack === p.id ? 'Copiando...' : 'Usar semana anterior'}
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Sem oferta para esta semana.</p>
-            </CardContent>
-          </Card>
-        ))}
-
-      {offerings.length === 0 && producers.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Nenhuma oferta cadastrada para esta semana.
-          </CardContent>
-        </Card>
+      {loading ? (
+        <div className="py-8 text-center text-muted-foreground">Carregando...</div>
       ) : (
-        offerings.map((off) => (
-          <Card key={off.id}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg">{off.producerName}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => openEdit(off)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {off.items.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span>{item.productName}</span>
-                      <span className="text-muted-foreground">({item.unit})</span>
-                      <Badge variant={item.type === 'fixo' ? 'default' : 'secondary'} className="text-xs">
-                        {item.type}
-                      </Badge>
-                    </div>
-                    <span className="font-medium">R$ {item.price.toFixed(2)}</span>
+        <>
+          {/* Produtores sem oferta nesta semana */}
+          {producers
+            .filter((p) => !offerings.some((o) => o.producerId === p.id))
+            .map((p) => (
+              <Card key={p.id} className="border-dashed opacity-70">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-lg text-muted-foreground">{p.name}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleFallback(p.id)}
+                      disabled={fallingBack === p.id}
+                    >
+                      <History className="mr-2 h-4 w-4" />
+                      {fallingBack === p.id ? 'Copiando...' : 'Usar semana anterior'}
+                    </Button>
+                    <Button size="sm" onClick={() => openDialog(p.id)}>
+                      <Plus className="mr-2 h-4 w-4" /> Nova Oferta
+                    </Button>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Sem oferta para esta semana.</p>
+                </CardContent>
+              </Card>
+            ))}
+
+          {offerings.length === 0 && producers.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Nenhuma oferta cadastrada para esta semana.
+              </CardContent>
+            </Card>
+          ) : (
+            offerings.map((off) => (
+              <Card key={off.id}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-lg">{off.producerName}</CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(off)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {off.items.map((item, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span>{item.productName}</span>
+                          <span className="text-muted-foreground">({item.unit})</span>
+                          <Badge variant={item.type === 'fixo' ? 'default' : 'secondary'} className="text-xs">
+                            {item.type}
+                          </Badge>
+                        </div>
+                        <span className="font-medium">R$ {item.price.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -260,6 +268,7 @@ export function OfertasPage() {
             <div className="space-y-2">
               <Label>Mensagem do WhatsApp</Label>
               <Textarea
+                autoFocus
                 value={rawMessage}
                 onChange={(e) => setRawMessage(e.target.value)}
                 placeholder="Cole aqui a mensagem do produtor..."

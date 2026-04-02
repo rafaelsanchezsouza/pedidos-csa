@@ -14,6 +14,7 @@
 - Formato conventional commits (feat/fix/refactor/docs/chore)
 - **Sem** co-authorship footer do Claude
 - Ao commitar mudança que altera rotas, modelos ou comportamento → atualizar doc relevante no mesmo commit
+- Quando regra de negócio for discutida e decidida → atualizar `BUSINESS_RULES.md` no mesmo commit
 
 ## Planos
 - Ao final de cada plano: lista de perguntas não resolvidas (extremamente concisas)

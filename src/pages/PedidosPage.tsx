@@ -6,7 +6,8 @@ import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getWeekStart, isFixoWeek } from '@/lib/weekUtils'
+import { getWeekDelivery, getPresentWeekId, isFixoWeek } from '@/lib/weekUtils'
+import { WeekNavigator } from '@/components/WeekNavigator'
 
 export function PedidosPage() {
   const { user, colmeia } = useAuth()
@@ -17,7 +18,7 @@ export function PedidosPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
-  const weekId = getWeekStart()
+  const [weekId, setWeekId] = useState(getPresentWeekId())
   const quinzenal = user?.frequency === 'quinzenal'
   const fixoThisWeek = isFixoWeek(weekId)
   const showFixo = !quinzenal || fixoThisWeek
@@ -25,6 +26,7 @@ export function PedidosPage() {
   const load = useCallback(async () => {
     if (!colmeia) return
     setLoading(true)
+    setQuantities({})
     try {
       const [offs, myOrder] = await Promise.all([
         offeringsApi.list(weekId, colmeia.id),
@@ -107,20 +109,21 @@ export function PedidosPage() {
       .reduce((s, item) => s + item.price * (quantities[qtyKey(off.id, item.productId)] || 0), 0)
   }, 0)
 
-  if (loading) return <div className="text-muted-foreground">Carregando...</div>
-
   return (
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Pedido da Semana</h1>
-          <p className="text-muted-foreground text-sm">Semana de {weekId}</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Pedido da Semana</h1>
+            {order && (
+              <Badge variant={order.status === 'enviado' ? 'default' : 'secondary'}>
+                {order.status === 'enviado' ? 'Enviado' : 'Rascunho'}
+              </Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm">Entrega em {getWeekDelivery(weekId)}</p>
         </div>
-        {order && (
-          <Badge variant={order.status === 'enviado' ? 'default' : 'secondary'}>
-            {order.status === 'enviado' ? 'Enviado' : 'Rascunho'}
-          </Badge>
-        )}
+        <WeekNavigator weekId={weekId} onChange={setWeekId} />
       </div>
 
       {quinzenal && !fixoThisWeek && (
@@ -131,7 +134,9 @@ export function PedidosPage() {
         </Card>
       )}
 
-      {offerings.length === 0 ? (
+      {loading ? (
+        <div className="py-8 text-center text-muted-foreground">Carregando...</div>
+      ) : offerings.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             Nenhuma oferta disponível para esta semana.
@@ -182,7 +187,7 @@ export function PedidosPage() {
         })
       )}
 
-      {offerings.length > 0 && (
+      {!loading && offerings.length > 0 && (
         <div className="flex items-center justify-between pt-2">
           <div className="text-lg font-semibold">
             Total: R$ {total.toFixed(2)}
