@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Wand2, Check, X, History, Pencil } from 'lucide-react'
+import { Plus, Wand2, Check, X, History, Pencil, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi } from '@/services/api'
-import { getWeekStart, getWeekDelivery, weekOptions } from '@/lib/weekUtils'
+import { getWeekStart, getWeekDelivery, getPresentWeekId, shiftWeek, weekOptions } from '@/lib/weekUtils'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,7 +43,7 @@ export function OfertasPage() {
   const [fallingBack, setFallingBack] = useState<string | null>(null)
   const [editing, setEditing] = useState<WeeklyOffering | null>(null)
 
-  const [weekId, setWeekId] = useState(getWeekStart())
+  const [weekId, setWeekId] = useState(getPresentWeekId())
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -78,9 +78,9 @@ export function OfertasPage() {
     }
   }, [producers, searchParams, setSearchParams])
 
-  function openDialog() {
+  function openDialog(producerId = '') {
     setEditing(null)
-    setSelectedProducerId('')
+    setSelectedProducerId(producerId)
     setRawMessage('')
     setParsed(null)
     setDialogOpen(true)
@@ -172,9 +172,12 @@ export function OfertasPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Ofertas da Semana</h1>
-          <p className="text-muted-foreground text-sm">Semana de {weekId}</p>
+          <p className="text-muted-foreground text-sm">Entrega em {getWeekDelivery(weekId)}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekId(shiftWeek(weekId, -1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
           <select
             value={weekId}
             onChange={(e) => setWeekId(e.target.value)}
@@ -184,8 +187,8 @@ export function OfertasPage() {
               <option key={w} value={w}>{getWeekDelivery(w)}</option>
             ))}
           </select>
-          <Button onClick={openDialog}>
-            <Plus className="mr-2" /> Nova Oferta
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekId(shiftWeek(weekId, 1))} disabled={weekId >= getPresentWeekId()}>
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -197,15 +200,20 @@ export function OfertasPage() {
           <Card key={p.id} className="border-dashed opacity-70">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg text-muted-foreground">{p.name}</CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleFallback(p.id)}
-                disabled={fallingBack === p.id}
-              >
-                <History className="mr-2 h-4 w-4" />
-                {fallingBack === p.id ? 'Copiando...' : 'Usar semana anterior'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleFallback(p.id)}
+                  disabled={fallingBack === p.id}
+                >
+                  <History className="mr-2 h-4 w-4" />
+                  {fallingBack === p.id ? 'Copiando...' : 'Usar semana anterior'}
+                </Button>
+                <Button size="sm" onClick={() => openDialog(p.id)}>
+                  <Plus className="mr-2 h-4 w-4" /> Nova Oferta
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">Sem oferta para esta semana.</p>
@@ -271,6 +279,7 @@ export function OfertasPage() {
             <div className="space-y-2">
               <Label>Mensagem do WhatsApp</Label>
               <Textarea
+                autoFocus
                 value={rawMessage}
                 onChange={(e) => setRawMessage(e.target.value)}
                 placeholder="Cole aqui a mensagem do produtor..."

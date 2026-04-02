@@ -33,6 +33,19 @@ export function getWeekDelivery(weekStart: string): string {
   return `${y}-${m}-${dd}`
 }
 
+// Semana presente usando domingo como início (se hoje é domingo, semana começa na próxima segunda)
+export function getPresentWeekId(): string {
+  const d = new Date()
+  if (d.getDay() === 0) d.setDate(d.getDate() + 1)
+  return getWeekStart(d)
+}
+
+export function shiftWeek(weekStart: string, delta: number): string {
+  const d = new Date(weekStart + 'T12:00:00')
+  d.setDate(d.getDate() + delta * 7)
+  return getWeekStart(d)
+}
+
 export function weekOptions(count = 8): string[] {
   const weeks: string[] = []
   const d = new Date()

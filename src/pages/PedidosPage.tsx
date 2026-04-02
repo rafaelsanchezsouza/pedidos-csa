@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, ordersApi } from '@/services/api'
 import type { WeeklyOffering, Order, OrderItem } from '@/types'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getWeekStart, getWeekDelivery, isFixoWeek, weekOptions } from '@/lib/weekUtils'
+import { getWeekStart, getWeekDelivery, getPresentWeekId, shiftWeek, isFixoWeek, weekOptions } from '@/lib/weekUtils'
 
 export function PedidosPage() {
   const { user, colmeia } = useAuth()
@@ -17,7 +17,7 @@ export function PedidosPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
-  const [weekId, setWeekId] = useState(getWeekStart())
+  const [weekId, setWeekId] = useState(getPresentWeekId())
   const quinzenal = user?.frequency === 'quinzenal'
   const fixoThisWeek = isFixoWeek(weekId)
   const showFixo = !quinzenal || fixoThisWeek
@@ -113,24 +113,34 @@ export function PedidosPage() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Pedido da Semana</h1>
-          <p className="text-muted-foreground text-sm">Semana de {weekId}</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Pedido da Semana</h1>
+            {order && (
+              <Badge variant={order.status === 'enviado' ? 'default' : 'secondary'}>
+                {order.status === 'enviado' ? 'Enviado' : 'Rascunho'}
+              </Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm">Entrega em {getWeekDelivery(weekId)}</p>
         </div>
         <div className="flex items-center gap-3">
-          <select
-            value={weekId}
-            onChange={(e) => setWeekId(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
-          >
-            {weekOptions().map((w) => (
-              <option key={w} value={w}>{getWeekDelivery(w)}</option>
-            ))}
-          </select>
-          {order && (
-            <Badge variant={order.status === 'enviado' ? 'default' : 'secondary'}>
-              {order.status === 'enviado' ? 'Enviado' : 'Rascunho'}
-            </Badge>
-          )}
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekId(shiftWeek(weekId, -1))}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <select
+              value={weekId}
+              onChange={(e) => setWeekId(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+            >
+              {weekOptions().map((w) => (
+                <option key={w} value={w}>{getWeekDelivery(w)}</option>
+              ))}
+            </select>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekId(shiftWeek(weekId, 1))} disabled={weekId >= getPresentWeekId()}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
