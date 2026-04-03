@@ -98,7 +98,7 @@ export function CatalogoPage() {
   async function handleDelete(id: string) {
     if (!colmeia || !confirm('Excluir este produto?')) return
     await productsApi.delete(id, colmeia.id)
-    await load()
+    setProducts((prev) => prev.filter((p) => p.id !== id))
   }
 
   const producerName = (id: string) => producers.find((p) => p.id === id)?.name ?? '-'
