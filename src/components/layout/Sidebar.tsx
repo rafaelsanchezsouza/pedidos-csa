@@ -1,23 +1,25 @@
 import { NavLink } from 'react-router-dom'
-import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, UserCircle, Truck } from 'lucide-react'
+import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, UserCircle, Truck, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { ReportarProblema } from '@/components/ReportarProblema'
 
 const navItems = [
-  { to: '/pedidos', label: 'Meus Pedidos', icon: ShoppingCart, adminOnly: false },
-  { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard, adminOnly: false },
-  { to: '/entregas', label: 'Entregas', icon: Truck, adminOnly: true },
-  { to: '/perfil', label: 'Meu Perfil', icon: UserCircle, adminOnly: false },
-  { to: '/ofertas', label: 'Ofertas da Semana', icon: Wheat, adminOnly: true },
-  { to: '/consolidado', label: 'Consolidado', icon: ClipboardList, adminOnly: true },
-  { to: '/catalogo', label: 'Catálogo', icon: BookOpen, adminOnly: true },
-  { to: '/admin', label: 'Administração', icon: Settings, adminOnly: true },
+  { to: '/pedidos', label: 'Meus Pedidos', icon: ShoppingCart, adminOnly: false, produtorVisible: false },
+  { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard, adminOnly: false, produtorVisible: false },
+  { to: '/verificar-pagamentos', label: 'Verificar Pagamentos', icon: CheckCircle, adminOnly: true, produtorVisible: true },
+  { to: '/entregas', label: 'Entregas', icon: Truck, adminOnly: true, produtorVisible: false },
+  { to: '/perfil', label: 'Meu Perfil', icon: UserCircle, adminOnly: false, produtorVisible: false },
+  { to: '/ofertas', label: 'Ofertas da Semana', icon: Wheat, adminOnly: true, produtorVisible: false },
+  { to: '/consolidado', label: 'Consolidado', icon: ClipboardList, adminOnly: true, produtorVisible: false },
+  { to: '/catalogo', label: 'Catálogo', icon: BookOpen, adminOnly: true, produtorVisible: false },
+  { to: '/admin', label: 'Administração', icon: Settings, adminOnly: true, produtorVisible: false },
 ]
 
 export function Sidebar() {
   const { user, colmeia } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
+  const isProdutor = user?.role === 'produtor'
 
   return (
     <aside className="w-56 border-r bg-background flex flex-col">
@@ -29,7 +31,7 @@ export function Sidebar() {
       )}
       <nav className="flex-1 py-2">
         {navItems
-          .filter((item) => !item.adminOnly || isAdmin)
+          .filter((item) => !item.adminOnly || isAdmin || (item.produtorVisible && isProdutor))
           .map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}

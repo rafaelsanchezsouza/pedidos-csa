@@ -8,6 +8,7 @@ export function useUploadProof() {
     userId: string,
     month: string
   ): Promise<string> {
+    if (file.size > 5 * 1024 * 1024) throw new Error('Arquivo muito grande. Máximo: 5 MB.')
     const path = `comprovantes/${colmeiaId}/${userId}/${month}/${file.name}`
     const storageRef = ref(storage, path)
     await uploadBytes(storageRef, file)

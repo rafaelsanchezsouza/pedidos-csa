@@ -37,7 +37,7 @@ firebase-debug.log
 *-firebase-adminsdk-*.json
 
 # Claude Code
-.claude/settings.local.json
+.claude/
 
 # Ambientes separados
 .env.development
@@ -47,3 +47,4 @@ firebase-debug.log
 coverage/
 mensagem_produtor_*.txt
 users/
+
