@@ -25,6 +25,7 @@ export function PerfilPage() {
       setForm({
         name: user.name,
         address: user.address,
+        neighborhood: user.neighborhood,
         contact: user.contact,
         frequency: user.frequency,
         deliveryType: user.deliveryType,
@@ -70,6 +71,10 @@ export function PerfilPage() {
             <Input value={form.address ?? ''} onChange={(e) => set('address', e.target.value)} />
           </div>
           <div className="space-y-1">
+            <Label>Bairro</Label>
+            <Input value={form.neighborhood ?? ''} onChange={(e) => set('neighborhood', e.target.value)} />
+          </div>
+          <div className="space-y-1">
             <Label>Contato (WhatsApp)</Label>
             <Input value={form.contact ?? ''} onChange={(e) => set('contact', e.target.value)} placeholder="+55 11 99999-9999" />
           </div>
@@ -100,7 +105,7 @@ export function PerfilPage() {
             <div className="space-y-1">
               <Label>Ciclo quinzenal</Label>
               <p className="text-sm text-muted-foreground">
-                {user.quinzenalParity === 'impar' ? 'Semana A (ímpares)' : 'Semana B (pares)'}
+                {user.quinzenalParity === 'impar' ? 'Semana A' : 'Semana B'}
               </p>
             </div>
           )}

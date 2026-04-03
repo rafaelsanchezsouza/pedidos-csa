@@ -10,6 +10,7 @@ export interface User {
   name: string
   email: string
   address: string
+  neighborhood?: string
   contact: string
   frequency: 'semanal' | 'quinzenal'
   deliveryType: 'colmeia' | 'entrega'

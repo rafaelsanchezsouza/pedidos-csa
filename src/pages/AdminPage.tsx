@@ -33,6 +33,7 @@ interface MemberForm {
   email: string
   password: string
   address: string
+  neighborhood: string
   contact: string
   frequency: User['frequency']
   deliveryType: User['deliveryType']
@@ -40,7 +41,7 @@ interface MemberForm {
   quota: User['quota']
 }
 const emptyMemberForm: MemberForm = {
-  name: '', email: '', password: '', address: '', contact: '',
+  name: '', email: '', password: '', address: '', neighborhood: '', contact: '',
   frequency: 'semanal', deliveryType: 'colmeia', role: 'user', quota: 'Cota inteira',
 }
 
@@ -61,11 +62,11 @@ export function AdminPage() {
   const [producerForm, setProducerForm] = useState<ProducerForm>(emptyProducerForm)
   const [savingProducer, setSavingProducer] = useState(false)
 
-  // Role dialog
-  const [userRoleDialog, setUserRoleDialog] = useState(false)
+  // Edit member dialog
+  const [editDialog, setEditDialog] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [newRole, setNewRole] = useState<User['role']>('user')
-  const [savingUser, setSavingUser] = useState(false)
+  const [editForm, setEditForm] = useState<Partial<User>>({})
+  const [savingEdit, setSavingEdit] = useState(false)
 
   // New member dialog
   const [memberDialog, setMemberDialog] = useState(false)
@@ -129,24 +130,38 @@ export function AdminPage() {
     await load()
   }
 
-  // --- Role ---
-  function openEditUserRole(u: User) {
+  // --- Editar membro ---
+  function openEditMember(u: User) {
     setEditingUser(u)
-    setNewRole(u.role)
-    setUserRoleDialog(true)
+    setEditForm({
+      name: u.name,
+      address: u.address,
+      neighborhood: u.neighborhood,
+      contact: u.contact,
+      frequency: u.frequency,
+      quinzenalParity: u.quinzenalParity,
+      deliveryType: u.deliveryType,
+      role: u.role,
+      quota: u.quota,
+    })
+    setEditDialog(true)
   }
 
-  async function handleSaveUserRole() {
+  async function handleSaveEdit() {
     if (!editingUser || !colmeia) return
-    setSavingUser(true)
+    setSavingEdit(true)
     try {
-      await usersApi.update(editingUser.id, { role: newRole }, colmeia.id)
-      setUserRoleDialog(false)
+      await usersApi.update(editingUser.id, editForm, colmeia.id)
+      setEditDialog(false)
       await load()
       await refreshUser()
     } finally {
-      setSavingUser(false)
+      setSavingEdit(false)
     }
+  }
+
+  function setEdit(field: keyof User, value: string) {
+    setEditForm((prev) => ({ ...prev, [field]: value }))
   }
 
   // --- Disable / Delete usuário ---
@@ -244,12 +259,12 @@ export function AdminPage() {
                     <TableCell className="capitalize">{u.frequency}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {u.frequency === 'quinzenal'
-                        ? u.quinzenalParity === 'impar' ? 'A (ímpares)' : u.quinzenalParity === 'par' ? 'B (pares)' : '—'
+                        ? u.quinzenalParity === 'impar' ? 'A' : u.quinzenalParity === 'par' ? 'B' : '—'
                         : '—'}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEditUserRole(u)} title="Alterar função">
+                        <Button variant="ghost" size="icon" onClick={() => openEditMember(u)} title="Editar membro">
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)} title={u.disabled ? 'Habilitar' : 'Desabilitar'}>
@@ -359,9 +374,15 @@ export function AdminPage() {
                 <Input value={memberForm.contact} onChange={(e) => setMember('contact', e.target.value)} placeholder="+55 11 99999-9999" />
               </div>
             </div>
-            <div className="space-y-1">
-              <Label>Endereço</Label>
-              <Input value={memberForm.address} onChange={(e) => setMember('address', e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Endereço</Label>
+                <Input value={memberForm.address} onChange={(e) => setMember('address', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>Bairro</Label>
+                <Input value={memberForm.neighborhood} onChange={(e) => setMember('neighborhood', e.target.value)} />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -432,29 +453,91 @@ export function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: editar role */}
-      <Dialog open={userRoleDialog} onOpenChange={setUserRoleDialog}>
+      {/* Dialog: editar membro */}
+      <Dialog open={editDialog} onOpenChange={setEditDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Alterar Função — {editingUser?.name}</DialogTitle>
+            <DialogTitle>Editar — {editingUser?.name}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Função</Label>
-              <Select value={newRole} onValueChange={(v) => setNewRole(v as User['role'])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Membro</SelectItem>
-                  <SelectItem value="produtor">Produtor</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>Nome</Label>
+              <Input value={editForm.name ?? ''} onChange={(e) => setEdit('name', e.target.value)} />
             </div>
+            <div className="space-y-1">
+              <Label>Endereço</Label>
+              <Input value={editForm.address ?? ''} onChange={(e) => setEdit('address', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Bairro</Label>
+              <Input value={editForm.neighborhood ?? ''} onChange={(e) => setEdit('neighborhood', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Contato</Label>
+              <Input value={editForm.contact ?? ''} onChange={(e) => setEdit('contact', e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Função</Label>
+                <Select value={editForm.role} onValueChange={(v) => setEdit('role', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Membro</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="produtor">Produtor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Cota</Label>
+                <Select value={editForm.quota ?? 'Cota inteira'} onValueChange={(v) => setEdit('quota', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cota inteira">Cota inteira</SelectItem>
+                    <SelectItem value="Meia cota">Meia cota</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Frequência</Label>
+                <Select value={editForm.frequency} onValueChange={(v) => setEdit('frequency', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="semanal">Semanal</SelectItem>
+                    <SelectItem value="quinzenal">Quinzenal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Retirada</Label>
+                <Select value={editForm.deliveryType} onValueChange={(v) => setEdit('deliveryType', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="colmeia">Na colmeia</SelectItem>
+                    <SelectItem value="entrega">Entrega</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {editForm.frequency === 'quinzenal' && (
+              <div className="space-y-1">
+                <Label>Ciclo quinzenal</Label>
+                <Select value={editForm.quinzenalParity ?? ''} onValueChange={(v) => setEdit('quinzenalParity', v)}>
+                  <SelectTrigger><SelectValue placeholder="Não definido" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="impar">Semana A</SelectItem>
+                    <SelectItem value="par">Semana B</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUserRoleDialog(false)}>Cancelar</Button>
-            <Button onClick={handleSaveUserRole} disabled={savingUser}>
-              {savingUser ? 'Salvando...' : 'Salvar'}
+            <Button variant="outline" onClick={() => setEditDialog(false)}>Cancelar</Button>
+            <Button onClick={handleSaveEdit} disabled={savingEdit}>
+              {savingEdit ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
         </DialogContent>

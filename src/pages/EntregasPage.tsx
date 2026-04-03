@@ -49,8 +49,6 @@ export function EntregasPage() {
   const orderByUser = new Map<string, Order>()
   orders.forEach((o) => orderByUser.set(o.userId, o))
 
-  // Agrupar por tipo de retirada
-  const porColmeia = activeUsers.filter((u) => u.deliveryType === 'colmeia')
   const porEntrega = activeUsers.filter((u) => u.deliveryType === 'entrega')
 
   function buildReport(): string {
@@ -61,7 +59,7 @@ export function EntregasPage() {
     function userLines(list: User[]): string {
       return list.map((u) => {
         const order = orderByUser.get(u.id)
-        const lines = [u.name, u.quota, u.address, u.contact]
+        const lines = [u.name, '--------------------------', u.quota, u.neighborhood, u.address, u.contact]
         if (order?.status === 'enviado' && order.items.length > 0) {
           order.items.forEach((i) => lines.push(`- ${i.qty} ${i.unit} ${i.productName}`))
         }
@@ -71,12 +69,9 @@ export function EntregasPage() {
 
     const parts: string[] = [`Entregas — ${dataStr}`]
     if (porEntrega.length > 0) {
-      parts.push(`ENTREGA EM DOMICILIO\n\n${userLines(porEntrega)}`)
+      parts.push(userLines(porEntrega))
     }
-    if (porColmeia.length > 0) {
-      parts.push(`RETIRADA NA COLMEIA\n\n${userLines(porColmeia)}`)
-    }
-    return parts.join('\n\n---\n\n')
+    return parts.join('\n\n')
   }
 
   async function handleCopy(text: string) {
@@ -191,10 +186,7 @@ export function EntregasPage() {
           </CardContent>
         </Card>
       ) : (
-        <>
-          <DeliveryGroup title="Retirada na Colmeia" userList={porColmeia} />
-          <DeliveryGroup title="Entrega em Domicílio" userList={porEntrega} />
-        </>
+        <DeliveryGroup title="Entrega em Domicílio" userList={porEntrega} />
       )}
     </div>
   )
