@@ -15,6 +15,7 @@ interface UserDoc {
   role: 'admin' | 'user' | 'superadmin' | 'produtor'
   disabled?: boolean
   deleted?: boolean
+  quota?: 'Cota inteira' | 'Meia cota'
 }
 
 router.get('/me', async (req: Request, res: Response) => {

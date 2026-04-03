@@ -19,6 +19,7 @@ export interface User {
   deleted?: boolean
   mustChangePassword?: boolean
   quinzenalParity?: 'par' | 'impar'
+  quota?: 'Cota inteira' | 'Meia cota'
 }
 
 export interface Producer {

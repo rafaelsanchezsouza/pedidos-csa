@@ -37,10 +37,11 @@ interface MemberForm {
   frequency: User['frequency']
   deliveryType: User['deliveryType']
   role: User['role']
+  quota: User['quota']
 }
 const emptyMemberForm: MemberForm = {
   name: '', email: '', password: '', address: '', contact: '',
-  frequency: 'semanal', deliveryType: 'colmeia', role: 'user',
+  frequency: 'semanal', deliveryType: 'colmeia', role: 'user', quota: 'Cota inteira',
 }
 
 const roleLabel: Record<User['role'], string> = {
@@ -372,7 +373,7 @@ export function AdminPage() {
                 <Input type="password" value={memberForm.password} onChange={(e) => setMember('password', e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Função</Label>
                 <Select value={memberForm.role} onValueChange={(v) => setMember('role', v)}>
@@ -384,6 +385,18 @@ export function AdminPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <Label>Cota</Label>
+                <Select value={memberForm.quota ?? 'Cota inteira'} onValueChange={(v) => setMember('quota', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cota inteira">Cota inteira</SelectItem>
+                    <SelectItem value="Meia cota">Meia cota</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Frequência</Label>
                 <Select value={memberForm.frequency} onValueChange={(v) => setMember('frequency', v)}>

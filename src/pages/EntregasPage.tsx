@@ -4,7 +4,9 @@ import { ordersApi, usersApi } from '@/services/api'
 import type { Order, User } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getWeekStart, isFixoWeek, isUserDeliveryWeek } from '@/lib/weekUtils'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
 
 export function EntregasPage() {
@@ -13,6 +15,8 @@ export function EntregasPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -36,7 +40,7 @@ export function EntregasPage() {
   // Usuários que devem receber esta semana
   const activeUsers = users.filter((u) => {
     if (u.disabled || u.deleted) return false
-    if (u.role === 'admin' || u.role === 'superadmin') return false
+    if (u.role === 'produtor') return false
     if (!isUserDeliveryWeek(u, weekId)) return false
     return true
   })
@@ -48,6 +52,38 @@ export function EntregasPage() {
   // Agrupar por tipo de retirada
   const porColmeia = activeUsers.filter((u) => u.deliveryType === 'colmeia')
   const porEntrega = activeUsers.filter((u) => u.deliveryType === 'entrega')
+
+  function buildReport(): string {
+    const delivery = getWeekDelivery(weekId)
+    const [y, m, d] = delivery.split('-')
+    const dataStr = `${d}/${m}/${y}`
+
+    function userLines(list: User[]): string {
+      return list.map((u) => {
+        const order = orderByUser.get(u.id)
+        const lines = [u.name, u.quota, u.address, u.contact]
+        if (order?.status === 'enviado' && order.items.length > 0) {
+          order.items.forEach((i) => lines.push(`- ${i.qty} ${i.unit} ${i.productName}`))
+        }
+        return lines.join('\n')
+      }).join('\n\n')
+    }
+
+    const parts: string[] = [`Entregas — ${dataStr}`]
+    if (porEntrega.length > 0) {
+      parts.push(`ENTREGA EM DOMICILIO\n\n${userLines(porEntrega)}`)
+    }
+    if (porColmeia.length > 0) {
+      parts.push(`RETIRADA NA COLMEIA\n\n${userLines(porColmeia)}`)
+    }
+    return parts.join('\n\n---\n\n')
+  }
+
+  async function handleCopy(text: string) {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   function DeliveryGroup({ title, userList }: { title: string; userList: User[] }) {
     if (userList.length === 0) return null
@@ -106,8 +142,6 @@ export function EntregasPage() {
     )
   }
 
-  if (loading) return <div className="text-muted-foreground">Carregando...</div>
-
   return (
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
@@ -117,10 +151,40 @@ export function EntregasPage() {
             {fixoThisWeek ? 'Semana de fixo (quinzenais recebem)' : 'Semana sem fixo (quinzenais não recebem)'}
           </p>
         </div>
-        <WeekNavigator weekId={weekId} onChange={setWeekId} />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => { setReportOpen(true); setCopied(false) }} disabled={loading || activeUsers.length === 0}>
+            Relatório
+          </Button>
+          <WeekNavigator weekId={weekId} onChange={setWeekId} />
+        </div>
       </div>
 
-      {activeUsers.length === 0 ? (
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Relatório de Entregas</DialogTitle>
+          </DialogHeader>
+          {reportOpen && (() => {
+            const text = buildReport()
+            return (
+              <div className="space-y-3">
+                <textarea
+                  readOnly
+                  value={text}
+                  className="w-full h-72 text-sm font-mono border rounded p-2 resize-none bg-muted"
+                />
+                <Button className="w-full" onClick={() => handleCopy(text)}>
+                  {copied ? 'Copiado!' : 'Copiar'}
+                </Button>
+              </div>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {loading ? (
+        <div className="py-8 text-center text-muted-foreground">Carregando...</div>
+      ) : activeUsers.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             Nenhum membro ativo para esta semana.

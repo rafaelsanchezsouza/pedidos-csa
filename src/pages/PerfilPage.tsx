@@ -96,6 +96,23 @@ export function PerfilPage() {
             </div>
           </div>
 
+          {user.frequency === 'quinzenal' && user.quinzenalParity && (
+            <div className="space-y-1">
+              <Label>Ciclo quinzenal</Label>
+              <p className="text-sm text-muted-foreground">
+                {user.quinzenalParity === 'impar' ? 'Semana A (ímpares)' : 'Semana B (pares)'}
+              </p>
+            </div>
+          )}
+          {user.quota && (
+            <div className="space-y-1">
+              <Label>Cota</Label>
+              <p className="text-sm text-muted-foreground">
+                {user.quota}
+              </p>
+            </div>
+          )}
+
           <div className="flex items-center gap-3 pt-2">
             <Button onClick={handleSave} disabled={saving}>
               {saving ? 'Salvando...' : 'Salvar'}
