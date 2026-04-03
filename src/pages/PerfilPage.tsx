@@ -54,7 +54,7 @@ export function PerfilPage() {
   if (!user) return null
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="max-w-3xl space-y-6">
       <h1 className="text-2xl font-bold">Meu Perfil</h1>
 
       <Card>

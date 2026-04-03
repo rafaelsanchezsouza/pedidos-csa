@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { paymentsApi } from '@/services/api'
+import { paymentsApi, ordersApi } from '@/services/api'
 import { useUploadProof } from '@/hooks/useUploadProof'
-import type { Payment, User } from '@/types'
+import type { Payment, User, Order, OrderItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { MonthNavigator } from '@/components/MonthNavigator'
+import { getWeekDelivery } from '@/lib/weekUtils'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
@@ -23,7 +25,80 @@ function statusVariant(p: Payment): 'default' | 'secondary' | 'destructive' {
   return 'destructive'
 }
 
-// --- Card de pagamento por produtor (usuário) ---
+// --- Helpers para breakdown semanal ---
+
+interface WeekGroup {
+  weekId: string
+  deliveryDate: string
+  items: OrderItem[]
+  subtotal: number
+}
+
+function groupOrdersByWeek(orders: Order[], producerName: string): WeekGroup[] {
+  const map = new Map<string, OrderItem[]>()
+  for (const order of orders) {
+    const relevant = order.items.filter((i) => i.producerName === producerName)
+    if (relevant.length === 0) continue
+    const existing = map.get(order.weekId) ?? []
+    map.set(order.weekId, [...existing, ...relevant])
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([weekId, items]) => ({
+      weekId,
+      deliveryDate: getWeekDelivery(weekId),
+      items,
+      subtotal: items.reduce((s, i) => s + i.price * i.qty, 0),
+    }))
+}
+
+function formatDate(isoDate: string): string {
+  const [, m, d] = isoDate.split('-')
+  return `${d}/${m}`
+}
+
+// --- Breakdown semanal ---
+
+function WeeklyBreakdown({ weeks }: { weeks: WeekGroup[] }) {
+  if (weeks.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-2">
+        Nenhum item encontrado para este produtor neste mês.
+      </p>
+    )
+  }
+  return (
+    <div className="space-y-4 pt-2">
+      {weeks.map((week) => (
+        <div key={week.weekId} className="border-t pt-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Entrega {formatDate(week.deliveryDate)}
+          </p>
+          <table className="w-full text-sm">
+            <tbody>
+              {week.items.map((item, idx) => (
+                <tr key={idx}>
+                  <td className="py-0.5">{item.productName}</td>
+                  <td className="py-0.5 text-center text-muted-foreground">
+                    {item.qty} {item.unit}
+                  </td>
+                  <td className="py-0.5 text-right text-muted-foreground">
+                    R$ {(item.price * item.qty).toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="text-right text-sm font-medium mt-1">
+            Subtotal: R$ {week.subtotal.toFixed(2)}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// --- Card de pagamento por produtor ---
 
 function PaymentCard({
   payment,
@@ -40,6 +115,9 @@ function PaymentCard({
 }) {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
+  const [expanded, setExpanded] = useState(false)
+  const [weeks, setWeeks] = useState<WeekGroup[] | null>(null)
+  const [loadingDetails, setLoadingDetails] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const { uploadProof } = useUploadProof()
 
@@ -58,6 +136,22 @@ function PaymentCard({
     }
   }
 
+  async function handleToggle() {
+    const next = !expanded
+    setExpanded(next)
+    if (next && weeks === null) {
+      setLoadingDetails(true)
+      try {
+        const orders = await ordersApi.getMonthly(month, colmeiaId)
+        setWeeks(groupOrdersByWeek(orders, payment.producerName))
+      } catch {
+        setWeeks([])
+      } finally {
+        setLoadingDetails(false)
+      }
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -69,12 +163,25 @@ function PaymentCard({
       <CardContent className="space-y-3">
         <div className="text-2xl font-bold">R$ {payment.amount.toFixed(2)}</div>
 
+        <button
+          onClick={handleToggle}
+          className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+        >
+          {expanded ? 'Ocultar detalhes ▲' : 'Ver detalhes ▼'}
+        </button>
+
+        {expanded && (
+          loadingDetails
+            ? <p className="text-sm text-muted-foreground py-2">Carregando...</p>
+            : <WeeklyBreakdown weeks={weeks ?? []} />
+        )}
+
         {payment.proofUrl && (
           <a
             href={payment.proofUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-blue-600 hover:underline"
+            className="text-sm text-blue-600 hover:underline block"
           >
             Ver comprovante enviado
           </a>
@@ -106,9 +213,9 @@ function PaymentCard({
   )
 }
 
-// --- Visão do usuário ---
+// --- Meus Pagamentos (todos os papéis) ---
 
-function UserPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
+function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
   const [month, setMonth] = useState(currentMonth())
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
@@ -127,21 +234,16 @@ function UserPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Meus Pagamentos</h1>
-        <input
-          type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className="border rounded px-2 py-1 text-sm"
-        />
+        <MonthNavigator month={month} onChange={setMonth} />
       </div>
 
       {payments.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            Nenhum pagamento para {month}. Envie um pedido para gerar faturas.
+            Nenhum pagamento para este mês. Envie um pedido para gerar faturas.
           </CardContent>
         </Card>
       ) : (
@@ -160,123 +262,10 @@ function UserPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
   )
 }
 
-// --- Visão do admin ---
-
-function AdminPayments({ colmeiaId }: { colmeiaId: string }) {
-  const [month, setMonth] = useState(currentMonth())
-  const [payments, setPayments] = useState<Payment[]>([])
-  const [loading, setLoading] = useState(true)
-  const [verifying, setVerifying] = useState<string | null>(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      setPayments(await paymentsApi.list(month, colmeiaId))
-    } finally {
-      setLoading(false)
-    }
-  }, [month, colmeiaId])
-
-  useEffect(() => { load() }, [load])
-
-  async function handleVerify(p: Payment) {
-    setVerifying(p.id)
-    try {
-      await paymentsApi.update(p.id, { verified: true }, colmeiaId)
-      await load()
-    } finally {
-      setVerifying(null)
-    }
-  }
-
-  if (loading) return <div className="text-muted-foreground">Carregando...</div>
-
-  return (
-    <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Pagamentos</h1>
-        <input
-          type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className="border rounded px-2 py-1 text-sm"
-        />
-      </div>
-
-      {payments.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Nenhum pagamento registrado para {month}.
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-muted-foreground">
-                  <th className="text-left px-4 py-3">Membro</th>
-                  <th className="text-left px-4 py-3">Produtor</th>
-                  <th className="text-right px-4 py-3">Valor</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Comprovante</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((p) => (
-                  <tr key={p.id} className="border-b last:border-0">
-                    <td className="px-4 py-3 font-medium">{p.userName}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.producerName}</td>
-                    <td className="px-4 py-3 text-right">R$ {p.amount.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge variant={statusVariant(p)}>{statusLabel(p)}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {p.proofUrl ? (
-                        <a
-                          href={p.proofUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          Ver
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {!p.verified && p.proofUrl && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={verifying === p.id}
-                          onClick={() => handleVerify(p)}
-                        >
-                          {verifying === p.id ? '...' : 'Verificar'}
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  )
-}
-
 // --- Entry point ---
 
 export function PagamentosPage() {
   const { user, colmeia } = useAuth()
   if (!user || !colmeia) return null
-
-  const isAdmin = user.role === 'admin' || user.role === 'superadmin'
-  return isAdmin
-    ? <AdminPayments colmeiaId={colmeia.id} />
-    : <UserPayments user={user} colmeiaId={colmeia.id} />
+  return <MyPayments user={user} colmeiaId={colmeia.id} />
 }

@@ -11,6 +11,7 @@ import { PagamentosPage } from '@/pages/PagamentosPage'
 import { PerfilPage } from '@/pages/PerfilPage'
 import { HistoricoPage } from '@/pages/HistoricoPage'
 import { EntregasPage } from '@/pages/EntregasPage'
+import { VerificarPagamentosPage } from '@/pages/VerificarPagamentosPage'
 import { DefinirSenhaPage } from '@/pages/DefinirSenhaPage'
 import { ReactNode } from 'react'
 
@@ -82,6 +83,7 @@ function AppRoutes() {
           }
         />
         <Route path="/pagamentos" element={<PagamentosPage />} />
+        <Route path="/verificar-pagamentos" element={<VerificarPagamentosPage />} />
         <Route path="/perfil" element={<PerfilPage />} />
         <Route path="/historico" element={<HistoricoPage />} />
         <Route

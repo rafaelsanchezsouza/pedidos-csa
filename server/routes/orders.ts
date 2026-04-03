@@ -124,6 +124,25 @@ router.get('/history', async (req: Request, res: Response) => {
   }
 })
 
+// GET /api/orders/monthly?month=YYYY-MM&colmeiaId= (pedidos enviados do mês do usuário autenticado)
+router.get('/monthly', async (req: Request, res: Response) => {
+  try {
+    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    const month = req.query.month as string
+    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
+    const orders = await listDocs<OrderDoc>('orders', [
+      ['userId', '==', req.user!.uid],
+      ['colmeiaId', '==', colmeiaId],
+    ])
+    const result = orders
+      .filter((o) => o.status === 'enviado' && o.weekId.startsWith(month))
+      .sort((a, b) => a.weekId.localeCompare(b.weekId))
+    res.json(result)
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data = req.body as Omit<OrderDoc, 'dateCreated' | 'dateUpdated'>

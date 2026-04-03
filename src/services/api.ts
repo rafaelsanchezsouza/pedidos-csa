@@ -85,6 +85,8 @@ export const ordersApi = {
     request<{ text: string }>(`/orders/consolidated-text?weekId=${weekId}&colmeiaId=${colmeiaId}&producerId=${producerId}`, {}, colmeiaId),
   getHistory: (colmeiaId: string, userId?: string) =>
     request<Order[]>(`/orders/history?colmeiaId=${colmeiaId}${userId ? `&userId=${userId}` : ''}`, {}, colmeiaId),
+  getMonthly: (month: string, colmeiaId: string) =>
+    request<Order[]>(`/orders/monthly?month=${month}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
 }
 
 export const paymentsApi = {
