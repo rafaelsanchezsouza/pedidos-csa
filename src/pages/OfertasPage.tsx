@@ -41,6 +41,7 @@ export function OfertasPage() {
   const [parsing, setParsing] = useState(false)
   const [parsed, setParsed] = useState<ParsedProduct[] | null>(null)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [fallingBack, setFallingBack] = useState<string | null>(null)
   const [editing, setEditing] = useState<WeeklyOffering | null>(null)
 
@@ -114,10 +115,13 @@ export function OfertasPage() {
 
   async function handleParse() {
     if (!colmeia || !rawMessage.trim()) return
+    setError(null)
     setParsing(true)
     try {
       const result = await offeringsApi.parse(rawMessage, colmeia.id, selectedProducerId)
       setParsed(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao interpretar mensagem')
     } finally {
       setParsing(false)
     }
@@ -137,6 +141,7 @@ export function OfertasPage() {
 
   async function handleSave() {
     if (!colmeia || !selectedProducerId || !parsed) return
+    setError(null)
     setSaving(true)
     try {
       const producer = producers.find((p) => p.id === selectedProducerId)
@@ -161,6 +166,8 @@ export function OfertasPage() {
       }
       setDialogOpen(false)
       await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar oferta')
     } finally {
       setSaving(false)
     }
@@ -245,7 +252,7 @@ export function OfertasPage() {
         </>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setError(null) }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Editar Oferta' : 'Nova Oferta'}</DialogTitle>
@@ -344,6 +351,9 @@ export function OfertasPage() {
               </div>
             )}
           </div>
+          {error && (
+            <p className="text-sm text-destructive px-1">{error}</p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button
