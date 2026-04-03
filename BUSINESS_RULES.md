@@ -17,7 +17,8 @@
 | `superadmin` | Acessa todas as colmeias |
 | `produtor` | (futuro) acesso específico para produtores |
 
-- Usuário informa: nome, endereço, contato, frequência (semanal/quinzenal), tipo de retirada (na colmeia ou por entrega)
+- Usuário informa: nome, endereço, contato, frequência (semanal/quinzenal), tipo de retirada (na colmeia ou por entrega), cota (inteira/meia)
+- Campo `quota: 'inteira' | 'meia'` — indica se o membro recebe cota completa ou metade; exibido no relatório de entregas e no perfil (somente leitura)
 
 ## Catálogo de Produtos
 
@@ -74,11 +75,13 @@
 ## Frequência Quinzenal
 
 - Usuários `semanal`: recebem itens fixos toda semana
-- Usuários `quinzenal`: recebem itens fixos apenas em **semanas ISO ímpares** (1, 3, 5...)
+- Usuários `quinzenal`: recebem itens fixos a cada duas semanas, conforme seu ciclo individual
 - Extras estão disponíveis para todos independente da frequência
-- Implementação: `isFixoWeek(weekStart) = getISOWeekNumber(weekStart) % 2 === 1`
-- Na página de pedidos: itens fixos são ocultados para quinzenais em semanas pares
-- Na visão de entregas: quinzenais são excluídos da lista em semanas sem fixo
+- Cada membro quinzenal tem `quinzenalParity: 'par' | 'impar'` definido no cadastro, derivado da data da última entrega informada no formulário
+- `impar` = recebe em semanas ISO ímpares (1, 3, 5...); `par` = recebe em semanas ISO pares (2, 4, 6...)
+- Implementação: `isUserDeliveryWeek(user, weekStart)` em `src/lib/weekUtils.ts`
+- Na página de pedidos: itens fixos são ocultados quando não é a semana de entrega do usuário
+- Na visão de entregas: quinzenais são excluídos da lista quando não é sua semana de entrega
 
 ## Pagamentos
 

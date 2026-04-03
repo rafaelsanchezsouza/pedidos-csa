@@ -10,6 +10,7 @@ export interface User {
   name: string
   email: string
   address: string
+  neighborhood?: string
   contact: string
   frequency: 'semanal' | 'quinzenal'
   deliveryType: 'colmeia' | 'entrega'
@@ -18,6 +19,8 @@ export interface User {
   disabled?: boolean
   deleted?: boolean
   mustChangePassword?: boolean
+  quinzenalParity?: 'par' | 'impar'
+  quota?: 'Cota inteira' | 'Meia cota'
 }
 
 export interface Producer {

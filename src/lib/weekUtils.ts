@@ -18,9 +18,21 @@ export function getISOWeekNumber(weekStart: string): number {
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
 }
 
-// Convenção: semanas ímpares = semana de fixo para usuários quinzenais
+// Convenção: semanas ímpares = semana de fixo para usuários quinzenais sem ciclo definido
 export function isFixoWeek(weekStart: string): boolean {
   return getISOWeekNumber(weekStart) % 2 === 1
+}
+
+// Determina se a semana é de entrega para o usuário considerando seu ciclo individual
+export function isUserDeliveryWeek(
+  user: { frequency: 'semanal' | 'quinzenal'; quinzenalParity?: 'par' | 'impar' },
+  weekStart: string
+): boolean {
+  if (user.frequency === 'semanal') return true
+  const odd = isFixoWeek(weekStart)
+  if (user.quinzenalParity === 'impar') return odd
+  if (user.quinzenalParity === 'par') return !odd
+  return odd // fallback: comportamento global (semanas ímpares)
 }
 
 // Retorna a quarta-feira da semana (dia de entrega) a partir do weekStart (segunda)
