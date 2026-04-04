@@ -1,25 +1,37 @@
 #!/usr/bin/env bash
-# Rodar UMA VEZ na VM: bash setup-vm.sh [dominio-ou-ip]
-# Exemplo: bash setup-vm.sh 140.238.182.233
+# Rodar UMA VEZ na VM: bash setup-vm.sh
 set -euo pipefail
 
 APP_DIR="/opt/pedidos-csa"
 NGINX_CONF="/etc/nginx/sites-available/pedidos-csa"
-SERVER_NAME="${1:-_}"
 
-echo "==> [1/5] Instalando Node.js 22..."
+# --- Perguntar sobre HTTPS ---
+read -rp "Configurar HTTPS com Let's Encrypt? (s/n): " HTTPS_RESP
+DOMAIN=""
+if [[ "$HTTPS_RESP" =~ ^[Ss]$ ]]; then
+  read -rp "Domínio (ex: csaparahyba.com.br): " DOMAIN
+  if [[ -z "$DOMAIN" ]]; then
+    echo "Domínio não informado. Continuando apenas com HTTP."
+  fi
+fi
+SERVER_NAME="${DOMAIN:-_}"
+
+echo "==> [1/6] Instalando Node.js 22..."
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
-echo "==> [2/5] Instalando nginx e pm2..."
-sudo apt-get install -y nginx
+echo "==> [2/6] Instalando nginx, pm2 e ferramentas..."
+sudo apt-get install -y nginx netfilter-persistent
 sudo npm install -g pm2
+if [[ -n "$DOMAIN" ]]; then
+  sudo apt-get install -y certbot python3-certbot-nginx
+fi
 
-echo "==> [3/5] Criando pasta da aplicação..."
+echo "==> [3/6] Criando pasta da aplicação..."
 sudo mkdir -p "$APP_DIR"
 sudo chown "$USER:$USER" "$APP_DIR"
 
-echo "==> [4/5] Configurando nginx..."
+echo "==> [4/6] Configurando nginx..."
 sudo tee "$NGINX_CONF" > /dev/null <<EOF
 server {
     listen 80;
@@ -54,10 +66,28 @@ sudo nginx -t
 sudo systemctl enable nginx
 sudo systemctl reload nginx
 
-echo "==> [5/5] Configurando pm2 para iniciar no boot..."
+echo "==> [5/6] Configurando pm2 para iniciar no boot..."
 pm2 startup | tail -1 | sudo bash
 pm2 save
+
+if [[ -n "$DOMAIN" ]]; then
+  echo "==> [6/6] Configurando HTTPS com Let's Encrypt..."
+  sudo iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+  sudo netfilter-persistent save
+  sudo certbot --nginx -d "$DOMAIN" -d "www.$DOMAIN" \
+    --non-interactive --agree-tos -m "admin@$DOMAIN"
+  echo ""
+  echo "HTTPS configurado em https://$DOMAIN"
+else
+  echo "==> [6/6] HTTPS ignorado (nenhum domínio fornecido)"
+fi
 
 echo ""
 echo "Setup concluído!"
 echo "Próximo passo: rode deploy.sh na sua máquina local."
+if [[ -n "$DOMAIN" ]]; then
+  echo ""
+  echo "ATENÇÃO: abra a porta 443 no Oracle Cloud Console:"
+  echo "  Networking → VCN → Security Lists → Add Ingress Rule"
+  echo "  Protocol: TCP | Destination Port: 443 | Source: 0.0.0.0/0"
+fi

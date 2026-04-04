@@ -40,4 +40,4 @@ $SSH "cd $VM_DIR && pm2 describe pedidos-csa > /dev/null 2>&1 \
   || pm2 start dist-server/index.js --name pedidos-csa && pm2 save"
 
 echo ""
-echo "Deploy concluído! App disponível em http://$VM_HOST"
+echo "Deploy concluído! App disponível em https://$VM_HOST"
