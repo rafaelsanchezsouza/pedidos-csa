@@ -364,7 +364,7 @@ export function AdminPage() {
             <DialogTitle>Novo Membro</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Nome</Label>
                 <Input value={memberForm.name} onChange={(e) => setMember('name', e.target.value)} />
@@ -374,7 +374,7 @@ export function AdminPage() {
                 <Input value={memberForm.contact} onChange={(e) => setMember('contact', e.target.value)} placeholder="+55 11 99999-9999" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Endereço</Label>
                 <Input value={memberForm.address} onChange={(e) => setMember('address', e.target.value)} />
@@ -384,7 +384,7 @@ export function AdminPage() {
                 <Input value={memberForm.neighborhood} onChange={(e) => setMember('neighborhood', e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>E-mail</Label>
                 <Input type="email" value={memberForm.email} onChange={(e) => setMember('email', e.target.value)} />
@@ -394,7 +394,7 @@ export function AdminPage() {
                 <Input type="password" value={memberForm.password} onChange={(e) => setMember('password', e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Função</Label>
                 <Select value={memberForm.role} onValueChange={(v) => setMember('role', v)}>
@@ -417,7 +417,7 @@ export function AdminPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Frequência</Label>
                 <Select value={memberForm.frequency} onValueChange={(v) => setMember('frequency', v)}>
@@ -476,7 +476,7 @@ export function AdminPage() {
               <Label>Contato</Label>
               <Input value={editForm.contact ?? ''} onChange={(e) => setEdit('contact', e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Função</Label>
                 <Select value={editForm.role} onValueChange={(v) => setEdit('role', v)}>
@@ -499,7 +499,7 @@ export function AdminPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Frequência</Label>
                 <Select value={editForm.frequency} onValueChange={(v) => setEdit('frequency', v)}>

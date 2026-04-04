@@ -166,12 +166,12 @@ export function PedidosPage() {
                     R$ {item.price.toFixed(2)}
                   </span>
                   <div className="flex items-center gap-1">
-                    <Button variant="outline" size="icon" className="h-8 w-8"
+                    <Button variant="outline" size="icon" className="h-10 w-10"
                       onClick={() => setQty(key, qty - 1)}>
                       <Minus className="h-3 w-3" />
                     </Button>
                     <span className="w-8 text-center text-sm font-medium tabular-nums">{qty}</span>
-                    <Button variant="outline" size="icon" className="h-8 w-8"
+                    <Button variant="outline" size="icon" className="h-10 w-10"
                       onClick={() => setQty(key, qty + 1)}>
                       <Plus className="h-3 w-3" />
                     </Button>

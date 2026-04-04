@@ -78,7 +78,7 @@ export function PerfilPage() {
             <Label>Contato (WhatsApp)</Label>
             <Input value={form.contact ?? ''} onChange={(e) => set('contact', e.target.value)} placeholder="+55 11 99999-9999" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label>Frequência</Label>
               <Select value={form.frequency} onValueChange={(v) => set('frequency', v)}>
