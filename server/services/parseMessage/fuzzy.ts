@@ -40,14 +40,9 @@ function bestMatch(name: string, products: ExistingProduct[]): string | undefine
 
   for (const p of products) {
     const score = similarity(name, p.name)
-    // also check if one contains the other
-    const na = normalize(name)
-    const nb = normalize(p.name)
-    const containsScore = na.includes(nb) || nb.includes(na) ? 0.85 : 0
-    const finalScore = Math.max(score, containsScore)
 
-    if (finalScore >= 0.7 && (!best || finalScore > best.score)) {
-      best = { id: p.id, score: finalScore }
+    if (score >= 0.7 && (!best || score > best.score)) {
+      best = { id: p.id, score }
     }
   }
 
