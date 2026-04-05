@@ -9,6 +9,7 @@ interface ColmeiaDoc {
   dateCreated: string
   quotaInteira?: number
   quotaMeia?: number
+  dueDay?: number
 }
 
 router.get('/', async (req: Request, res: Response) => {
@@ -48,6 +49,9 @@ router.post('/', async (req: Request, res: Response) => {
       name,
       adminId: req.user!.uid,
       dateCreated: new Date().toISOString(),
+      quotaInteira: 65,
+      quotaMeia: 40,
+      dueDay: 10,
     })
     res.status(201).json(colmeia)
   } catch (err) {
@@ -57,10 +61,11 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const { quotaInteira, quotaMeia } = req.body as { quotaInteira?: number; quotaMeia?: number }
+    const { quotaInteira, quotaMeia, dueDay } = req.body as { quotaInteira?: number; quotaMeia?: number; dueDay?: number }
     const updates: Partial<ColmeiaDoc> = {}
     if (quotaInteira !== undefined) updates.quotaInteira = quotaInteira
     if (quotaMeia !== undefined) updates.quotaMeia = quotaMeia
+    if (dueDay !== undefined) updates.dueDay = dueDay
     await updateDoc<ColmeiaDoc>('colmeias', req.params['id'] as string, updates)
     const colmeia = await getDoc<ColmeiaDoc>('colmeias', req.params['id'] as string)
     res.json(colmeia)

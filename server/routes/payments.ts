@@ -25,10 +25,79 @@ interface PaymentDoc {
   month: string
   producerName: string
   amount: number
+  dueDate?: string
   proofUrl?: string
   verified: boolean
   dateCreated: string
   dateUpdated: string
+}
+
+interface UserDoc {
+  name: string
+  quota?: string
+  frequency?: 'semanal' | 'quinzenal'
+  quinzenalParity?: 'par' | 'impar'
+}
+
+interface ColmeiaSettings {
+  quotaInteira?: number
+  quotaMeia?: number
+  dueDay?: number
+}
+
+// --- Utilitários de data ---
+
+function buildDueDate(month: string, type: 'cota' | 'extras', dueDay: number): string {
+  const [year, m] = month.split('-').map(Number)
+  let targetYear = year
+  let targetMonth: number
+  if (type === 'cota') {
+    targetMonth = m - 1
+    if (targetMonth === 0) { targetMonth = 12; targetYear-- }
+  } else {
+    targetMonth = m + 1
+    if (targetMonth === 13) { targetMonth = 1; targetYear++ }
+  }
+  return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`
+}
+
+function getISOWeekFromDate(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+}
+
+function countDeliveryWeeks(
+  month: string,
+  frequency: 'semanal' | 'quinzenal',
+  quinzenalParity?: 'par' | 'impar',
+): number {
+  const [year, monthNum] = month.split('-').map(Number)
+  let count = 0
+  const firstDay = new Date(year, monthNum - 1, 1)
+  const dayOfWeek = firstDay.getDay()
+  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  const cur = new Date(year, monthNum - 1, 1 + daysToMonday)
+  while (true) {
+    const wednesday = new Date(cur)
+    wednesday.setDate(cur.getDate() + 2)
+    if (wednesday.getFullYear() > year || (wednesday.getFullYear() === year && wednesday.getMonth() + 1 > monthNum)) break
+    if (wednesday.getMonth() + 1 === monthNum) {
+      if (frequency === 'semanal') {
+        count++
+      } else {
+        const isoWeek = getISOWeekFromDate(cur)
+        const isOdd = isoWeek % 2 === 1
+        if (quinzenalParity === 'impar' && isOdd) count++
+        else if (quinzenalParity === 'par' && !isOdd) count++
+        else if (!quinzenalParity && isOdd) count++ // fallback: semanas ímpares
+      }
+    }
+    cur.setDate(cur.getDate() + 7)
+  }
+  return count
 }
 
 // Recalcula e faz upsert dos PaymentDocs por produtor para o usuário/mês
@@ -38,9 +107,12 @@ export async function upsertPaymentsForOrder(
   colmeiaId: string,
   month: string,
 ) {
-  const orders = await listDocs<OrderDoc>('orders', [
-    ['userId', '==', userId],
-    ['colmeiaId', '==', colmeiaId],
+  const [orders, colmeiaDoc] = await Promise.all([
+    listDocs<OrderDoc>('orders', [
+      ['userId', '==', userId],
+      ['colmeiaId', '==', colmeiaId],
+    ]),
+    getDoc<ColmeiaSettings>('colmeias', colmeiaId),
   ])
   const monthOrders = orders.filter((o) => o.status === 'enviado' && o.weekId.startsWith(month))
 
@@ -58,9 +130,14 @@ export async function upsertPaymentsForOrder(
     ['colmeiaId', '==', colmeiaId],
     ['month', '==', month],
   ])
-  const existingByProducer = new Map(existing.map((p) => [p.producerName, p]))
+  // Nunca tocar em pagamentos de 'Cota' — são gerenciados separadamente
+  const existingByProducer = new Map(
+    existing.filter((p) => p.producerName !== 'Cota').map((p) => [p.producerName, p])
+  )
 
   const now = new Date().toISOString()
+  const dueDay = colmeiaDoc?.dueDay ?? 10
+  const dueDate = buildDueDate(month, 'extras', dueDay)
 
   // Upsert produtores com saldo > 0
   await Promise.all(
@@ -76,6 +153,7 @@ export async function upsertPaymentsForOrder(
           month,
           producerName,
           amount,
+          dueDate,
           verified: false,
           dateCreated: now,
           dateUpdated: now,
@@ -92,16 +170,6 @@ export async function upsertPaymentsForOrder(
   )
 }
 
-interface UserDoc {
-  name: string
-  quota?: string
-}
-
-interface ColmeiaSettings {
-  quotaInteira?: number
-  quotaMeia?: number
-}
-
 // POST /api/payments/quota — cria/atualiza pagamento de cota do mês
 router.post('/quota', async (req: Request, res: Response) => {
   try {
@@ -116,9 +184,19 @@ router.post('/quota', async (req: Request, res: Response) => {
     ])
     if (!userDoc?.quota) { res.status(400).json({ message: 'Usuário sem cota definida' }); return }
 
-    const amount = userDoc.quota === 'Meia cota'
-      ? (colmeiaDoc?.quotaMeia ?? 0)
-      : (colmeiaDoc?.quotaInteira ?? 0)
+    const weeklyRate = userDoc.quota === 'Meia cota'
+      ? (colmeiaDoc?.quotaMeia ?? 40)
+      : (colmeiaDoc?.quotaInteira ?? 65)
+
+    const weeks = countDeliveryWeeks(
+      month,
+      userDoc.frequency ?? 'semanal',
+      userDoc.quinzenalParity,
+    )
+    const amount = weeklyRate * weeks
+
+    const dueDay = colmeiaDoc?.dueDay ?? 10
+    const dueDate = buildDueDate(month, 'cota', dueDay)
 
     const existing = await listDocs<PaymentDoc>('payments', [
       ['userId', '==', uid],
@@ -130,8 +208,8 @@ router.post('/quota', async (req: Request, res: Response) => {
     const now = new Date().toISOString()
     if (existing.length > 0) {
       const prev = existing[0]
-      await updateDoc<PaymentDoc>('payments', prev.id, { amount, dateUpdated: now })
-      res.json({ ...prev, amount, dateUpdated: now })
+      await updateDoc<PaymentDoc>('payments', prev.id, { amount, dueDate, dateUpdated: now })
+      res.json({ ...prev, amount, dueDate, dateUpdated: now })
     } else {
       const created = await createDoc<PaymentDoc>('payments', {
         userId: uid,
@@ -140,6 +218,7 @@ router.post('/quota', async (req: Request, res: Response) => {
         month,
         producerName: 'Cota',
         amount,
+        dueDate,
         verified: false,
         dateCreated: now,
         dateUpdated: now,

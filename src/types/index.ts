@@ -5,6 +5,7 @@ export interface Colmeia {
   dateCreated: string
   quotaInteira?: number
   quotaMeia?: number
+  dueDay?: number
 }
 
 export interface User {
@@ -94,6 +95,7 @@ export interface Payment {
   proofUrl?: string
   verified: boolean
   amount: number
+  dueDate?: string
   dateCreated: string
   dateUpdated: string
 }

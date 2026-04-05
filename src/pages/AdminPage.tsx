@@ -58,8 +58,9 @@ export function AdminPage() {
   const [loading, setLoading] = useState(true)
 
   // Configurações de cota
-  const [quotaInteira, setQuotaInteira] = useState(String(colmeia?.quotaInteira ?? ''))
-  const [quotaMeia, setQuotaMeia] = useState(String(colmeia?.quotaMeia ?? ''))
+  const [quotaInteira, setQuotaInteira] = useState(String(colmeia?.quotaInteira ?? 65))
+  const [quotaMeia, setQuotaMeia] = useState(String(colmeia?.quotaMeia ?? 40))
+  const [dueDay, setDueDay] = useState(String(colmeia?.dueDay ?? 10))
   const [savingQuota, setSavingQuota] = useState(false)
   const [quotaMessage, setQuotaMessage] = useState('')
 
@@ -222,6 +223,7 @@ export function AdminPage() {
       await colmeiasApi.update(colmeia.id, {
         quotaInteira: parseFloat(quotaInteira) || 0,
         quotaMeia: parseFloat(quotaMeia) || 0,
+        dueDay: parseInt(dueDay) || 10,
       })
       await refreshUser()
       setQuotaMessage('Salvo!')
@@ -439,10 +441,10 @@ export function AdminPage() {
         <TabsContent value="configuracoes">
           <Card>
             <CardContent className="pt-6 space-y-4">
-              <h2 className="font-semibold">Valores de Cota Mensal</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <h2 className="font-semibold">Valores de Cota Semanal</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <Label>Cota inteira (R$)</Label>
+                  <Label>Cota inteira (R$/semana)</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -452,13 +454,23 @@ export function AdminPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Meia cota (R$)</Label>
+                  <Label>Meia cota (R$/semana)</Label>
                   <Input
                     type="number"
                     step="0.01"
                     min="0"
                     value={quotaMeia}
                     onChange={(e) => setQuotaMeia(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Dia de vencimento</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="28"
+                    value={dueDay}
+                    onChange={(e) => setDueDay(e.target.value)}
                   />
                 </div>
               </div>
