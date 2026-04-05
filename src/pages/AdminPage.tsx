@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -225,61 +226,111 @@ export function AdminPage() {
               <Plus className="mr-2 h-4 w-4" /> Novo Membro
             </Button>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>Função</TableHead>
-                <TableHead>Frequência</TableHead>
-                <TableHead>Semana</TableHead>
-                <TableHead className="w-20"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.filter((u) => !u.deleted).length === 0 ? (
+          {/* Desktop */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    Nenhum usuário encontrado.
-                  </TableCell>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>E-mail</TableHead>
+                  <TableHead>Função</TableHead>
+                  <TableHead>Frequência</TableHead>
+                  <TableHead>Semana</TableHead>
+                  <TableHead className="w-20"></TableHead>
                 </TableRow>
-              ) : (
-                users.filter((u) => !u.deleted).map((u) => (
-                  <TableRow key={u.id} className={u.disabled ? 'opacity-50' : ''}>
-                    <TableCell className="font-medium">
-                      {u.name}
-                      {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
+              </TableHeader>
+              <TableBody>
+                {users.filter((u) => !u.deleted).length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      Nenhum usuário encontrado.
                     </TableCell>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>
+                  </TableRow>
+                ) : (
+                  users.filter((u) => !u.deleted).map((u) => (
+                    <TableRow key={u.id} className={u.disabled ? 'opacity-50' : ''}>
+                      <TableCell className="font-medium">
+                        {u.name}
+                        {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
+                      </TableCell>
+                      <TableCell>{u.email}</TableCell>
+                      <TableCell>
+                        <Badge variant={u.role === 'admin' || u.role === 'superadmin' ? 'default' : 'secondary'}>
+                          {roleLabel[u.role]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="capitalize">{u.frequency}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {u.frequency === 'quinzenal'
+                          ? u.quinzenalParity === 'impar' ? 'A' : u.quinzenalParity === 'par' ? 'B' : '—'
+                          : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEditMember(u)} title="Editar membro">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)} title={u.disabled ? 'Habilitar' : 'Desabilitar'}>
+                            {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)} title="Excluir">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile */}
+          <div className="md:hidden space-y-3">
+            {users.filter((u) => !u.deleted).length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Nenhum usuário encontrado.
+                </CardContent>
+              </Card>
+            ) : (
+              users.filter((u) => !u.deleted).map((u) => (
+                <Card key={u.id} className={u.disabled ? 'opacity-50' : ''}>
+                  <CardContent className="py-3 px-4 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">
+                        {u.name}
+                        {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
+                      </span>
                       <Badge variant={u.role === 'admin' || u.role === 'superadmin' ? 'default' : 'secondary'}>
                         {roleLabel[u.role]}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="capitalize">{u.frequency}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {u.frequency === 'quinzenal'
-                        ? u.quinzenalParity === 'impar' ? 'A' : u.quinzenalParity === 'par' ? 'B' : '—'
-                        : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEditMember(u)} title="Editar membro">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)} title={u.disabled ? 'Habilitar' : 'Desabilitar'}>
-                          {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)} title="Excluir">
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                    </div>
+                    <div className="text-sm text-muted-foreground">{u.email}</div>
+                    <div className="text-sm text-muted-foreground capitalize">
+                      {u.frequency}
+                      {u.frequency === 'quinzenal' && (
+                        <span className="ml-1">
+                          · Semana {u.quinzenalParity === 'impar' ? 'A' : u.quinzenalParity === 'par' ? 'B' : '—'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-1 pt-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEditMember(u)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)}>
+                        {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="produtores">
@@ -288,30 +339,62 @@ export function AdminPage() {
               <Plus className="mr-2 h-4 w-4" /> Novo Produtor
             </Button>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Chave Pix</TableHead>
-                <TableHead className="w-24"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {producers.length === 0 ? (
+          {/* Desktop */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                    Nenhum produtor cadastrado.
-                  </TableCell>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Contato</TableHead>
+                  <TableHead>Chave Pix</TableHead>
+                  <TableHead className="w-24"></TableHead>
                 </TableRow>
-              ) : (
-                producers.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.name}</TableCell>
-                    <TableCell>{p.contact}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{p.pixKey || '—'}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
+              </TableHeader>
+              <TableBody>
+                {producers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                      Nenhum produtor cadastrado.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  producers.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-medium">{p.name}</TableCell>
+                      <TableCell>{p.contact}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{p.pixKey || '—'}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEditProducer(p)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteProducer(p.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile */}
+          <div className="md:hidden space-y-3">
+            {producers.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Nenhum produtor cadastrado.
+                </CardContent>
+              </Card>
+            ) : (
+              producers.map((p) => (
+                <Card key={p.id}>
+                  <CardContent className="py-3 px-4 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{p.name}</span>
+                      <div className="flex gap-1 shrink-0">
                         <Button variant="ghost" size="icon" onClick={() => openEditProducer(p)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -319,12 +402,14 @@ export function AdminPage() {
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                    </div>
+                    <div className="text-sm text-muted-foreground">{p.contact}</div>
+                    {p.pixKey && <div className="text-sm text-muted-foreground">Pix: {p.pixKey}</div>}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 
