@@ -80,60 +80,81 @@ export function VerificarPagamentosPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-muted-foreground">
-                  <th className="text-left px-4 py-3">Membro</th>
-                  <th className="text-left px-4 py-3">Produtor</th>
-                  <th className="text-right px-4 py-3">Valor</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Comprovante</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((p) => (
-                  <tr key={p.id} className="border-b last:border-0">
-                    <td className="px-4 py-3 font-medium">{p.userName}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.producerName}</td>
-                    <td className="px-4 py-3 text-right">R$ {p.amount.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge variant={statusVariant(p)}>{statusLabel(p)}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {p.proofUrl ? (
-                        <a
-                          href={p.proofUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          Ver
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {!p.verified && p.proofUrl && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={verifying === p.id}
-                          onClick={() => handleVerify(p)}
-                        >
-                          {verifying === p.id ? '...' : 'Verificar'}
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+        <>
+          {/* Desktop */}
+          <div className="hidden md:block">
+            <Card>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-muted-foreground">
+                      <th className="text-left px-4 py-3">Membro</th>
+                      <th className="text-left px-4 py-3">Produtor</th>
+                      <th className="text-right px-4 py-3">Valor</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Comprovante</th>
+                      <th className="px-4 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.map((p) => (
+                      <tr key={p.id} className="border-b last:border-0">
+                        <td className="px-4 py-3 font-medium">{p.userName}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{p.producerName}</td>
+                        <td className="px-4 py-3 text-right">R$ {p.amount.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-center">
+                          <Badge variant={statusVariant(p)}>{statusLabel(p)}</Badge>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {p.proofUrl ? (
+                            <a href={p.proofUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Ver</a>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {!p.verified && p.proofUrl && (
+                            <Button size="sm" variant="secondary" disabled={verifying === p.id} onClick={() => handleVerify(p)}>
+                              {verifying === p.id ? '...' : 'Verificar'}
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Mobile */}
+          <div className="md:hidden space-y-3">
+            {payments.map((p) => (
+              <Card key={p.id}>
+                <CardContent className="py-3 px-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{p.userName}</span>
+                    <Badge variant={statusVariant(p)}>{statusLabel(p)}</Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground">{p.producerName}</div>
+                  <div className="text-sm font-semibold">R$ {p.amount.toFixed(2)}</div>
+                  <div className="flex items-center gap-3 pt-1">
+                    {p.proofUrl && (
+                      <a href={p.proofUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                        Ver comprovante
+                      </a>
+                    )}
+                    {!p.verified && p.proofUrl && (
+                      <Button size="sm" variant="secondary" disabled={verifying === p.id} onClick={() => handleVerify(p)}>
+                        {verifying === p.id ? '...' : 'Verificar'}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

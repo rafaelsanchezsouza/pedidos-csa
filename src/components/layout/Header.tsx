@@ -15,7 +15,7 @@ export function Header() {
         )}
       </div>
       <div className="flex items-center gap-3">
-        {user && <span className="text-sm text-muted-foreground">{user.name}</span>}
+        {user && <span className="hidden lg:inline text-sm text-muted-foreground">{user.name}</span>}
         <Button variant="ghost" size="icon" onClick={logout} title="Sair">
           <LogOut className="h-4 w-4" />
         </Button>

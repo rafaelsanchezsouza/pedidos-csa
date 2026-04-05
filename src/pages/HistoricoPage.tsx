@@ -28,18 +28,20 @@ function OrderCard({ order }: { order: Order }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <table className="w-full text-sm">
-          <tbody>
-            {order.items.map((item) => (
-              <tr key={item.productId} className="border-b last:border-0">
-                <td className="py-1.5 font-medium">{item.productName}</td>
-                <td className="py-1.5 text-muted-foreground">{item.unit}</td>
-                <td className="py-1.5 text-center">{item.qty}</td>
-                <td className="py-1.5 text-right">R$ {(item.price * item.qty).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[320px] text-sm">
+            <tbody>
+              {order.items.map((item) => (
+                <tr key={item.productId} className="border-b last:border-0">
+                  <td className="py-1.5 font-medium">{item.productName}</td>
+                  <td className="py-1.5 text-muted-foreground">{item.unit}</td>
+                  <td className="py-1.5 text-center">{item.qty}</td>
+                  <td className="py-1.5 text-right">R$ {(item.price * item.qty).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   )

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -119,9 +120,9 @@ export function CatalogoPage() {
         </Button>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <Select value={filterProducer} onValueChange={setFilterProducer}>
-          <SelectTrigger className="w-56">
+          <SelectTrigger className="w-full sm:w-56">
             <SelectValue placeholder="Todos os produtores" />
           </SelectTrigger>
           <SelectContent>
@@ -135,36 +136,68 @@ export function CatalogoPage() {
           placeholder="Buscar por nome..."
           value={filterName}
           onChange={(e) => setFilterName(e.target.value)}
-          className="w-56"
+          className="w-full sm:w-56"
         />
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead>Unidade</TableHead>
-            <TableHead>Preço</TableHead>
-            <TableHead>Produtor</TableHead>
-            <TableHead className="w-24"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {visibleProducts.length === 0 ? (
+      {/* Desktop */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                {products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto para este produtor.'}
-              </TableCell>
+              <TableHead>Nome</TableHead>
+              <TableHead>Unidade</TableHead>
+              <TableHead>Preço</TableHead>
+              <TableHead>Produtor</TableHead>
+              <TableHead className="w-24"></TableHead>
             </TableRow>
-          ) : (
-            visibleProducts.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell className="font-medium">{p.name}</TableCell>
-                <TableCell>{p.unit}</TableCell>
-                <TableCell>R$ {p.price.toFixed(2)}</TableCell>
-                <TableCell>{producerName(p.producerId)}</TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
+          </TableHeader>
+          <TableBody>
+            {visibleProducts.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  {products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto para este produtor.'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              visibleProducts.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell>{p.unit}</TableCell>
+                  <TableCell>R$ {p.price.toFixed(2)}</TableCell>
+                  <TableCell>{producerName(p.producerId)}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile */}
+      <div className="md:hidden space-y-2">
+        {visibleProducts.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              {products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto para este produtor.'}
+            </CardContent>
+          </Card>
+        ) : (
+          visibleProducts.map((p) => (
+            <Card key={p.id}>
+              <CardContent className="py-3 px-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{p.name}</span>
+                  <div className="flex gap-1 shrink-0">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -172,12 +205,15 @@ export function CatalogoPage() {
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {producerName(p.producerId)} · {p.unit} · R$ {p.price.toFixed(2)}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -189,7 +225,7 @@ export function CatalogoPage() {
               <Label>Nome</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Unidade</Label>
                 <Input
