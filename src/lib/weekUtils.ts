@@ -58,12 +58,18 @@ export function shiftWeek(weekStart: string, delta: number): string {
   return getWeekStart(d)
 }
 
+export function formatDeliveryDate(weekStart: string): string {
+  const delivery = getWeekDelivery(weekStart)
+  const [, m, d] = delivery.split('-')
+  return `${d}/${m}`
+}
+
 export function weekOptions(count = 8): string[] {
   const weeks: string[] = []
-  const d = new Date()
+  const start = new Date(getPresentWeekId() + 'T12:00:00')
   for (let i = 0; i < count; i++) {
-    weeks.push(getWeekStart(d))
-    d.setDate(d.getDate() - 7)
+    weeks.push(getWeekStart(start))
+    start.setDate(start.getDate() - 7)
   }
   return weeks
 }

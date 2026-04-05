@@ -32,6 +32,8 @@ export const colmeiasApi = {
   list: () => request<Colmeia[]>('/colmeias'),
   get: (id: string) => request<Colmeia>(`/colmeias/${id}`),
   create: (data: { name: string }) => request<Colmeia>('/colmeias', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<Colmeia>) =>
+    request<Colmeia>(`/colmeias/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 }
 
 export const productsApi = {
@@ -97,6 +99,8 @@ export const paymentsApi = {
     request<Payment[]>(`/payments?month=${month}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
   update: (id: string, data: Partial<Payment>, colmeiaId: string) =>
     request<Payment>(`/payments/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
+  ensureQuota: (month: string, colmeiaId: string) =>
+    request<Payment>('/payments/quota', { method: 'POST', body: JSON.stringify({ month, colmeiaId }) }, colmeiaId),
 }
 
 export const issuesApi = {

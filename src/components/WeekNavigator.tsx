@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getPresentWeekId, shiftWeek, getWeekDelivery, weekOptions } from '@/lib/weekUtils'
+import { getPresentWeekId, shiftWeek, formatDeliveryDate, weekOptions } from '@/lib/weekUtils'
 
 interface WeekNavigatorProps {
   weekId: string
@@ -21,7 +21,7 @@ export function WeekNavigator({ weekId, onChange, maxWeekId }: WeekNavigatorProp
         className="border rounded px-2 py-1 text-sm"
       >
         {weekOptions().map((w) => (
-          <option key={w} value={w}>{getWeekDelivery(w)}</option>
+          <option key={w} value={w}>{formatDeliveryDate(w)}</option>
         ))}
       </select>
       <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onChange(shiftWeek(weekId, 1))} disabled={weekId >= max}>

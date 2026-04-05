@@ -3,6 +3,8 @@ export interface Colmeia {
   name: string
   adminId: string
   dateCreated: string
+  quotaInteira?: number
+  quotaMeia?: number
 }
 
 export interface User {

@@ -110,18 +110,18 @@ export function PedidosPage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">Pedido da Semana</h1>
-            {order && (
-              <Badge variant={order.status === 'enviado' ? 'default' : 'secondary'}>
-                {order.status === 'enviado' ? 'Enviado' : 'Rascunho'}
-              </Badge>
-            )}
-          </div>
-          <p className="text-muted-foreground text-sm">Entrega em {getWeekDelivery(weekId)}</p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold">Pedido de Extras da Semana</h1>
+          {order && (
+            <Badge variant={order.status === 'enviado' ? 'default' : 'secondary'}>
+              {order.status === 'enviado' ? 'Enviado' : 'Rascunho'}
+            </Badge>
+          )}
         </div>
-        <WeekNavigator weekId={weekId} onChange={setWeekId} />
+        <div className="flex flex-col items-end gap-1">
+          <span className="text-sm text-muted-foreground mr-9">Entrega em</span>
+          <WeekNavigator weekId={weekId} onChange={setWeekId} />
+        </div>
       </div>
 
       {user?.frequency === 'quinzenal' && !showFixo && (
@@ -158,10 +158,7 @@ export function PedidosPage() {
                   <div className="flex-1">
                     <span className="font-medium">{item.productName}</span>
                     <span className="text-muted-foreground text-sm ml-2">({item.unit})</span>
-                    <Badge variant={item.type === 'fixo' ? 'default' : 'secondary'} className="ml-2 text-xs">
-                      {item.type}
-                    </Badge>
-                  </div>
+                    </div>
                   <span className="text-sm text-muted-foreground w-16 text-right">
                     R$ {item.price.toFixed(2)}
                   </span>

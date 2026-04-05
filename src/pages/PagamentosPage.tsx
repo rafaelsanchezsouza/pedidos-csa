@@ -213,21 +213,110 @@ function PaymentCard({
   )
 }
 
+// --- Card de cota mensal ---
+
+function QuotaCard({
+  payment,
+  colmeiaId,
+  userId,
+  month,
+  onReload,
+}: {
+  payment: Payment
+  colmeiaId: string
+  userId: string
+  month: string
+  onReload: () => void
+}) {
+  const [uploading, setUploading] = useState(false)
+  const [message, setMessage] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+  const { uploadProof } = useUploadProof()
+
+  async function handleUpload(file: File) {
+    setUploading(true)
+    setMessage('')
+    try {
+      const url = await uploadProof(file, colmeiaId, userId, month)
+      await paymentsApi.update(payment.id, { proofUrl: url }, colmeiaId)
+      setMessage('Comprovante enviado!')
+      onReload()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro ao enviar comprovante')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between text-base">
+          <span>Cota Mensal</span>
+          <Badge variant={statusVariant(payment)}>{statusLabel(payment)}</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="text-2xl font-bold">R$ {payment.amount.toFixed(2)}</div>
+
+        {payment.proofUrl && (
+          <a
+            href={payment.proofUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-blue-600 hover:underline block"
+          >
+            Ver comprovante enviado
+          </a>
+        )}
+
+        {!payment.verified && (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
+            />
+            <Button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              variant={payment.proofUrl ? 'secondary' : 'default'}
+              size="sm"
+            >
+              {uploading ? 'Enviando...' : payment.proofUrl ? 'Substituir comprovante' : 'Enviar comprovante'}
+            </Button>
+          </>
+        )}
+
+        {message && <p className="text-sm text-muted-foreground">{message}</p>}
+      </CardContent>
+    </Card>
+  )
+}
+
 // --- Meus Pagamentos (todos os papéis) ---
 
 function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
   const [month, setMonth] = useState(currentMonth())
   const [payments, setPayments] = useState<Payment[]>([])
+  const [quotaPayment, setQuotaPayment] = useState<Payment | null>(null)
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      setPayments(await paymentsApi.getMy(month, colmeiaId))
+      const all = await paymentsApi.getMy(month, colmeiaId)
+      setPayments(all.filter((p) => p.producerName !== 'Cota'))
+      if (user.quota) {
+        const qp = await paymentsApi.ensureQuota(month, colmeiaId)
+        setQuotaPayment(qp)
+      }
     } finally {
       setLoading(false)
     }
-  }, [month, colmeiaId])
+  }, [month, colmeiaId, user.quota])
 
   useEffect(() => { load() }, [load])
 
@@ -239,6 +328,16 @@ function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
         <h1 className="text-2xl font-bold">Meus Pagamentos</h1>
         <MonthNavigator month={month} onChange={setMonth} />
       </div>
+
+      {quotaPayment && (
+        <QuotaCard
+          payment={quotaPayment}
+          colmeiaId={colmeiaId}
+          userId={user.id}
+          month={month}
+          onReload={load}
+        />
+      )}
 
       {payments.length === 0 ? (
         <Card>

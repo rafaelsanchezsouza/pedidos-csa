@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { listDocs, createDoc, updateDoc } from '../repositories/firestore.js'
+import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
 
 const router = Router()
 
@@ -91,6 +91,65 @@ export async function upsertPaymentsForOrder(
       .map(([, doc]) => updateDoc<PaymentDoc>('payments', doc.id, { amount: 0, dateUpdated: now })),
   )
 }
+
+interface UserDoc {
+  name: string
+  quota?: string
+}
+
+interface ColmeiaSettings {
+  quotaInteira?: number
+  quotaMeia?: number
+}
+
+// POST /api/payments/quota — cria/atualiza pagamento de cota do mês
+router.post('/quota', async (req: Request, res: Response) => {
+  try {
+    const colmeiaId = (req.body.colmeiaId as string) || req.colmeiaId
+    const month = req.body.month as string
+    const uid = req.user!.uid
+    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
+
+    const [userDoc, colmeiaDoc] = await Promise.all([
+      getDoc<UserDoc>('users', uid),
+      getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+    ])
+    if (!userDoc?.quota) { res.status(400).json({ message: 'Usuário sem cota definida' }); return }
+
+    const amount = userDoc.quota === 'Meia cota'
+      ? (colmeiaDoc?.quotaMeia ?? 0)
+      : (colmeiaDoc?.quotaInteira ?? 0)
+
+    const existing = await listDocs<PaymentDoc>('payments', [
+      ['userId', '==', uid],
+      ['colmeiaId', '==', colmeiaId],
+      ['month', '==', month],
+      ['producerName', '==', 'Cota'],
+    ])
+
+    const now = new Date().toISOString()
+    if (existing.length > 0) {
+      const prev = existing[0]
+      await updateDoc<PaymentDoc>('payments', prev.id, { amount, dateUpdated: now })
+      res.json({ ...prev, amount, dateUpdated: now })
+    } else {
+      const created = await createDoc<PaymentDoc>('payments', {
+        userId: uid,
+        userName: userDoc.name,
+        colmeiaId,
+        month,
+        producerName: 'Cota',
+        amount,
+        verified: false,
+        dateCreated: now,
+        dateUpdated: now,
+      })
+      res.status(201).json(created)
+    }
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
 
 // GET /api/payments/my?month=YYYY-MM&colmeiaId=
 router.get('/my', async (req: Request, res: Response) => {

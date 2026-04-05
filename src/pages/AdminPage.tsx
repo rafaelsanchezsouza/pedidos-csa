@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Pencil, Trash2, Ban, CheckCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { usersApi, producersApi } from '@/services/api'
+import { usersApi, producersApi, colmeiasApi } from '@/services/api'
 import type { User, Producer } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -56,6 +56,12 @@ export function AdminPage() {
   const [users, setUsers] = useState<User[]>([])
   const [producers, setProducers] = useState<Producer[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Configurações de cota
+  const [quotaInteira, setQuotaInteira] = useState(String(colmeia?.quotaInteira ?? ''))
+  const [quotaMeia, setQuotaMeia] = useState(String(colmeia?.quotaMeia ?? ''))
+  const [savingQuota, setSavingQuota] = useState(false)
+  const [quotaMessage, setQuotaMessage] = useState('')
 
   // Producer dialog
   const [producerDialog, setProducerDialog] = useState(false)
@@ -208,6 +214,24 @@ export function AdminPage() {
     setMemberForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  async function handleSaveQuota() {
+    if (!colmeia) return
+    setSavingQuota(true)
+    setQuotaMessage('')
+    try {
+      await colmeiasApi.update(colmeia.id, {
+        quotaInteira: parseFloat(quotaInteira) || 0,
+        quotaMeia: parseFloat(quotaMeia) || 0,
+      })
+      await refreshUser()
+      setQuotaMessage('Salvo!')
+    } catch (err) {
+      setQuotaMessage(err instanceof Error ? err.message : 'Erro ao salvar')
+    } finally {
+      setSavingQuota(false)
+    }
+  }
+
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
 
   return (
@@ -218,6 +242,7 @@ export function AdminPage() {
         <TabsList>
           <TabsTrigger value="usuarios">Usuários</TabsTrigger>
           <TabsTrigger value="produtores">Produtores</TabsTrigger>
+          <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
         </TabsList>
 
         <TabsContent value="usuarios">
@@ -410,6 +435,41 @@ export function AdminPage() {
               ))
             )}
           </div>
+        </TabsContent>
+        <TabsContent value="configuracoes">
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <h2 className="font-semibold">Valores de Cota Mensal</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Cota inteira (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={quotaInteira}
+                    onChange={(e) => setQuotaInteira(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Meia cota (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={quotaMeia}
+                    onChange={(e) => setQuotaMeia(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button onClick={handleSaveQuota} disabled={savingQuota}>
+                  {savingQuota ? 'Salvando...' : 'Salvar'}
+                </Button>
+                {quotaMessage && <span className="text-sm text-muted-foreground">{quotaMessage}</span>}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
