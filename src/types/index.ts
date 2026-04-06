@@ -3,6 +3,9 @@ export interface Colmeia {
   name: string
   adminId: string
   dateCreated: string
+  quotaInteira?: number
+  quotaMeia?: number
+  dueDay?: number
 }
 
 export interface User {
@@ -15,12 +18,20 @@ export interface User {
   frequency: 'semanal' | 'quinzenal'
   deliveryType: 'colmeia' | 'entrega'
   colmeiaId: string
-  role: 'admin' | 'user' | 'superadmin' | 'produtor'
+  acesso: 'admin' | 'user' | 'superadmin' | 'produtor'
+  role?: string
+  isentoCotas?: boolean
   disabled?: boolean
   deleted?: boolean
   mustChangePassword?: boolean
   quinzenalParity?: 'par' | 'impar'
   quota?: 'Cota inteira' | 'Meia cota'
+}
+
+export interface ColmeiaRole {
+  id: string
+  name: string
+  colmeiaId: string
 }
 
 export interface Producer {
@@ -92,6 +103,7 @@ export interface Payment {
   proofUrl?: string
   verified: boolean
   amount: number
+  dueDate?: string
   dateCreated: string
   dateUpdated: string
 }

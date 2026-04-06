@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Pencil, Trash2, Ban, CheckCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { usersApi, producersApi } from '@/services/api'
-import type { User, Producer } from '@/types'
+import { usersApi, producersApi, colmeiasApi, rolesApi } from '@/services/api'
+import type { User, Producer, ColmeiaRole } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -38,15 +38,17 @@ interface MemberForm {
   contact: string
   frequency: User['frequency']
   deliveryType: User['deliveryType']
-  role: User['role']
+  acesso: User['acesso']
+  role?: string
+  isentoCotas?: boolean
   quota: User['quota']
 }
 const emptyMemberForm: MemberForm = {
   name: '', email: '', password: '', address: '', neighborhood: '', contact: '',
-  frequency: 'semanal', deliveryType: 'colmeia', role: 'user', quota: 'Cota inteira',
+  frequency: 'semanal', deliveryType: 'colmeia', acesso: 'user', quota: 'Cota inteira',
 }
 
-const roleLabel: Record<User['role'], string> = {
+const acessoLabel: Record<User['acesso'], string> = {
   user: 'Membro', admin: 'Admin', superadmin: 'Super Admin', produtor: 'Produtor',
 }
 
@@ -55,7 +57,17 @@ export function AdminPage() {
   const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
   const [producers, setProducers] = useState<Producer[]>([])
+  const [roles, setRoles] = useState<ColmeiaRole[]>([])
+  const [newRoleName, setNewRoleName] = useState('')
+  const [showNewRoleInput, setShowNewRoleInput] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // Configurações de cota
+  const [quotaInteira, setQuotaInteira] = useState(String(colmeia?.quotaInteira ?? 65))
+  const [quotaMeia, setQuotaMeia] = useState(String(colmeia?.quotaMeia ?? 40))
+  const [dueDay, setDueDay] = useState(String(colmeia?.dueDay ?? 10))
+  const [savingQuota, setSavingQuota] = useState(false)
+  const [quotaMessage, setQuotaMessage] = useState('')
 
   // Producer dialog
   const [producerDialog, setProducerDialog] = useState(false)
@@ -79,12 +91,14 @@ export function AdminPage() {
     if (!colmeia) return
     setLoading(true)
     try {
-      const [us, prods] = await Promise.all([
+      const [us, prods, rols] = await Promise.all([
         usersApi.list(colmeia.id),
         producersApi.list(colmeia.id),
+        rolesApi.list(colmeia.id),
       ])
       setUsers(us)
       setProducers(prods)
+      setRoles(rols)
     } finally {
       setLoading(false)
     }
@@ -142,7 +156,9 @@ export function AdminPage() {
       frequency: u.frequency,
       quinzenalParity: u.quinzenalParity,
       deliveryType: u.deliveryType,
+      acesso: u.acesso,
       role: u.role,
+      isentoCotas: u.isentoCotas,
       quota: u.quota,
     })
     setEditDialog(true)
@@ -208,6 +224,25 @@ export function AdminPage() {
     setMemberForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  async function handleSaveQuota() {
+    if (!colmeia) return
+    setSavingQuota(true)
+    setQuotaMessage('')
+    try {
+      await colmeiasApi.update(colmeia.id, {
+        quotaInteira: parseFloat(quotaInteira) || 0,
+        quotaMeia: parseFloat(quotaMeia) || 0,
+        dueDay: parseInt(dueDay) || 10,
+      })
+      await refreshUser()
+      setQuotaMessage('Salvo!')
+    } catch (err) {
+      setQuotaMessage(err instanceof Error ? err.message : 'Erro ao salvar')
+    } finally {
+      setSavingQuota(false)
+    }
+  }
+
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
 
   return (
@@ -218,6 +253,7 @@ export function AdminPage() {
         <TabsList>
           <TabsTrigger value="usuarios">Usuários</TabsTrigger>
           <TabsTrigger value="produtores">Produtores</TabsTrigger>
+          <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
         </TabsList>
 
         <TabsContent value="usuarios">
@@ -255,8 +291,8 @@ export function AdminPage() {
                       </TableCell>
                       <TableCell>{u.email}</TableCell>
                       <TableCell>
-                        <Badge variant={u.role === 'admin' || u.role === 'superadmin' ? 'default' : 'secondary'}>
-                          {roleLabel[u.role]}
+                        <Badge variant={u.acesso === 'admin' || u.acesso === 'superadmin' ? 'default' : 'secondary'}>
+                          {acessoLabel[u.acesso]}
                         </Badge>
                       </TableCell>
                       <TableCell className="capitalize">{u.frequency}</TableCell>
@@ -302,8 +338,8 @@ export function AdminPage() {
                         {u.name}
                         {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
                       </span>
-                      <Badge variant={u.role === 'admin' || u.role === 'superadmin' ? 'default' : 'secondary'}>
-                        {roleLabel[u.role]}
+                      <Badge variant={u.acesso === 'admin' || u.acesso === 'superadmin' ? 'default' : 'secondary'}>
+                        {acessoLabel[u.acesso]}
                       </Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">{u.email}</div>
@@ -411,6 +447,51 @@ export function AdminPage() {
             )}
           </div>
         </TabsContent>
+        <TabsContent value="configuracoes">
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <h2 className="font-semibold">Valores de Cota Semanal</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label>Cota inteira (R$/semana)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={quotaInteira}
+                    onChange={(e) => setQuotaInteira(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Meia cota (R$/semana)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={quotaMeia}
+                    onChange={(e) => setQuotaMeia(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Dia de vencimento</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="28"
+                    value={dueDay}
+                    onChange={(e) => setDueDay(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button onClick={handleSaveQuota} disabled={savingQuota}>
+                  {savingQuota ? 'Salvando...' : 'Salvar'}
+                </Button>
+                {quotaMessage && <span className="text-sm text-muted-foreground">{quotaMessage}</span>}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Dialog: produtor */}
@@ -481,8 +562,8 @@ export function AdminPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Função</Label>
-                <Select value={memberForm.role} onValueChange={(v) => setMember('role', v)}>
+                <Label>Nível de acesso</Label>
+                <Select value={memberForm.acesso} onValueChange={(v) => setMember('acesso', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">Membro</SelectItem>
@@ -501,6 +582,76 @@ export function AdminPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Função na colmeia</Label>
+              <Select
+                value={memberForm.role ?? ''}
+                onValueChange={(v) => {
+                  if (v === '__criar__') { setShowNewRoleInput(true) }
+                  else { setMemberForm((p) => ({ ...p, role: v })); setShowNewRoleInput(false) }
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                <SelectContent>
+                  {roles.map((r) => (
+                    <SelectItem key={r.id} value={r.name}>
+                      <span className="flex items-center justify-between w-full gap-2">
+                        {r.name}
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            if (!colmeia) return
+                            await rolesApi.delete(r.id, colmeia.id)
+                            await load()
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="__criar__">Criar função...</SelectItem>
+                </SelectContent>
+              </Select>
+              {showNewRoleInput && (
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    value={newRoleName}
+                    onChange={(e) => setNewRoleName(e.target.value)}
+                    placeholder="Nome da nova função"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={async () => {
+                      if (!newRoleName.trim() || !colmeia) return
+                      const created = await rolesApi.create(newRoleName.trim(), colmeia.id)
+                      await load()
+                      setMemberForm((p) => ({ ...p, role: created.name }))
+                      setNewRoleName('')
+                      setShowNewRoleInput(false)
+                    }}
+                  >
+                    Criar
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="memberIsentoCotas"
+                checked={memberForm.isentoCotas ?? false}
+                onChange={(e) => setMemberForm((p) => ({ ...p, isentoCotas: e.target.checked }))}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="memberIsentoCotas" className="font-normal cursor-pointer">
+                Isento de cota mensal
+              </Label>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -563,8 +714,8 @@ export function AdminPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Função</Label>
-                <Select value={editForm.role} onValueChange={(v) => setEdit('role', v)}>
+                <Label>Nível de acesso</Label>
+                <Select value={editForm.acesso} onValueChange={(v) => setEdit('acesso', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">Membro</SelectItem>
@@ -583,6 +734,76 @@ export function AdminPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Função na colmeia</Label>
+              <Select
+                value={editForm.role ?? ''}
+                onValueChange={(v) => {
+                  if (v === '__criar__') { setShowNewRoleInput(true) }
+                  else { setEditForm((p) => ({ ...p, role: v })); setShowNewRoleInput(false) }
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                <SelectContent>
+                  {roles.map((r) => (
+                    <SelectItem key={r.id} value={r.name}>
+                      <span className="flex items-center justify-between w-full gap-2">
+                        {r.name}
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            if (!colmeia) return
+                            await rolesApi.delete(r.id, colmeia.id)
+                            await load()
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="__criar__">Criar função...</SelectItem>
+                </SelectContent>
+              </Select>
+              {showNewRoleInput && (
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    value={newRoleName}
+                    onChange={(e) => setNewRoleName(e.target.value)}
+                    placeholder="Nome da nova função"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={async () => {
+                      if (!newRoleName.trim() || !colmeia) return
+                      const created = await rolesApi.create(newRoleName.trim(), colmeia.id)
+                      await load()
+                      setEditForm((p) => ({ ...p, role: created.name }))
+                      setNewRoleName('')
+                      setShowNewRoleInput(false)
+                    }}
+                  >
+                    Criar
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="editIsentoCotas"
+                checked={editForm.isentoCotas ?? false}
+                onChange={(e) => setEditForm((p) => ({ ...p, isentoCotas: e.target.checked }))}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="editIsentoCotas" className="font-normal cursor-pointer">
+                Isento de cota mensal
+              </Label>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">

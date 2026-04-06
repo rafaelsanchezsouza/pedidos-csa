@@ -8,17 +8,27 @@
 - Setup inicial cria a primeira colmeia via `POST /api/setup` (sem autenticação)
 - Um usuário pode pertencer a apenas uma colmeia
 
-## Usuários e Roles
+## Usuários
 
-| Role | Acesso |
+### Nível de acesso (`acesso`)
+
+| Valor | Permissões |
 |---|---|
 | `user` | Faz pedidos, envia comprovante, vê próprio histórico |
 | `admin` | Tudo de user + gerencia catálogo, parsing de ofertas, consolida pedidos, verifica pagamentos |
 | `superadmin` | Acessa todas as colmeias |
-| `produtor` | (futuro) acesso específico para produtores |
+| `produtor` | Acessa verificação de pagamentos dos próprios produtos |
 
-- Usuário informa: nome, endereço, contato, frequência (semanal/quinzenal), tipo de retirada (na colmeia ou por entrega), cota (inteira/meia)
-- Campo `quota: 'inteira' | 'meia'` — indica se o membro recebe cota completa ou metade; exibido no relatório de entregas e no perfil (somente leitura)
+### Função no coletivo (`role`)
+- Campo livre (`string`) que descreve a função do membro dentro do coletivo (ex: "colmeia", "coagricultor", "tesoureiro")
+- Gerenciado via coleção Firestore `roles` (por colmeia), com dois valores padrão não deletáveis: **"colmeia"** e **"coagricultor"**
+- Admin pode criar/deletar funções customizadas diretamente no formulário de edição de usuário
+- Não afeta permissões de sistema — apenas informativo
+
+### Outros campos de usuário
+- `quota: 'Cota inteira' | 'Meia cota'` — define o valor da cota mensal
+- `isentoCotas: boolean` — quando `true`, o usuário não tem cota mensal gerada e não aparece na lista de verificação de pagamentos de cota
+- Usuário informa: nome, endereço, contato, frequência (semanal/quinzenal), tipo de retirada (na colmeia ou por entrega)
 
 ## Catálogo de Produtos
 
@@ -86,10 +96,23 @@
 ## Pagamentos
 
 - Uma fatura (`PaymentDoc`) por usuário **por produtor** por mês — chave única: `(userId, colmeiaId, month, producerName)`
-- Fatura criada/atualizada automaticamente ao salvar pedido com `status: 'enviado'`
-- Valor recalculado a partir de todos os pedidos `enviado` do usuário no mês, somando itens por produtor
-- Se pedido for alterado (inclusive de volta para `rascunho`), todos os PaymentDocs do usuário/mês são recalculados; se amount zerar, o documento permanece (não é removido)
-- `producerName` é denormalizado no `OrderItem` no momento do pedido — necessário para agrupamento correto
-- Usuário envia comprovante por fatura (por produtor) → URL armazenada em `proofUrl` da fatura específica
-- Admin verifica cada fatura individualmente → marca `verified: true`; outras faturas do mesmo usuário não são afetadas
 - Mês representado como string `"YYYY-MM"`
+- Usuário envia comprovante por fatura → URL em `proofUrl`; admin verifica → `verified: true`
+
+### Extras (pedidos semanais)
+- Fatura criada/atualizada automaticamente ao salvar pedido com `status: 'enviado'`
+- Valor = soma de `(price × qty)` por produtor em todos os pedidos `enviado` do mês
+- Se pedido for alterado (inclusive de volta para `rascunho`), PaymentDocs do usuário/mês são recalculados; se amount zerar, documento permanece
+- `producerName` é denormalizado no `OrderItem` no momento do pedido
+- `upsertPaymentsForOrder` nunca toca em pagamentos com `producerName === 'Cota'`
+- Vencimento: dia `dueDay` do **mês seguinte** (pagamento pós-consumo)
+
+### Cota mensal
+- `producerName === 'Cota'`; criada via `POST /payments/quota` (por usuário) ou `POST /payments/quota/all` (admin, gera para todos elegíveis)
+- `quotaInteira` e `quotaMeia` são valores **por semana** (ex: R$65/semana cota inteira)
+- Valor mensal = `weeklyRate × countDeliveryWeeks(month, user.frequency, user.quinzenalParity)`
+  - Usuário `semanal`: conta todas as quartas-feiras do mês
+  - Usuário `quinzenal`: conta apenas as semanas do ciclo do membro
+- Vencimento: dia `dueDay` do **mês anterior** (pagamento pré-consumo)
+- `dueDay` configurável pelo admin (padrão: 10); salvo em `colmeia.dueDay`
+- Usuário com `isentoCotas: true` não tem cota gerada; não aparece na lista de verificação

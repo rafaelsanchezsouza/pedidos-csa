@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Plus, Wand2, Check, X, History, Pencil } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi } from '@/services/api'
-import { getWeekDelivery, getPresentWeekId } from '@/lib/weekUtils'
+import { formatDeliveryDate, getPresentWeekId } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -43,6 +43,7 @@ export function OfertasPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fallingBack, setFallingBack] = useState<string | null>(null)
+  const [fallbackMessage, setFallbackMessage] = useState<Record<string, string>>({})
   const [editing, setEditing] = useState<WeeklyOffering | null>(null)
 
   const [weekId, setWeekId] = useState(getPresentWeekId())
@@ -105,9 +106,19 @@ export function OfertasPage() {
   async function handleFallback(producerId: string) {
     if (!colmeia) return
     setFallingBack(producerId)
+    setFallbackMessage((prev) => ({ ...prev, [producerId]: '' }))
     try {
-      await offeringsApi.fallback(weekId, colmeia.id, producerId)
-      await load()
+      const result = await offeringsApi.fallback(weekId, colmeia.id, producerId)
+      if (result.length === 0) {
+        setFallbackMessage((prev) => ({ ...prev, [producerId]: 'Nenhuma oferta anterior encontrada.' }))
+      } else {
+        await load()
+      }
+    } catch (err) {
+      setFallbackMessage((prev) => ({
+        ...prev,
+        [producerId]: err instanceof Error ? err.message : 'Erro ao copiar oferta.',
+      }))
     } finally {
       setFallingBack(null)
     }
@@ -178,7 +189,7 @@ export function OfertasPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Ofertas da Semana</h1>
-          <p className="text-muted-foreground text-sm">Entrega em {getWeekDelivery(weekId)}</p>
+          <p className="text-muted-foreground text-sm">Entrega em {formatDeliveryDate(weekId)}</p>
         </div>
         <WeekNavigator weekId={weekId} onChange={setWeekId} />
       </div>
@@ -211,6 +222,9 @@ export function OfertasPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">Sem oferta para esta semana.</p>
+                  {fallbackMessage[p.id] && (
+                    <p className="text-sm text-muted-foreground mt-1">{fallbackMessage[p.id]}</p>
+                  )}
                 </CardContent>
               </Card>
             ))}

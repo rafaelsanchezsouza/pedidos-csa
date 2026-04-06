@@ -113,10 +113,10 @@ router.post('/fallback', async (req: Request, res: Response) => {
         .filter((o) => o.producerId === pid && o.weekStart < weekStart)
         .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
       if (!previous[0]) continue
+      const { id: _id, rawMessage: _raw, ...prevData } = previous[0]
       const fallback = await createDoc<OfferingDoc>('weekly_offerings', {
-        ...previous[0],
+        ...prevData,
         weekStart,
-        rawMessage: undefined,
         dateCreated: new Date().toISOString(),
       })
       created.push(fallback)
