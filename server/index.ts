@@ -11,6 +11,7 @@ import ordersRouter from './routes/orders.js'
 import paymentsRouter from './routes/payments.js'
 import usersRouter from './routes/users.js'
 import issuesRouter from './routes/issues.js'
+import rolesRouter from './routes/roles.js'
 import { db } from './repositories/firestore.js'
 
 declare module 'express' {
@@ -58,6 +59,7 @@ app.use('/api/orders', ordersRouter)
 app.use('/api/payments', paymentsRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/issues', issuesRouter)
+app.use('/api/roles', rolesRouter)
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`)

@@ -16,9 +16,9 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const uid = req.user!.uid
     const userSnap = await import('../repositories/firestore.js').then(m => m.db.collection('users').doc(uid).get())
-    const userData = userSnap.data() as { colmeiaId?: string; role?: string } | undefined
+    const userData = userSnap.data() as { colmeiaId?: string; acesso?: string; role?: string } | undefined
 
-    if (userData?.role === 'superadmin') {
+    if (userData?.acesso === 'superadmin' || userData?.role === 'superadmin') {
       const colmeias = await listDocs<ColmeiaDoc>('colmeias')
       res.json(colmeias)
     } else if (userData?.colmeiaId) {

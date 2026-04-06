@@ -37,6 +37,9 @@ interface UserDoc {
   quota?: string
   frequency?: 'semanal' | 'quinzenal'
   quinzenalParity?: 'par' | 'impar'
+  isentoCotas?: boolean
+  disabled?: boolean
+  deleted?: boolean
 }
 
 interface ColmeiaSettings {
@@ -183,6 +186,7 @@ router.post('/quota', async (req: Request, res: Response) => {
       getDoc<ColmeiaSettings>('colmeias', colmeiaId),
     ])
     if (!userDoc?.quota) { res.status(400).json({ message: 'Usuário sem cota definida' }); return }
+    if (userDoc.isentoCotas) { res.json({ skipped: true }); return }
 
     const weeklyRate = userDoc.quota === 'Meia cota'
       ? (colmeiaDoc?.quotaMeia ?? 40)
@@ -225,6 +229,63 @@ router.post('/quota', async (req: Request, res: Response) => {
       })
       res.status(201).json(created)
     }
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// POST /api/payments/quota/all — garante doc de cota para todos os membros elegíveis (admin)
+router.post('/quota/all', async (req: Request, res: Response) => {
+  try {
+    const colmeiaId = (req.body.colmeiaId as string) || req.colmeiaId
+    const month = req.body.month as string
+    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
+
+    const [users, colmeiaDoc] = await Promise.all([
+      listDocs<UserDoc>('users', [['colmeiaId', '==', colmeiaId]]),
+      getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+    ])
+
+    const eligible = users.filter((u) => u.quota && !u.isentoCotas && !u.disabled && !u.deleted)
+    const dueDay = colmeiaDoc?.dueDay ?? 10
+    const dueDate = buildDueDate(month, 'cota', dueDay)
+    const now = new Date().toISOString()
+    let generated = 0
+
+    for (const u of eligible) {
+      const weeklyRate = u.quota === 'Meia cota'
+        ? (colmeiaDoc?.quotaMeia ?? 40)
+        : (colmeiaDoc?.quotaInteira ?? 65)
+      const weeks = countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
+      const amount = weeklyRate * weeks
+
+      const existing = await listDocs<PaymentDoc>('payments', [
+        ['userId', '==', u.id],
+        ['colmeiaId', '==', colmeiaId],
+        ['month', '==', month],
+        ['producerName', '==', 'Cota'],
+      ])
+
+      if (existing.length > 0) {
+        await updateDoc<PaymentDoc>('payments', existing[0].id, { amount, dueDate, dateUpdated: now })
+      } else {
+        await createDoc<PaymentDoc>('payments', {
+          userId: u.id,
+          userName: u.name,
+          colmeiaId,
+          month,
+          producerName: 'Cota',
+          amount,
+          dueDate,
+          verified: false,
+          dateCreated: now,
+          dateUpdated: now,
+        })
+        generated++
+      }
+    }
+
+    res.json({ generated })
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }

@@ -42,8 +42,8 @@ export function BottomNav() {
   const location = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
-  const isProdutor = user?.role === 'produtor'
+  const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
+  const isProdutor = user?.acesso === 'produtor'
 
   const mainItems = isAdmin ? adminMainItems : isProdutor ? produtorItems : memberItems
   const moreActive = isAdmin && adminMoreItems.some((i) => location.pathname === i.to)

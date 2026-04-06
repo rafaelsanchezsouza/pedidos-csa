@@ -21,7 +21,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>
   if (!firebaseUser || !colmeia) return <Navigate to="/login" replace />
   if (user?.mustChangePassword) return <Navigate to="/definir-senha" replace />
-  if (adminOnly && user?.role !== 'admin' && user?.role !== 'superadmin') {
+  if (adminOnly && user?.acesso !== 'admin' && user?.acesso !== 'superadmin') {
     return <Navigate to="/pedidos" replace />
   }
   return <>{children}</>

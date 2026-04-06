@@ -49,7 +49,7 @@ function OrderCard({ order }: { order: Order }) {
 
 export function HistoricoPage() {
   const { user, colmeia } = useAuth()
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
+  const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
 
   const [orders, setOrders] = useState<Order[]>([])
   const [users, setUsers] = useState<User[]>([])

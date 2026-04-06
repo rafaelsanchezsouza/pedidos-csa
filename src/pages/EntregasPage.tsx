@@ -40,7 +40,7 @@ export function EntregasPage() {
   // Usuários que devem receber esta semana
   const activeUsers = users.filter((u) => {
     if (u.disabled || u.deleted) return false
-    if (u.role === 'produtor') return false
+    if (u.acesso === 'produtor') return false
     if (!isUserDeliveryWeek(u, weekId)) return false
     return true
   })

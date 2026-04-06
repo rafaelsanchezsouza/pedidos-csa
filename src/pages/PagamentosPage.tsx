@@ -309,14 +309,14 @@ function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
     try {
       const all = await paymentsApi.getMy(month, colmeiaId)
       setPayments(all.filter((p) => p.producerName !== 'Cota'))
-      if (user.quota) {
+      if (user.quota && !user.isentoCotas) {
         const qp = await paymentsApi.ensureQuota(month, colmeiaId)
-        setQuotaPayment(qp)
+        if (qp && 'amount' in qp) setQuotaPayment(qp)
       }
     } finally {
       setLoading(false)
     }
-  }, [month, colmeiaId, user.quota])
+  }, [month, colmeiaId, user.quota, user.isentoCotas])
 
   useEffect(() => { load() }, [load])
 

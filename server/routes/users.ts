@@ -12,7 +12,9 @@ interface UserDoc {
   frequency: 'semanal' | 'quinzenal'
   deliveryType: 'colmeia' | 'entrega'
   colmeiaId: string
-  role: 'admin' | 'user' | 'superadmin' | 'produtor'
+  acesso: 'admin' | 'user' | 'superadmin' | 'produtor'
+  role?: string
+  isentoCotas?: boolean
   disabled?: boolean
   deleted?: boolean
   quota?: 'Cota inteira' | 'Meia cota'

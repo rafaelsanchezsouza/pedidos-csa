@@ -1,5 +1,5 @@
 import { auth } from './firebase'
-import type { Colmeia, Product, Producer, WeeklyOffering, Order, User, ParsedProduct, Payment } from '@/types'
+import type { Colmeia, Product, Producer, WeeklyOffering, Order, User, ParsedProduct, Payment, ColmeiaRole } from '@/types'
 
 const BASE_URL = '/api'
 
@@ -101,11 +101,22 @@ export const paymentsApi = {
     request<Payment>(`/payments/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
   ensureQuota: (month: string, colmeiaId: string) =>
     request<Payment>('/payments/quota', { method: 'POST', body: JSON.stringify({ month, colmeiaId }) }, colmeiaId),
+  ensureQuotaAll: (month: string, colmeiaId: string) =>
+    request<{ generated: number }>('/payments/quota/all', { method: 'POST', body: JSON.stringify({ month, colmeiaId }) }, colmeiaId),
 }
 
 export const issuesApi = {
   create: (data: { title: string; body: string }) =>
     request<{ url: string; number: number }>('/issues', { method: 'POST', body: JSON.stringify(data) }),
+}
+
+export const rolesApi = {
+  list: (colmeiaId: string) =>
+    request<ColmeiaRole[]>('/roles', {}, colmeiaId),
+  create: (name: string, colmeiaId: string) =>
+    request<ColmeiaRole>('/roles', { method: 'POST', body: JSON.stringify({ name }) }, colmeiaId),
+  delete: (id: string, colmeiaId: string) =>
+    request<void>(`/roles/${id}`, { method: 'DELETE' }, colmeiaId),
 }
 
 export const usersApi = {

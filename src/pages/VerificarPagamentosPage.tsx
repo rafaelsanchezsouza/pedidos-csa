@@ -32,14 +32,15 @@ export function VerificarPagamentosPage() {
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState<string | null>(null)
 
-  const isAllowed = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'produtor'
+  const isAllowed = user?.acesso === 'admin' || user?.acesso === 'superadmin' || user?.acesso === 'produtor'
   if (user && !isAllowed) return <Navigate to="/pedidos" replace />
 
-  const isProdutor = user?.role === 'produtor'
+  const isProdutor = user?.acesso === 'produtor'
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
+      if (!isProdutor) await paymentsApi.ensureQuotaAll(month, colmeiaId)
       const all = await paymentsApi.list(month, colmeiaId)
       const filtered = isProdutor ? all.filter((p) => p.producerName === user?.name) : all
       filtered.sort((a, b) =>

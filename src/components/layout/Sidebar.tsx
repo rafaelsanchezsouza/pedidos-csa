@@ -18,8 +18,8 @@ const navItems = [
 
 export function Sidebar() {
   const { user, colmeia } = useAuth()
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
-  const isProdutor = user?.role === 'produtor'
+  const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
+  const isProdutor = user?.acesso === 'produtor'
 
   return (
     <aside className="w-56 border-r bg-background flex flex-col">
