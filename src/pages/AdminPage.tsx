@@ -7,7 +7,6 @@ import type { User, Producer, ColmeiaRole } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -48,9 +47,6 @@ const emptyMemberForm: MemberForm = {
   frequency: 'semanal', deliveryType: 'colmeia', acesso: 'user', quota: 'Cota inteira',
 }
 
-const acessoLabel: Record<User['acesso'], string> = {
-  user: 'Membro', admin: 'Admin', superadmin: 'Super Admin', produtor: 'Produtor',
-}
 
 export function AdminPage() {
   const { colmeia, refreshUser } = useAuth()
@@ -80,6 +76,8 @@ export function AdminPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [editForm, setEditForm] = useState<Partial<User>>({})
   const [savingEdit, setSavingEdit] = useState(false)
+  const [resetLink, setResetLink] = useState<string | null>(null)
+  const [resettingPassword, setResettingPassword] = useState(false)
 
   // New member dialog
   const [memberDialog, setMemberDialog] = useState(false)
@@ -161,6 +159,7 @@ export function AdminPage() {
       isentoCotas: u.isentoCotas,
       quota: u.quota,
     })
+    setResetLink(null)
     setEditDialog(true)
   }
 
@@ -268,10 +267,10 @@ export function AdminPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Função</TableHead>
                   <TableHead>Frequência</TableHead>
                   <TableHead>Semana</TableHead>
+                  <TableHead>Cota</TableHead>
+                  <TableHead>Contato</TableHead>
                   <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -289,18 +288,14 @@ export function AdminPage() {
                         {u.name}
                         {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
                       </TableCell>
-                      <TableCell>{u.email}</TableCell>
-                      <TableCell>
-                        <Badge variant={u.acesso === 'admin' || u.acesso === 'superadmin' ? 'default' : 'secondary'}>
-                          {acessoLabel[u.acesso]}
-                        </Badge>
-                      </TableCell>
                       <TableCell className="capitalize">{u.frequency}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {u.frequency === 'quinzenal'
                           ? u.quinzenalParity === 'impar' ? 'A' : u.quinzenalParity === 'par' ? 'B' : '—'
                           : '—'}
                       </TableCell>
+                      <TableCell className="text-sm">{u.quota ?? '—'}</TableCell>
+                      <TableCell className="text-sm">{u.contact}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openEditMember(u)} title="Editar membro">
@@ -338,11 +333,7 @@ export function AdminPage() {
                         {u.name}
                         {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
                       </span>
-                      <Badge variant={u.acesso === 'admin' || u.acesso === 'superadmin' ? 'default' : 'secondary'}>
-                        {acessoLabel[u.acesso]}
-                      </Badge>
                     </div>
-                    <div className="text-sm text-muted-foreground">{u.email}</div>
                     <div className="text-sm text-muted-foreground capitalize">
                       {u.frequency}
                       {u.frequency === 'quinzenal' && (
@@ -351,6 +342,8 @@ export function AdminPage() {
                         </span>
                       )}
                     </div>
+                    <div className="text-sm text-muted-foreground">{u.quota ?? '—'}</div>
+                    <div className="text-sm text-muted-foreground">{u.contact}</div>
                     <div className="flex gap-1 pt-1">
                       <Button variant="ghost" size="icon" onClick={() => openEditMember(u)}>
                         <Pencil className="h-4 w-4" />
@@ -837,6 +830,45 @@ export function AdminPage() {
                     <SelectItem value="par">Semana B</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+          </div>
+          <div className="pt-2 border-t space-y-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={resettingPassword}
+              onClick={async () => {
+                if (!editingUser || !colmeia) return
+                setResettingPassword(true)
+                setResetLink(null)
+                try {
+                  const { link } = await usersApi.resetPassword(editingUser.id, colmeia.id)
+                  setResetLink(link)
+                } catch {
+                  setResetLink('Erro ao gerar link.')
+                } finally {
+                  setResettingPassword(false)
+                }
+              }}
+            >
+              {resettingPassword ? 'Gerando...' : 'Redefinir senha'}
+            </Button>
+            {resetLink && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Input value={resetLink} readOnly className="text-xs" />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigator.clipboard.writeText(resetLink)}
+                  >
+                    Copiar
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Compartilhe com o membro para que ele redefina sua senha.</p>
               </div>
             )}
           </div>

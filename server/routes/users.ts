@@ -95,6 +95,18 @@ router.put('/:uid', async (req: Request, res: Response) => {
   }
 })
 
+// Admin gera link de redefinição de senha para o usuário
+router.post('/:uid/reset-password', async (req: Request, res: Response) => {
+  try {
+    const uid = req.params['uid'] as string
+    const authUser = await admin.auth().getUser(uid)
+    const link = await admin.auth().generatePasswordResetLink(authUser.email!)
+    res.json({ link })
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
 // Admin exclui usuário (soft-delete no Firestore + remove do Firebase Auth)
 router.delete('/:uid', async (req: Request, res: Response) => {
   try {
