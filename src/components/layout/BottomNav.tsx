@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   ShoppingCart, BookOpen, Wheat, Settings, ClipboardList,
-  CreditCard, UserCircle, Truck, CheckCircle, MoreHorizontal, History, X,
+  CreditCard, UserCircle, Truck, CheckCircle, MoreHorizontal, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -11,7 +11,6 @@ const memberItems = [
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart },
   { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard },
   { to: '/perfil', label: 'Perfil', icon: UserCircle },
-  { to: '/historico', label: 'Histórico', icon: History },
 ]
 
 const produtorItems = [
@@ -22,19 +21,18 @@ const produtorItems = [
 ]
 
 const adminMainItems = [
-  { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart },
-  { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard },
-  { to: '/ofertas', label: 'Ofertas', icon: Wheat },
+  { to: '/entregas', label: 'Entregas', icon: Truck },
+  { to: '/verificar-pagamentos', label: 'Verificar', icon: CheckCircle },
   { to: '/consolidado', label: 'Consolidado', icon: ClipboardList },
+  { to: '/ofertas', label: 'Ofertas', icon: Wheat },
 ]
 
 const adminMoreItems = [
-  { to: '/verificar-pagamentos', label: 'Verificar Pagamentos', icon: CheckCircle },
-  { to: '/entregas', label: 'Entregas', icon: Truck },
+  { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart },
+  { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard },
   { to: '/catalogo', label: 'Catálogo', icon: BookOpen },
   { to: '/admin', label: 'Administração', icon: Settings },
   { to: '/perfil', label: 'Meu Perfil', icon: UserCircle },
-  { to: '/historico', label: 'Histórico', icon: History },
 ]
 
 export function BottomNav() {

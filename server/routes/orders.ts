@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
-import { upsertPaymentsForOrder } from './payments.js'
+import { upsertPaymentsForOrder } from '../services/paymentService.js'
 
 const router = Router()
 

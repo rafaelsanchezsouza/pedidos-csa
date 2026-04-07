@@ -40,7 +40,6 @@ export function VerificarPagamentosPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      if (!isProdutor) await paymentsApi.ensureQuotaAll(month, colmeiaId)
       const all = await paymentsApi.list(month, colmeiaId)
       const filtered = isProdutor ? all.filter((p) => p.producerName === user?.name) : all
       filtered.sort((a, b) =>

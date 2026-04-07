@@ -120,4 +120,5 @@
 - **Elegibilidade para geração de cota:** `quota` definido + `!isentoCotas` + `!disabled` + `!deleted`
   - Usuário sem campo `quota` → **não** tem cota gerada (campo obrigatório, definido pelo admin no cadastro)
   - Usuário com `isentoCotas: true` → não tem cota gerada; não aparece na lista de verificação
-- `POST /payments/quota/all` é chamado automaticamente ao abrir VerificarPagamentosPage (admin/superadmin), garantindo que todos os elegíveis tenham doc de cota antes de listar
+- **Geração automática:** cron job executa às 08h do dia 1 de cada mês (`server/jobs/quotaJob.ts`), gerando cotas para todos os elegíveis de todas as colmeias
+- `POST /payments/quota/all` permanece disponível para reprocessamento manual via API

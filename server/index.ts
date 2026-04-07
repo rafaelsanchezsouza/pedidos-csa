@@ -13,6 +13,7 @@ import usersRouter from './routes/users.js'
 import issuesRouter from './routes/issues.js'
 import rolesRouter from './routes/roles.js'
 import { db } from './repositories/firestore.js'
+import { startQuotaJob } from './jobs/quotaJob.js'
 
 declare module 'express' {
   interface Request {
@@ -63,4 +64,5 @@ app.use('/api/roles', rolesRouter)
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`)
+  startQuotaJob()
 })
