@@ -3,7 +3,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { ordersApi, usersApi } from '@/services/api'
 import type { Order, User } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@/lib/weekUtils'
@@ -95,8 +94,7 @@ export function EntregasPage() {
             <thead>
               <tr className="border-b text-muted-foreground">
                 <th className="text-left px-4 py-2">Membro</th>
-                <th className="text-left px-4 py-2">Itens</th>
-                <th className="text-right px-4 py-2">Status</th>
+                <th className="text-left px-4 py-2">Extras</th>
               </tr>
             </thead>
             <tbody className="px-4">
@@ -104,6 +102,12 @@ export function EntregasPage() {
                 <tr key={u.id} className="border-b last:border-0">
                   <td className="px-4 py-2 font-medium">
                     <div>{u.name}</div>
+                    {u.quota && (
+                      <div className="text-xs text-muted-foreground">{u.quota}</div>
+                    )}
+                    {u.contact && (
+                      <div className="text-xs text-muted-foreground">{u.contact}</div>
+                    )}
                     {u.frequency === 'quinzenal' && (
                       <span className="text-xs text-muted-foreground">quinzenal</span>
                     )}
@@ -118,14 +122,7 @@ export function EntregasPage() {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-muted-foreground">Sem pedido</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    {orderByUser.get(u.id) && (
-                      <Badge variant={orderByUser.get(u.id)!.status === 'enviado' ? 'default' : 'secondary'}>
-                        {orderByUser.get(u.id)!.status}
-                      </Badge>
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </td>
                 </tr>
