@@ -26,8 +26,10 @@
 - Não afeta permissões de sistema — apenas informativo
 
 ### Outros campos de usuário
-- `quota: 'Cota inteira' | 'Meia cota'` — define o valor da cota mensal
+- `quota: 'Cota inteira' | 'Meia cota'` — define o valor da cota mensal; **obrigatório para elegibilidade** (usuário sem `quota` não tem cota gerada)
 - `isentoCotas: boolean` — quando `true`, o usuário não tem cota mensal gerada e não aparece na lista de verificação de pagamentos de cota
+- `disabled: boolean` — quando `true`, usuário inativo; excluído da geração de cotas
+- `deleted: boolean` — quando `true`, usuário removido; excluído da geração de cotas
 - Usuário informa: nome, endereço, contato, frequência (semanal/quinzenal), tipo de retirada (na colmeia ou por entrega)
 
 ## Catálogo de Produtos
@@ -115,4 +117,7 @@
   - Usuário `quinzenal`: conta apenas as semanas do ciclo do membro
 - Vencimento: dia `dueDay` do **mês anterior** (pagamento pré-consumo)
 - `dueDay` configurável pelo admin (padrão: 10); salvo em `colmeia.dueDay`
-- Usuário com `isentoCotas: true` não tem cota gerada; não aparece na lista de verificação
+- **Elegibilidade para geração de cota:** `quota` definido + `!isentoCotas` + `!disabled` + `!deleted`
+  - Usuário sem campo `quota` → **não** tem cota gerada (campo obrigatório, definido pelo admin no cadastro)
+  - Usuário com `isentoCotas: true` → não tem cota gerada; não aparece na lista de verificação
+- `POST /payments/quota/all` é chamado automaticamente ao abrir VerificarPagamentosPage (admin/superadmin), garantindo que todos os elegíveis tenham doc de cota antes de listar

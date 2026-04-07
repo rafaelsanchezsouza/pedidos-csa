@@ -136,4 +136,6 @@ export const usersApi = {
     request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify({ disabled: false }) }, colmeiaId),
   delete: (uid: string, colmeiaId: string) =>
     request<{ success: boolean }>(`/users/${uid}`, { method: 'DELETE' }, colmeiaId),
+  resetPassword: (uid: string, colmeiaId: string) =>
+    request<{ link: string }>(`/users/${uid}/reset-password`, { method: 'POST' }, colmeiaId),
 }
