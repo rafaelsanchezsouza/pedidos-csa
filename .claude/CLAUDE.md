@@ -15,6 +15,7 @@
 - **Sem** co-authorship footer do Claude
 - Ao commitar mudança que altera rotas, modelos ou comportamento → atualizar doc relevante no mesmo commit
 - Quando regra de negócio for discutida e decidida → atualizar `BUSINESS_RULES.md` no mesmo commit
+- **NUNCA** commitar dados pessoais de membros (nome, email, celular, endereço) — scripts de seed com dados reais ficam fora do git
 
 ## Planos
 - Ao final de cada plano: lista de perguntas não resolvidas (extremamente concisas)

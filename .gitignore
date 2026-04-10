@@ -48,3 +48,9 @@ coverage/
 mensagem_produtor_*.txt
 users/
 
+# Scripts com dados pessoais de membros
+scripts/create-users-form.ts
+scripts/create-owner-user.ts
+scripts/seed-catalogo-jucy.ts
+*.csv
+

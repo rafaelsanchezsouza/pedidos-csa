@@ -12,6 +12,7 @@ import paymentsRouter from './routes/payments.js'
 import usersRouter from './routes/users.js'
 import issuesRouter from './routes/issues.js'
 import rolesRouter from './routes/roles.js'
+import whatsappAuthRouter from './routes/whatsappAuth.js'
 import { db } from './repositories/firestore.js'
 import { startQuotaJob } from './jobs/quotaJob.js'
 
@@ -48,6 +49,9 @@ app.post('/api/setup', async (req, res) => {
     res.status(500).json({ message: String(err) })
   }
 })
+
+// Rotas públicas (sem auth)
+app.use('/api/auth/whatsapp', whatsappAuthRouter)
 
 app.use('/api', authMiddleware)
 app.use('/api', colmeiaMiddleware)
