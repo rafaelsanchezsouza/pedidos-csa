@@ -90,6 +90,11 @@ export const ordersApi = {
     request<Order[]>(`/orders/history?colmeiaId=${colmeiaId}${userId ? `&userId=${userId}` : ''}`, {}, colmeiaId),
   getMonthly: (month: string, colmeiaId: string) =>
     request<Order[]>(`/orders/monthly?month=${month}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
+  toggleRecebido: (userId: string, userName: string, weekId: string, colmeiaId: string, recebido: boolean) =>
+    request<{ id: string; recebido: boolean }>('/orders/recebido', {
+      method: 'PATCH',
+      body: JSON.stringify({ userId, userName, weekId, colmeiaId, recebido }),
+    }, colmeiaId),
 }
 
 export const paymentsApi = {

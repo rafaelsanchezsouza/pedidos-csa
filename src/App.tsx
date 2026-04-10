@@ -11,6 +11,7 @@ import { PagamentosPage } from '@/pages/PagamentosPage'
 import { PerfilPage } from '@/pages/PerfilPage'
 import { HistoricoPage } from '@/pages/HistoricoPage'
 import { EntregasPage } from '@/pages/EntregasPage'
+import { ConsolidadoGeralPage } from '@/pages/ConsolidadoGeralPage'
 import { VerificarPagamentosPage } from '@/pages/VerificarPagamentosPage'
 import { DefinirSenhaPage } from '@/pages/DefinirSenhaPage'
 import { ReactNode } from 'react'
@@ -91,6 +92,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute adminOnly>
               <EntregasPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/consolidado-geral"
+          element={
+            <ProtectedRoute adminOnly>
+              <ConsolidadoGeralPage />
             </ProtectedRoute>
           }
         />
