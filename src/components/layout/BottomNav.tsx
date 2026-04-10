@@ -23,7 +23,7 @@ const produtorItems = [
 const adminMainItems = [
   { to: '/entregas', label: 'Entregas', icon: Truck },
   { to: '/verificar-pagamentos', label: 'Verificar', icon: CheckCircle },
-  { to: '/consolidado', label: 'Consolidado', icon: ClipboardList },
+  { to: '/consolidado-geral', label: 'Consolidado', icon: ClipboardList },
   { to: '/ofertas', label: 'Ofertas', icon: Wheat },
 ]
 

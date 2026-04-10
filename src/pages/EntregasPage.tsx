@@ -36,17 +36,18 @@ export function EntregasPage() {
 
   const fixoThisWeek = isFixoWeek(weekId)
 
-  // Usuários que devem receber esta semana
+  // Mapear pedidos por usuário
+  const orderByUser = new Map<string, Order>()
+  orders.forEach((o) => orderByUser.set(o.userId, o))
+
+  // Usuários que devem receber esta semana (exclui doações)
   const activeUsers = users.filter((u) => {
     if (u.disabled || u.deleted) return false
     if (u.acesso === 'produtor') return false
     if (!isUserDeliveryWeek(u, weekId)) return false
+    if (orderByUser.get(u.id)?.doacao) return false
     return true
   })
-
-  // Mapear pedidos por usuário
-  const orderByUser = new Map<string, Order>()
-  orders.forEach((o) => orderByUser.set(o.userId, o))
 
   const porEntrega = activeUsers.filter((u) => u.deliveryType === 'entrega')
 
@@ -115,8 +116,8 @@ export function EntregasPage() {
                   <td className="px-4 py-2">
                     {orderByUser.get(u.id) ? (
                       <div className="space-y-0.5">
-                        {orderByUser.get(u.id)!.items.map((item) => (
-                          <div key={item.productId}>
+                        {orderByUser.get(u.id)!.items.map((item, i) => (
+                          <div key={`${item.offeringId}_${item.productId}_${i}`}>
                             {item.productName} × {item.qty} {item.unit}
                           </div>
                         ))}

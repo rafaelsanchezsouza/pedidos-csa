@@ -89,6 +89,8 @@ export interface Order {
   weekId: string
   items: OrderItem[]
   status: 'rascunho' | 'enviado'
+  doacao?: boolean
+  recebido?: boolean
   dateCreated: string
   dateUpdated: string
 }

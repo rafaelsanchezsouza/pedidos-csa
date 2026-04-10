@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, ordersApi } from '@/services/api'
 import type { WeeklyOffering, Order, OrderItem } from '@/types'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -55,6 +55,32 @@ export function PedidosPage() {
 
   function setQty(key: string, n: number) {
     setQuantities((prev) => ({ ...prev, [key]: Math.max(0, n) }))
+  }
+
+  async function handleDoacao(doacao: boolean) {
+    if (!user || !colmeia) return
+    setSaving(true)
+    setMessage('')
+    try {
+      if (order) {
+        await ordersApi.update(order.id, { doacao }, colmeia.id)
+      } else {
+        await ordersApi.create({
+          userId: user.id,
+          userName: user.name,
+          colmeiaId: colmeia.id,
+          weekId,
+          items: [],
+          status: 'rascunho',
+          doacao,
+        }, colmeia.id)
+      }
+      await load()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro ao atualizar')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleSave() {
@@ -123,6 +149,23 @@ export function PedidosPage() {
           <WeekNavigator weekId={weekId} onChange={setWeekId} />
         </div>
       </div>
+
+      <Card
+        className={order?.doacao ? 'border-orange-300 bg-orange-50 cursor-pointer' : 'cursor-pointer hover:bg-muted/50'}
+        onClick={() => !saving && handleDoacao(!order?.doacao)}
+      >
+        <CardContent className="py-3 flex items-center gap-3">
+          <Heart className={`h-4 w-4 flex-shrink-0 ${order?.doacao ? 'fill-orange-500 text-orange-500' : 'text-muted-foreground'}`} />
+          <div>
+            <p className={`text-sm font-medium ${order?.doacao ? 'text-orange-800' : 'text-muted-foreground'}`}>
+              {order?.doacao ? 'Cota marcada para doação' : 'Marcar para doação'}
+            </p>
+            {order?.doacao && (
+              <p className="text-xs text-orange-700">Você não receberá entrega esta semana. Clique para cancelar.</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {user?.frequency === 'quinzenal' && !showFixo && (
         <Card className="border-amber-200 bg-amber-50">

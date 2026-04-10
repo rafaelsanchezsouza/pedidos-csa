@@ -8,12 +8,12 @@ const navItems = [
   { to: '/pedidos', label: 'Meus Pedidos', icon: ShoppingCart, adminOnly: false, produtorVisible: false },
   { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard, adminOnly: false, produtorVisible: false },
   { to: '/verificar-pagamentos', label: 'Verificar Pagamentos', icon: CheckCircle, adminOnly: true, produtorVisible: true },
-  { to: '/entregas', label: 'Entregas', icon: Truck, adminOnly: true, produtorVisible: false },
-  { to: '/perfil', label: 'Meu Perfil', icon: UserCircle, adminOnly: false, produtorVisible: false },
   { to: '/ofertas', label: 'Ofertas da Semana', icon: Wheat, adminOnly: true, produtorVisible: false },
-  { to: '/consolidado', label: 'Consolidado', icon: ClipboardList, adminOnly: true, produtorVisible: false },
+  { to: '/entregas', label: 'Entregas', icon: Truck, adminOnly: true, produtorVisible: false },
+  { to: '/consolidado-geral', label: 'Consolidado', icon: ClipboardList, adminOnly: true, produtorVisible: false },
   { to: '/catalogo', label: 'Catálogo', icon: BookOpen, adminOnly: true, produtorVisible: false },
   { to: '/admin', label: 'Administração', icon: Settings, adminOnly: true, produtorVisible: false },
+  { to: '/perfil', label: 'Meu Perfil', icon: UserCircle, adminOnly: false, produtorVisible: false },
 ]
 
 export function Sidebar() {

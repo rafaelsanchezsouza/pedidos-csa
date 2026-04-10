@@ -84,6 +84,27 @@
 - Chave interna de quantidade: `offeringId + productId`
 - Pedido consolidado (admin): soma de todos os pedidos da semana por produto, para envio ao produtor via WhatsApp
 
+### Doação de cota
+
+- Membro pode marcar sua cota semanal para doação em **Meus Pedidos** (campo `doacao: boolean` no pedido)
+- Ao marcar doação: se não existir pedido para a semana, um é criado com `status: 'rascunho'` e `doacao: true`; extras já pedidos são **preservados**
+- Membro marcado para doação é **removido** do planejamento de entrega (tela Entregas)
+- Membro com doação aparece no **Consolidado Geral** com a coluna "Doação" marcada automaticamente
+
+### Consolidado Geral
+
+- Tela administrativa que mostra **todos** os membros ativos da semana (tanto `entrega` quanto `colmeia`)
+- Respeita paridade quinzenal: membros que não recebem na semana não aparecem
+- Colunas adicionais em relação à tela de Entregas:
+  - **Doação**: marcado automaticamente se `order.doacao === true`
+  - **Recebido**: checkbox clicável pelo admin, persiste no Firestore via `PATCH /api/orders/recebido`
+- Se não houver pedido registrado para o membro e o admin marcar como recebido, um pedido mínimo é criado (`items: [], status: 'rascunho'`)
+
+### Texto WhatsApp (Consolidado Extras)
+
+- Cabeçalho: `*Nome da Colmeia — Semana de YYYY-MM-DD*` (nome vem de `colmeia.name`)
+- Nome do produtor e total de membros **não** são incluídos no texto gerado
+
 ## Frequência Quinzenal
 
 - Usuários `semanal`: recebem itens fixos toda semana

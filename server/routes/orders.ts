@@ -21,6 +21,8 @@ interface OrderDoc {
   weekId: string
   items: OrderItem[]
   status: 'rascunho' | 'enviado'
+  doacao?: boolean
+  recebido?: boolean
   dateCreated: string
   dateUpdated: string
 }
@@ -66,7 +68,7 @@ router.get('/consolidated-text', async (req: Request, res: Response) => {
       res.status(400).json({ message: 'colmeiaId, weekId e producerId obrigatórios' }); return
     }
 
-    const [orders, offering] = await Promise.all([
+    const [orders, offering, colmeia] = await Promise.all([
       listDocs<OrderDoc>('orders', [
         ['colmeiaId', '==', colmeiaId],
         ['weekId', '==', weekId],
@@ -76,9 +78,10 @@ router.get('/consolidated-text', async (req: Request, res: Response) => {
         'weekly_offerings',
         [['colmeiaId', '==', colmeiaId], ['weekStart', '==', weekId], ['producerId', '==', producerId]]
       ),
+      getDoc<{ name: string }>('colmeias', colmeiaId),
     ])
 
-    const producerName = offering[0]?.producerName ?? 'Produtor'
+    const colmeiaName = colmeia?.name ?? 'CSA'
     const producerItemIds = new Set((offering[0]?.items ?? []).map((i) => i.productId))
 
     const relevantOrders = orders.filter((o) =>
@@ -86,8 +89,7 @@ router.get('/consolidated-text', async (req: Request, res: Response) => {
     )
 
     const lines: string[] = [
-      `*Pedido CSA — Semana de ${weekId}*`,
-      `*${producerName}*`,
+      `*${colmeiaName} — Semana de ${weekId}*`,
       '',
     ]
 
@@ -98,10 +100,38 @@ router.get('/consolidated-text', async (req: Request, res: Response) => {
         .forEach((i) => lines.push(`  ${i.qty} ${i.unit} ${i.productName}`))
     }
 
-    lines.push('')
-    lines.push(`Total de membros: ${relevantOrders.length}`)
-
     res.json({ text: lines.join('\n') })
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// PATCH /api/orders/recebido — admin marca recebido para um membro na semana
+router.patch('/recebido', async (req: Request, res: Response) => {
+  try {
+    const { userId, userName, weekId, colmeiaId: bodyColmeiaId, recebido } = req.body as {
+      userId: string; userName: string; weekId: string; colmeiaId: string; recebido: boolean
+    }
+    const colmeiaId = bodyColmeiaId || req.colmeiaId
+    if (!userId || !weekId || !colmeiaId) {
+      res.status(400).json({ message: 'userId, weekId e colmeiaId obrigatórios' }); return
+    }
+    const existing = await listDocs<OrderDoc>('orders', [
+      ['userId', '==', userId],
+      ['colmeiaId', '==', colmeiaId],
+      ['weekId', '==', weekId],
+    ])
+    const now = new Date().toISOString()
+    if (existing[0]) {
+      await updateDoc<OrderDoc>('orders', existing[0].id, { recebido, dateUpdated: now })
+      res.json({ id: existing[0].id, recebido })
+    } else {
+      const created = await createDoc<OrderDoc>('orders', {
+        userId, userName: userName ?? '', colmeiaId, weekId,
+        items: [], status: 'rascunho', recebido, dateCreated: now, dateUpdated: now,
+      })
+      res.json(created)
+    }
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
