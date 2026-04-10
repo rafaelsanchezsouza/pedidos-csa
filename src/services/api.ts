@@ -117,6 +117,33 @@ export const rolesApi = {
     request<void>(`/roles/${id}`, { method: 'DELETE' }, colmeiaId),
 }
 
+export const whatsappApi = {
+  requestOtp: async (identifier: string): Promise<{ success: boolean }> => {
+    const res = await fetch(`${BASE_URL}/auth/whatsapp/request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: res.statusText }))
+      throw new Error((err as { message?: string }).message || 'Erro ao enviar código')
+    }
+    return res.json()
+  },
+  verifyOtp: async (identifier: string, code: string): Promise<{ customToken: string }> => {
+    const res = await fetch(`${BASE_URL}/auth/whatsapp/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, code }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: res.statusText }))
+      throw new Error((err as { message?: string }).message || 'Código inválido ou expirado')
+    }
+    return res.json()
+  },
+}
+
 export const usersApi = {
   getMe: (colmeiaId?: string) => request<User>('/users/me', {}, colmeiaId),
   updateMe: (data: Partial<User>, colmeiaId?: string) =>
