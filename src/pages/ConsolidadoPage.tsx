@@ -4,7 +4,6 @@ import { offeringsApi, ordersApi } from '@/services/api'
 import type { WeeklyOffering, Order } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { getPresentWeekId, getWeekDelivery } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
 
@@ -17,6 +16,9 @@ export function ConsolidadoPage() {
   const [texts, setTexts] = useState<Record<string, string>>({})
   const [generating, setGenerating] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  const [sending, setSending] = useState<string | null>(null)
+  const [sent, setSent] = useState<string | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -51,6 +53,22 @@ export function ConsolidadoPage() {
     await navigator.clipboard.writeText(texts[producerId] ?? '')
     setCopied(producerId)
     setTimeout(() => setCopied(null), 2000)
+  }
+
+  async function handleSendWhatsApp(producerId: string) {
+    if (!colmeia) return
+    setSending(producerId)
+    setSendError(null)
+    try {
+      await ordersApi.sendConsolidatedWhatsApp(weekId, colmeia.id, producerId)
+      setSent(producerId)
+      setTimeout(() => setSent(null), 2000)
+    } catch (err) {
+      setSendError(producerId)
+      setTimeout(() => setSendError(null), 3000)
+    } finally {
+      setSending(null)
+    }
   }
 
   const sentOrders = orders.filter((o) => o.status === 'enviado')
@@ -116,7 +134,6 @@ export function ConsolidadoPage() {
                         <tr className="border-b text-muted-foreground">
                           <th className="text-left py-1">Produto</th>
                           <th className="text-left py-1">Unid.</th>
-                          <th className="py-1">Tipo</th>
                           <th className="text-right py-1">Total</th>
                         </tr>
                       </thead>
@@ -125,11 +142,6 @@ export function ConsolidadoPage() {
                           <tr key={item.name} className="border-b last:border-0">
                             <td className="py-1.5 font-medium">{item.name}</td>
                             <td className="py-1.5 text-muted-foreground">{item.unit}</td>
-                            <td className="py-1.5 text-center">
-                              <Badge variant={item.type === 'fixo' ? 'default' : 'secondary'} className="text-xs">
-                                {item.type}
-                              </Badge>
-                            </td>
                             <td className="py-1.5 text-right font-semibold">{item.qty}</td>
                           </tr>
                         ))}
@@ -155,7 +167,7 @@ export function ConsolidadoPage() {
                   </>
                 )}
 
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-2 pt-1 flex-wrap">
                   <Button
                     size="sm"
                     variant="secondary"
@@ -168,6 +180,16 @@ export function ConsolidadoPage() {
                     <Button size="sm" variant="outline" onClick={() => handleCopy(offering.producerId)}>
                       {copied === offering.producerId ? 'Copiado!' : 'Copiar'}
                     </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    disabled={sending === offering.producerId}
+                    onClick={() => handleSendWhatsApp(offering.producerId)}
+                  >
+                    {sending === offering.producerId ? 'Enviando...' : sent === offering.producerId ? 'Enviado!' : 'Enviar por WhatsApp'}
+                  </Button>
+                  {sendError === offering.producerId && (
+                    <span className="text-xs text-destructive">Erro ao enviar</span>
                   )}
                 </div>
 

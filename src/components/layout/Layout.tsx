@@ -11,7 +11,7 @@ export function Layout() {
         <div className="hidden lg:block">
           <Sidebar />
         </div>
-        <main className="flex-1 overflow-y-auto p-3 lg:p-6 pb-20 lg:pb-6">
+        <main className="flex-1 overflow-y-auto p-3 lg:p-6 pb-16 lg:pb-6">
           <Outlet />
         </main>
       </div>
