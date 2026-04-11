@@ -27,6 +27,7 @@ scp -i "$SSH_KEY" -r dist/        "$VM_USER@$VM_HOST:$VM_DIR/dist"
 scp -i "$SSH_KEY" -r dist-server/ "$VM_USER@$VM_HOST:$VM_DIR/dist-server"
 scp -i "$SSH_KEY" package.json package-lock.json "$VM_USER@$VM_HOST:$VM_DIR/"
 scp -i "$SSH_KEY" "$ENV_FILE" "$VM_USER@$VM_HOST:$VM_DIR/.env"
+scp -i "$SSH_KEY" docker-compose.yml "$VM_USER@$VM_HOST:$VM_DIR/docker-compose.yml"
 
 echo "==> [3/5] Ajustando permissões do .env na VM..."
 $SSH "chmod 600 $VM_DIR/.env"
