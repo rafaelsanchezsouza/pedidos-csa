@@ -8,7 +8,6 @@ import { WeekNavigator } from '@/components/WeekNavigator'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -188,7 +187,7 @@ export function OfertasPage() {
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Ofertas da Semana</h1>
+          <h1 className="text-2xl font-bold">Extras da Semana</h1>
           <p className="text-muted-foreground text-sm">Entrega em {formatDeliveryDate(weekId)}</p>
         </div>
         <WeekNavigator weekId={weekId} onChange={setWeekId} />
@@ -251,9 +250,6 @@ export function OfertasPage() {
                         <div className="flex items-center gap-2">
                           <span>{item.productName}</span>
                           <span className="text-muted-foreground">({item.unit})</span>
-                          <Badge variant={item.type === 'fixo' ? 'default' : 'secondary'} className="text-xs">
-                            {item.type}
-                          </Badge>
                         </div>
                         <span className="font-medium">R$ {item.price.toFixed(2)}</span>
                       </div>
@@ -344,9 +340,6 @@ export function OfertasPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1 pt-5">
-                            <Badge variant={item.type === 'fixo' ? 'default' : 'secondary'} className="text-xs">
-                              {item.type}
-                            </Badge>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeParsed(idx)}>
                               <X className="h-3 w-3" />
                             </Button>

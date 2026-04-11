@@ -22,6 +22,9 @@ export function ConsolidadoGeralPage() {
   const [texts, setTexts] = useState<Record<string, string>>({})
   const [generating, setGenerating] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  const [sending, setSending] = useState<string | null>(null)
+  const [sent, setSent] = useState<string | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -107,6 +110,22 @@ export function ConsolidadoGeralPage() {
     await navigator.clipboard.writeText(texts[producerId] ?? '')
     setCopied(producerId)
     setTimeout(() => setCopied(null), 2000)
+  }
+
+  async function handleSendWhatsApp(producerId: string) {
+    if (!colmeia) return
+    setSending(producerId)
+    setSendError(null)
+    try {
+      await ordersApi.sendConsolidatedWhatsApp(weekId, colmeia.id, producerId)
+      setSent(producerId)
+      setTimeout(() => setSent(null), 2000)
+    } catch (err) {
+      setSendError(producerId)
+      setTimeout(() => setSendError(null), 3000)
+    } finally {
+      setSending(null)
+    }
   }
 
   function buildReport(): string {
@@ -280,7 +299,7 @@ export function ConsolidadoGeralPage() {
                   <div key={offering.id} className="space-y-2">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-sm font-medium">{offering.producerName}</span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
                         <Button
                           size="sm"
                           variant="secondary"
@@ -293,6 +312,16 @@ export function ConsolidadoGeralPage() {
                           <Button size="sm" variant="outline" onClick={() => handleCopyText(offering.producerId)}>
                             {copied === offering.producerId ? 'Copiado!' : 'Copiar'}
                           </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          disabled={sending === offering.producerId}
+                          onClick={() => handleSendWhatsApp(offering.producerId)}
+                        >
+                          {sending === offering.producerId ? 'Enviando...' : sent === offering.producerId ? 'Enviado!' : 'Enviar por WhatsApp'}
+                        </Button>
+                        {sendError === offering.producerId && (
+                          <span className="text-xs text-destructive">Erro ao enviar</span>
                         )}
                       </div>
                     </div>

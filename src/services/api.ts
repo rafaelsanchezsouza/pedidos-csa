@@ -86,6 +86,13 @@ export const ordersApi = {
     request<Order[]>(`/orders/consolidated?weekId=${weekId}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
   getConsolidatedText: (weekId: string, colmeiaId: string, producerId: string) =>
     request<{ text: string }>(`/orders/consolidated-text?weekId=${weekId}&colmeiaId=${colmeiaId}&producerId=${producerId}`, {}, colmeiaId),
+  sendConsolidatedWhatsApp: (weekId: string, colmeiaId: string, producerId: string) =>
+    request<{ success: boolean }>('/orders/send-consolidated-whatsapp', {
+      method: 'POST',
+      body: JSON.stringify({ weekId, colmeiaId, producerId }),
+    }, colmeiaId),
+  getWeekLock: (weekId: string, colmeiaId: string) =>
+    request<{ locked: boolean }>(`/orders/week-lock?weekId=${weekId}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
   getHistory: (colmeiaId: string, userId?: string) =>
     request<Order[]>(`/orders/history?colmeiaId=${colmeiaId}${userId ? `&userId=${userId}` : ''}`, {}, colmeiaId),
   getMonthly: (month: string, colmeiaId: string) =>

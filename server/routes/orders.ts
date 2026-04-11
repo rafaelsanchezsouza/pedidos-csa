@@ -1,6 +1,41 @@
 import { Router, Request, Response } from 'express'
-import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
+import { listDocs, createDoc, updateDoc, getDoc, db } from '../repositories/firestore.js'
 import { upsertPaymentsForOrder } from '../services/paymentService.js'
+import { sendWhatsAppMessage } from '../services/whatsapp/index.js'
+
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('55') && digits.length >= 12) return digits
+  return '55' + digits
+}
+
+async function buildConsolidatedText(colmeiaId: string, weekId: string, producerId: string): Promise<string> {
+  const [orders, offering, colmeia] = await Promise.all([
+    listDocs<OrderDoc>('orders', [
+      ['colmeiaId', '==', colmeiaId],
+      ['weekId', '==', weekId],
+      ['status', '==', 'enviado'],
+    ]),
+    listDocs<{ producerName: string; items: Array<{ productId: string; productName: string; unit: string; type: string }> }>(
+      'weekly_offerings',
+      [['colmeiaId', '==', colmeiaId], ['weekStart', '==', weekId], ['producerId', '==', producerId]]
+    ),
+    getDoc<{ name: string }>('colmeias', colmeiaId),
+  ])
+
+  const colmeiaName = colmeia?.name ?? 'CSA'
+  const producerItemIds = new Set((offering[0]?.items ?? []).map((i) => i.productId))
+  const relevantOrders = orders.filter((o) => o.items.some((i) => producerItemIds.has(i.productId)))
+
+  const lines: string[] = [`*${colmeiaName} — Semana de ${weekId}*`, '']
+  for (const order of relevantOrders) {
+    lines.push(order.userName)
+    order.items
+      .filter((i) => producerItemIds.has(i.productId))
+      .forEach((i) => lines.push(`  ${i.qty} ${i.unit} ${i.productName}`))
+  }
+  return lines.join('\n')
+}
 
 const router = Router()
 
@@ -67,40 +102,54 @@ router.get('/consolidated-text', async (req: Request, res: Response) => {
     if (!colmeiaId || !weekId || !producerId) {
       res.status(400).json({ message: 'colmeiaId, weekId e producerId obrigatórios' }); return
     }
+    const text = await buildConsolidatedText(colmeiaId, weekId, producerId)
+    res.json({ text })
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
 
-    const [orders, offering, colmeia] = await Promise.all([
-      listDocs<OrderDoc>('orders', [
-        ['colmeiaId', '==', colmeiaId],
-        ['weekId', '==', weekId],
-        ['status', '==', 'enviado'],
-      ]),
-      listDocs<{ producerName: string; items: Array<{ productId: string; productName: string; unit: string; type: string }> }>(
-        'weekly_offerings',
-        [['colmeiaId', '==', colmeiaId], ['weekStart', '==', weekId], ['producerId', '==', producerId]]
-      ),
-      getDoc<{ name: string }>('colmeias', colmeiaId),
-    ])
+// GET /api/orders/week-lock?weekId=&colmeiaId=
+router.get('/week-lock', async (req: Request, res: Response) => {
+  try {
+    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    const weekId = req.query.weekId as string
+    if (!colmeiaId || !weekId) { res.status(400).json({ message: 'colmeiaId e weekId obrigatórios' }); return }
+    const snap = await db.collection('week_locks').doc(`${colmeiaId}_${weekId}`).get()
+    res.json({ locked: snap.exists })
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
 
-    const colmeiaName = colmeia?.name ?? 'CSA'
-    const producerItemIds = new Set((offering[0]?.items ?? []).map((i) => i.productId))
-
-    const relevantOrders = orders.filter((o) =>
-      o.items.some((i) => producerItemIds.has(i.productId))
-    )
-
-    const lines: string[] = [
-      `*${colmeiaName} — Semana de ${weekId}*`,
-      '',
-    ]
-
-    for (const order of relevantOrders) {
-      lines.push(order.userName)
-      order.items
-        .filter((i) => producerItemIds.has(i.productId))
-        .forEach((i) => lines.push(`  ${i.qty} ${i.unit} ${i.productName}`))
+// POST /api/orders/send-consolidated-whatsapp
+router.post('/send-consolidated-whatsapp', async (req: Request, res: Response) => {
+  try {
+    const { colmeiaId: bodyColmeiaId, weekId, producerId } = req.body as { colmeiaId?: string; weekId: string; producerId: string }
+    const colmeiaId = bodyColmeiaId || req.colmeiaId
+    if (!colmeiaId || !weekId || !producerId) {
+      res.status(400).json({ message: 'colmeiaId, weekId e producerId obrigatórios' }); return
     }
 
-    res.json({ text: lines.join('\n') })
+    const producers = await listDocs<{ name: string; contact: string }>('producers', [
+      ['colmeiaId', '==', colmeiaId],
+    ])
+    const producer = producers.find((p) => p.id === producerId)
+    if (!producer?.contact) {
+      res.status(400).json({ message: 'Produtor sem número de contato cadastrado' }); return
+    }
+
+    const text = await buildConsolidatedText(colmeiaId, weekId, producerId)
+    await sendWhatsAppMessage(normalizePhone(producer.contact), text)
+
+    const lockId = `${colmeiaId}_${weekId}`
+    await db.collection('week_locks').doc(lockId).set({
+      colmeiaId,
+      weekId,
+      lockedAt: new Date().toISOString(),
+    })
+
+    res.json({ success: true })
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
@@ -189,15 +238,23 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.put('/:id', async (req: Request, res: Response) => {
   try {
+    const existing = await getDoc<OrderDoc>('orders', req.params['id'] as string)
+    if (existing) {
+      const snap = await db.collection('week_locks').doc(`${existing.colmeiaId}_${existing.weekId}`).get()
+      if (snap.exists) {
+        const userSnap = await db.collection('users').doc(req.user!.uid).get()
+        const userData = userSnap.data() as { acesso?: string } | undefined
+        const isAdmin = userData?.acesso === 'admin' || userData?.acesso === 'superadmin'
+        if (!isAdmin) {
+          res.status(403).json({ message: 'Pedido bloqueado após envio ao produtor' }); return
+        }
+      }
+    }
     const updates = { ...req.body as Partial<OrderDoc>, dateUpdated: new Date().toISOString() }
     await updateDoc<OrderDoc>('orders', req.params['id'] as string, updates)
-    const updated = updates as OrderDoc & { weekId?: string }
-    if (updated.status === 'enviado' || updated.status === 'rascunho') {
-      // Precisamos do weekId e dados do usuário — buscar do doc existente
-      const existing = await getDoc<OrderDoc>('orders', req.params['id'] as string)
-      if (existing) {
-        await upsertPaymentsForOrder(existing.userId, existing.userName, existing.colmeiaId, existing.weekId.slice(0, 7))
-      }
+    const updatedStatus = (req.body as Partial<OrderDoc>).status
+    if ((updatedStatus === 'enviado' || updatedStatus === 'rascunho') && existing) {
+      await upsertPaymentsForOrder(existing.userId, existing.userName, existing.colmeiaId, existing.weekId.slice(0, 7))
     }
     res.json({ id: req.params['id'], ...updates })
   } catch (err) {
