@@ -240,13 +240,13 @@ export function PedidosPage() {
       )}
 
       {!loading && offerings.length > 0 && (
-        <div className="flex items-center justify-between pt-2">
-          <div className="text-lg font-semibold">
+        <div className="sticky bottom-0 bg-background border-t flex items-center justify-between py-2">
+          <div className="text-base font-semibold">
             Total: R$ {total.toFixed(2)}
           </div>
           <div className="flex items-center gap-3">
             {message && <span className="text-sm text-muted-foreground">{message}</span>}
-            <Button onClick={handleSave} disabled={saving || (locked && !isAdmin)}>
+            <Button size="sm" onClick={handleSave} disabled={saving || (locked && !isAdmin)}>
               {saving ? 'Salvando...' : order ? 'Atualizar Pedido' : 'Enviar Pedido'}
             </Button>
           </div>
