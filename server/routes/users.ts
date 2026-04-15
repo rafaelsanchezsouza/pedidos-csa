@@ -114,7 +114,7 @@ router.post('/create-member-batch', async (req: Request, res: Response) => {
         const data = { email, ...profile, mustChangePassword: true }
         await db.collection('users').doc(authUser.uid).set(data)
         if (profile.contact) {
-          enviarBoasVindas(profile.contact, profile.name, email, password, colmeiaName).catch(() => {/* não bloquear */})
+          try { await enviarBoasVindas(profile.contact, profile.name, email, password, colmeiaName) } catch { /* não bloquear */ }
         }
         results.push({ name: profile.name, email, success: true, password })
       } catch (err) {
