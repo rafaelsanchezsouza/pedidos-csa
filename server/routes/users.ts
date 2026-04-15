@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express'
 import admin from 'firebase-admin'
+import crypto from 'crypto'
 import { db, listDocs, updateDoc } from '../repositories/firestore.js'
+import { sendWhatsAppMessage } from '../services/whatsapp/index.js'
 
 const router = Router()
 
@@ -18,6 +20,15 @@ interface UserDoc {
   disabled?: boolean
   deleted?: boolean
   quota?: 'Cota inteira' | 'Meia cota'
+}
+
+function gerarSenha() {
+  return crypto.randomBytes(5).toString('hex') + 'Csa1!'
+}
+
+async function enviarBoasVindas(contact: string, name: string, email: string, password: string, colmeiaName: string) {
+  const msg = `Olá, ${name}! Bem-vinde à ${colmeiaName} 🌿\n\nSeu acesso ao app de pedidos foi criado:\nE-mail: ${email}\nSenha: ${password}\n\nAcesse: http://csaparahyba.com.br/\n\nNa primeira entrada, defina uma nova senha.`
+  await sendWhatsAppMessage(contact, msg)
 }
 
 router.get('/me', async (req: Request, res: Response) => {
@@ -67,14 +78,50 @@ router.post('/', async (req: Request, res: Response) => {
 // Admin cria novo membro: cria conta no Firebase Auth + doc no Firestore
 router.post('/create-member', async (req: Request, res: Response) => {
   try {
-    const { email, password, ...profile } = req.body as UserDoc & { password: string }
-    if (!email || !password) {
-      res.status(400).json({ message: 'email e password obrigatórios' }); return
-    }
+    const { email, password: rawPassword, ...profile } = req.body as UserDoc & { password?: string }
+    if (!email) { res.status(400).json({ message: 'email obrigatório' }); return }
+    const password = rawPassword?.trim() || gerarSenha()
     const authUser = await admin.auth().createUser({ email, password })
-    const data: UserDoc = { email, ...profile }
+    const data: UserDoc = { email, ...profile, mustChangePassword: true } as UserDoc & { mustChangePassword: boolean }
     await db.collection('users').doc(authUser.uid).set(data)
-    res.status(201).json({ id: authUser.uid, ...data })
+    if (profile.contact) {
+      const colmeiaSnap = await db.collection('colmeias').doc(profile.colmeiaId).get()
+      const colmeiaName = (colmeiaSnap.data()?.name as string | undefined) ?? 'CSA'
+      enviarBoasVindas(profile.contact, profile.name, email, password, colmeiaName).catch(() => {/* não bloquear */})
+    }
+    res.status(201).json({ id: authUser.uid, ...data, password })
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// Admin cria múltiplos membros via CSV (batch)
+router.post('/create-member-batch', async (req: Request, res: Response) => {
+  try {
+    const { members } = req.body as { members: Array<UserDoc & { password?: string }> }
+    if (!Array.isArray(members) || members.length === 0) {
+      res.status(400).json({ message: 'members deve ser array não-vazio' }); return
+    }
+    const colmeiaId = members[0].colmeiaId
+    const colmeiaSnap = await db.collection('colmeias').doc(colmeiaId).get()
+    const colmeiaName = (colmeiaSnap.data()?.name as string | undefined) ?? 'CSA'
+    const results: Array<{ name: string; email: string; success: boolean; error?: string; password?: string }> = []
+    for (const { password: rawPassword, email, ...profile } of members) {
+      if (!email) { results.push({ name: profile.name, email: '', success: false, error: 'e-mail ausente' }); continue }
+      const password = rawPassword?.trim() || gerarSenha()
+      try {
+        const authUser = await admin.auth().createUser({ email, password })
+        const data = { email, ...profile, mustChangePassword: true }
+        await db.collection('users').doc(authUser.uid).set(data)
+        if (profile.contact) {
+          enviarBoasVindas(profile.contact, profile.name, email, password, colmeiaName).catch(() => {/* não bloquear */})
+        }
+        results.push({ name: profile.name, email, success: true, password })
+      } catch (err) {
+        results.push({ name: profile.name, email, success: false, error: String(err) })
+      }
+    }
+    res.status(200).json({ results })
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
@@ -95,13 +142,23 @@ router.put('/:uid', async (req: Request, res: Response) => {
   }
 })
 
-// Admin gera link de redefinição de senha para o usuário
+// Admin gera link de redefinição de senha e envia por WhatsApp
 router.post('/:uid/reset-password', async (req: Request, res: Response) => {
   try {
     const uid = req.params['uid'] as string
-    const authUser = await admin.auth().getUser(uid)
+    const [authUser, userSnap] = await Promise.all([
+      admin.auth().getUser(uid),
+      db.collection('users').doc(uid).get(),
+    ])
     const link = await admin.auth().generatePasswordResetLink(authUser.email!)
-    res.json({ link })
+    const userData = userSnap.data()
+    let whatsappSent = false
+    if (userData?.contact) {
+      const name = (userData.name as string | undefined) ?? 'membro'
+      const msg = `Olá, ${name}! Para redefinir sua senha no app de pedidos, acesse o link abaixo (válido por 24 horas):\n\n${link}`
+      try { await sendWhatsAppMessage(userData.contact as string, msg); whatsappSent = true } catch { /* não bloquear */ }
+    }
+    res.json({ link, whatsappSent })
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }

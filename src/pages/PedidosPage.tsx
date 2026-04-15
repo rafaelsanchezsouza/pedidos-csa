@@ -141,7 +141,7 @@ export function PedidosPage() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Pedido de Extras da Semana</h1>
+          <h1 className="text-2xl font-bold">Extras</h1>
           {order && (
             <Badge variant={order.status === 'enviado' ? 'default' : 'secondary'}>
               {order.status === 'enviado' ? 'Enviado' : 'Rascunho'}

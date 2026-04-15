@@ -156,6 +156,14 @@ export const whatsappApi = {
   },
 }
 
+export interface BatchResult {
+  name: string
+  email: string
+  success: boolean
+  error?: string
+  password?: string
+}
+
 export const usersApi = {
   getMe: (colmeiaId?: string) => request<User>('/users/me', {}, colmeiaId),
   updateMe: (data: Partial<User>, colmeiaId?: string) =>
@@ -163,8 +171,10 @@ export const usersApi = {
   list: (colmeiaId: string) => request<User[]>(`/users?colmeiaId=${colmeiaId}`, {}, colmeiaId),
   create: (data: Omit<User, 'id'>) =>
     request<User>('/users', { method: 'POST', body: JSON.stringify(data) }),
-  createMember: (data: Omit<User, 'id'> & { password: string }, colmeiaId: string) =>
-    request<User>('/users/create-member', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
+  createMember: (data: Omit<User, 'id'> & { password?: string }, colmeiaId: string) =>
+    request<User & { password?: string }>('/users/create-member', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
+  createMemberBatch: (members: Array<Omit<User, 'id'> & { password?: string }>, colmeiaId: string) =>
+    request<{ results: BatchResult[] }>('/users/create-member-batch', { method: 'POST', body: JSON.stringify({ members }) }, colmeiaId),
   update: (uid: string, data: Partial<User>, colmeiaId: string) =>
     request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
   disable: (uid: string, colmeiaId: string) =>
@@ -174,5 +184,5 @@ export const usersApi = {
   delete: (uid: string, colmeiaId: string) =>
     request<{ success: boolean }>(`/users/${uid}`, { method: 'DELETE' }, colmeiaId),
   resetPassword: (uid: string, colmeiaId: string) =>
-    request<{ link: string }>(`/users/${uid}/reset-password`, { method: 'POST' }, colmeiaId),
+    request<{ link: string; whatsappSent: boolean }>(`/users/${uid}/reset-password`, { method: 'POST' }, colmeiaId),
 }
