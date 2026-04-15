@@ -19,6 +19,9 @@ export function ConsolidadoGeralPage() {
   const [reportCopied, setReportCopied] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
   const [togglingDoacao, setTogglingDoacao] = useState<string | null>(null)
+  const [editingOrder, setEditingOrder] = useState<string | null>(null)
+  const [editedQtys, setEditedQtys] = useState<Record<string, number>>({})
+  const [savingOrder, setSavingOrder] = useState(false)
   const [texts, setTexts] = useState<Record<string, string>>({})
   const [generating, setGenerating] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -92,6 +95,32 @@ export function ConsolidadoGeralPage() {
       })
     } finally {
       setToggling(null)
+    }
+  }
+
+  function openEditOrder(order: Order) {
+    const qtys: Record<string, number> = {}
+    order.items.forEach((i) => { qtys[i.productId] = i.qty })
+    setEditedQtys(qtys)
+    setEditingOrder(order.id)
+  }
+
+  function cancelEditOrder() {
+    setEditingOrder(null)
+    setEditedQtys({})
+  }
+
+  async function saveOrderEdits(order: Order) {
+    if (!colmeia) return
+    setSavingOrder(true)
+    try {
+      const updatedItems = order.items.map((i) => ({ ...i, qty: editedQtys[i.productId] ?? i.qty }))
+      await ordersApi.update(order.id, { items: updatedItems }, colmeia.id)
+      setEditingOrder(null)
+      setEditedQtys({})
+      await load()
+    } finally {
+      setSavingOrder(false)
     }
   }
 
@@ -241,13 +270,39 @@ export function ConsolidadoGeralPage() {
                             )}
                           </td>
                           <td className="px-4 py-2">
-                            {order && order.items.length > 0 ? (
-                              <div className="space-y-0.5">
+                            {editingOrder === order?.id ? (
+                              <div className="space-y-1">
+                                {order.items.map((item) => (
+                                  <div key={item.productId} className="flex items-center gap-1 text-sm">
+                                    <span className="flex-1">{item.productName}</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={editedQtys[item.productId] ?? item.qty}
+                                      className="w-12 text-right border rounded px-1 bg-background"
+                                      onChange={(e) => setEditedQtys((p) => ({ ...p, [item.productId]: Number(e.target.value) }))}
+                                    />
+                                    <span className="text-muted-foreground">{item.unit}</span>
+                                  </div>
+                                ))}
+                                <div className="flex gap-1 pt-1">
+                                  <Button size="sm" variant="outline" onClick={cancelEditOrder}>Cancelar</Button>
+                                  <Button size="sm" disabled={savingOrder} onClick={() => saveOrderEdits(order)}>
+                                    {savingOrder ? 'Salvando...' : 'Salvar'}
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : order && order.items.length > 0 ? (
+                              <div className="space-y-0.5 group">
                                 {order.items.map((item, i) => (
                                   <div key={`${item.offeringId}_${item.productId}_${i}`}>
                                     {item.productName} × {item.qty} {item.unit}
                                   </div>
                                 ))}
+                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs mt-0.5"
+                                  onClick={() => openEditOrder(order)}>
+                                  Editar
+                                </Button>
                               </div>
                             ) : (
                               <span className="text-muted-foreground">—</span>
