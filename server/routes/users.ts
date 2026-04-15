@@ -3,6 +3,7 @@ import admin from 'firebase-admin'
 import crypto from 'crypto'
 import { db, listDocs, updateDoc } from '../repositories/firestore.js'
 import { sendWhatsAppMessage } from '../services/whatsapp/index.js'
+import { normalizePhone } from '../services/ordersService.js'
 
 const router = Router()
 
@@ -28,7 +29,7 @@ function gerarSenha() {
 
 async function enviarBoasVindas(contact: string, name: string, email: string, password: string, colmeiaName: string) {
   const msg = `Olá, ${name}! Bem-vinde à ${colmeiaName} 🌿\n\nSeu acesso ao app de pedidos foi criado:\nE-mail: ${email}\nSenha: ${password}\n\nAcesse: http://csaparahyba.com.br/\n\nNa primeira entrada, defina uma nova senha.`
-  await sendWhatsAppMessage(contact, msg)
+  await sendWhatsAppMessage(normalizePhone(contact), msg)
 }
 
 router.get('/me', async (req: Request, res: Response) => {
@@ -155,8 +156,8 @@ router.post('/:uid/reset-password', async (req: Request, res: Response) => {
     let whatsappSent = false
     if (userData?.contact) {
       const name = (userData.name as string | undefined) ?? 'membro'
-      const msg = `Olá, ${name}! Para redefinir sua senha no app de pedidos, acesse o link abaixo (válido por 24 horas):\n\n${link}`
-      try { await sendWhatsAppMessage(userData.contact as string, msg); whatsappSent = true } catch { /* não bloquear */ }
+      const msg = `Olá, ${name}! Para redefinir sua senha no App da CSA, acesse o link abaixo (válido por 24 horas):\n\n${link}`
+      try { await sendWhatsAppMessage(normalizePhone(userData.contact as string), msg); whatsappSent = true } catch { /* não bloquear */ }
     }
     res.json({ link, whatsappSent })
   } catch (err) {
