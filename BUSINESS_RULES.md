@@ -84,6 +84,14 @@
 - Chave interna de quantidade: `offeringId + productId`
 - Pedido consolidado (admin): soma de todos os pedidos da semana por produto, para envio ao produtor via WhatsApp
 
+### Bloqueio de semana
+
+- Após o envio do consolidado ao produtor via WhatsApp, a semana é **bloqueada** (`week_locks` no Firestore)
+- Membros não-admin não podem criar nem editar pedidos em semana bloqueada (HTTP 403)
+- Administradores podem criar e editar pedidos mesmo após o bloqueio
+- O bloqueio ocorre tanto pelo envio manual (admin) quanto pelo **scheduler automático de terça-feira às 6h**
+- Scheduler: envia para todos os produtores de todas as colmeias que têm pedidos na semana; semanas sem pedidos não são bloqueadas
+
 ### Doação de cota
 
 - Membro pode marcar sua cota semanal para doação em **Meus Pedidos** (campo `doacao: boolean` no pedido)
