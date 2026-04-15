@@ -20,7 +20,7 @@ export function ConsolidadoPage() {
   const [sent, setSent] = useState<string | null>(null)
   const [sendError, setSendError] = useState<string | null>(null)
 
-  // Edição de extras
+  const [editingOrder, setEditingOrder] = useState<string | null>(null)
   const [editedQtys, setEditedQtys] = useState<Record<string, Record<string, number>>>({})
   const [savingOrder, setSavingOrder] = useState<string | null>(null)
 
@@ -86,6 +86,7 @@ export function ConsolidadoPage() {
       )
       await ordersApi.update(order.id, { items: updatedItems }, colmeia.id)
       setEditedQtys((prev) => { const next = { ...prev }; delete next[order.id]; return next })
+      setEditingOrder(null)
       await load()
     } finally {
       setSavingOrder(null)
@@ -176,30 +177,41 @@ export function ConsolidadoPage() {
                         const userItems = order.items.filter((i) =>
                           offering.items.some((oi) => oi.productId === i.productId)
                         )
-                        const hasChanges = !!editedQtys[order.id]
+                        const isEditing = editingOrder === order.id
                         return (
                           <div key={order.id} className="space-y-0.5">
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-sm font-medium">{order.userName}</span>
-                              {hasChanges && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={savingOrder === order.id}
-                                  onClick={() => handleSaveOrderEdits(order, offering)}
-                                >
-                                  {savingOrder === order.id ? 'Salvando...' : 'Salvar'}
-                                </Button>
-                              )}
+                              <div className="flex gap-1">
+                                {!isEditing && (
+                                  <Button size="sm" variant="ghost"
+                                    onClick={() => { setEditingOrder(order.id); setEditedQtys((p) => ({ ...p, [order.id]: {} })) }}
+                                  >
+                                    Editar
+                                  </Button>
+                                )}
+                                {isEditing && (
+                                  <>
+                                    <Button size="sm" variant="outline"
+                                      onClick={() => { setEditingOrder(null); setEditedQtys((p) => { const n = { ...p }; delete n[order.id]; return n }) }}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                    <Button size="sm" disabled={savingOrder === order.id}
+                                      onClick={() => handleSaveOrderEdits(order, offering)}
+                                    >
+                                      {savingOrder === order.id ? 'Salvando...' : 'Salvar'}
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
                             </div>
                             {userItems.map((item) => {
-                              const oi = offering.items.find((o) => o.productId === item.productId)
-                              const isExtra = oi?.type === 'extra'
                               const currentQty = editedQtys[order.id]?.[item.productId] ?? item.qty
                               return (
                                 <div key={item.productId} className="flex items-center gap-2 text-sm text-muted-foreground pl-2">
                                   <span className="flex-1">{item.productName}</span>
-                                  {isExtra ? (
+                                  {isEditing ? (
                                     <input
                                       type="number"
                                       min="0"
