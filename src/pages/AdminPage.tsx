@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Pencil, Trash2, Ban, CheckCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, Ban, CheckCircle, Upload } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { usersApi, producersApi, colmeiasApi, rolesApi } from '@/services/api'
+import type { BatchResult } from '@/services/api'
 import type { User, Producer, ColmeiaRole } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -48,6 +49,61 @@ const emptyMemberForm: MemberForm = {
 }
 
 
+interface ParsedRow {
+  name: string
+  email: string
+  contact: string
+  address: string
+  neighborhood: string
+  deliveryType: 'colmeia' | 'entrega'
+  frequency: 'semanal' | 'quinzenal'
+  quota: 'Cota inteira' | 'Meia cota'
+  acesso: 'user'
+}
+
+function parseCsvLine(line: string): string[] {
+  const fields: string[] = []
+  let field = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if (inQuotes) {
+      if (c === '"' && line[i + 1] === '"') { field += '"'; i++ }
+      else if (c === '"') { inQuotes = false }
+      else { field += c }
+    } else {
+      if (c === '"') { inQuotes = true }
+      else if (c === ',') { fields.push(field); field = '' }
+      else { field += c }
+    }
+  }
+  fields.push(field)
+  return fields
+}
+
+// Formato: exportação do Google Forms (Timestamp,Nome,e-mail,Whatsapp,Logradouro,Complemento,Bairro,CEP,Retirada,Frequência,...,Tamanho Cota)
+function parseGoogleFormCsv(text: string): ParsedRow[] {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+  return lines.slice(1).map(line => {
+    const c = parseCsvLine(line)
+    const addressParts = [c[4], c[5], c[6], c[7]].map(s => s?.trim()).filter(Boolean)
+    const retirada = (c[8] ?? '').toLowerCase()
+    const freq = (c[9] ?? '').toLowerCase()
+    const cota = (c[12] ?? '').toLowerCase()
+    return {
+      name: c[1]?.trim() ?? '',
+      email: c[2]?.trim().toLowerCase() ?? '',
+      contact: (c[3]?.trim() ?? '').replace(/\D/g, ''),
+      address: addressParts.join(', '),
+      neighborhood: c[6]?.trim() ?? '',
+      deliveryType: (retirada.includes('colmeia') ? 'colmeia' : 'entrega') as 'colmeia' | 'entrega',
+      frequency: (freq.includes('quinzenal') ? 'quinzenal' : 'semanal') as 'semanal' | 'quinzenal',
+      quota: (cota.includes('meia') ? 'Meia cota' : 'Cota inteira') as 'Cota inteira' | 'Meia cota',
+      acesso: 'user' as const,
+    }
+  }).filter(r => r.name && r.email)
+}
+
 export function AdminPage() {
   const { colmeia, refreshUser } = useAuth()
   const navigate = useNavigate()
@@ -58,10 +114,13 @@ export function AdminPage() {
   const [showNewRoleInput, setShowNewRoleInput] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Configurações de cota
+  // Configurações de cota e agendamento
   const [quotaInteira, setQuotaInteira] = useState(String(colmeia?.quotaInteira ?? 65))
   const [quotaMeia, setQuotaMeia] = useState(String(colmeia?.quotaMeia ?? 40))
   const [dueDay, setDueDay] = useState(String(colmeia?.dueDay ?? 10))
+  const [orderSendDay, setOrderSendDay] = useState(String(colmeia?.orderSendDay ?? 2))
+  const [orderSendHour, setOrderSendHour] = useState(String(colmeia?.orderSendHour ?? 6))
+  const [weekChangeDay, setWeekChangeDay] = useState(String(colmeia?.weekChangeDay ?? 0))
   const [savingQuota, setSavingQuota] = useState(false)
   const [quotaMessage, setQuotaMessage] = useState('')
 
@@ -84,6 +143,13 @@ export function AdminPage() {
   const [memberForm, setMemberForm] = useState<MemberForm>(emptyMemberForm)
   const [savingMember, setSavingMember] = useState(false)
   const [memberError, setMemberError] = useState('')
+  const [memberSuccess, setMemberSuccess] = useState<{ password: string; contact: string } | null>(null)
+
+  // CSV import dialog
+  const [csvDialog, setCsvDialog] = useState(false)
+  const [csvRows, setCsvRows] = useState<ParsedRow[]>([])
+  const [csvImporting, setCsvImporting] = useState(false)
+  const [csvResults, setCsvResults] = useState<BatchResult[] | null>(null)
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -201,6 +267,7 @@ export function AdminPage() {
   function openCreateMember() {
     setMemberForm(emptyMemberForm)
     setMemberError('')
+    setMemberSuccess(null)
     setMemberDialog(true)
   }
 
@@ -209,14 +276,44 @@ export function AdminPage() {
     setSavingMember(true)
     setMemberError('')
     try {
-      await usersApi.createMember({ ...memberForm, colmeiaId: colmeia.id }, colmeia.id)
-      setMemberDialog(false)
+      const result = await usersApi.createMember({ ...memberForm, colmeiaId: colmeia.id }, colmeia.id)
       await load()
+      setMemberSuccess({ password: result.password ?? memberForm.password, contact: memberForm.contact })
     } catch (err) {
       setMemberError(err instanceof Error ? err.message : 'Erro ao criar membro')
     } finally {
       setSavingMember(false)
     }
+  }
+
+  // --- Import CSV ---
+  function handleCsvFile(file: File) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result as string
+      setCsvRows(parseGoogleFormCsv(text))
+      setCsvResults(null)
+    }
+    reader.readAsText(file, 'UTF-8')
+  }
+
+  async function handleCsvImport() {
+    if (!colmeia || csvRows.length === 0) return
+    setCsvImporting(true)
+    try {
+      const members = csvRows.map(r => ({ ...r, colmeiaId: colmeia.id }))
+      const { results } = await usersApi.createMemberBatch(members, colmeia.id)
+      setCsvResults(results)
+      await load()
+    } finally {
+      setCsvImporting(false)
+    }
+  }
+
+  function closeCsvDialog() {
+    setCsvDialog(false)
+    setCsvRows([])
+    setCsvResults(null)
   }
 
   function setMember(field: keyof MemberForm, value: string) {
@@ -232,6 +329,9 @@ export function AdminPage() {
         quotaInteira: parseFloat(quotaInteira) || 0,
         quotaMeia: parseFloat(quotaMeia) || 0,
         dueDay: parseInt(dueDay) || 10,
+        orderSendDay: parseInt(orderSendDay),
+        orderSendHour: parseInt(orderSendHour),
+        weekChangeDay: parseInt(weekChangeDay),
       })
       await refreshUser()
       setQuotaMessage('Salvo!')
@@ -256,7 +356,10 @@ export function AdminPage() {
         </TabsList>
 
         <TabsContent value="usuarios">
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-end gap-2 mb-4">
+            <Button variant="outline" onClick={() => { setCsvRows([]); setCsvResults(null); setCsvDialog(true) }}>
+              <Upload className="mr-2 h-4 w-4" /> Importar CSV
+            </Button>
             <Button onClick={openCreateMember}>
               <Plus className="mr-2 h-4 w-4" /> Novo Membro
             </Button>
@@ -476,6 +579,43 @@ export function AdminPage() {
                   />
                 </div>
               </div>
+              <h2 className="font-semibold pt-2">Agendamento</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label>Dia de envio dos extras</Label>
+                  <select
+                    value={orderSendDay}
+                    onChange={(e) => setOrderSendDay(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                  >
+                    {['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'].map((d, i) => (
+                      <option key={i} value={i}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Horário de envio (h)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={orderSendHour}
+                    onChange={(e) => setOrderSendHour(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Dia de troca de semana</Label>
+                  <select
+                    value={weekChangeDay}
+                    onChange={(e) => setWeekChangeDay(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                  >
+                    {['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'].map((d, i) => (
+                      <option key={i} value={i}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="flex items-center gap-3">
                 <Button onClick={handleSaveQuota} disabled={savingQuota}>
                   {savingQuota ? 'Salvando...' : 'Salvar'}
@@ -517,11 +657,26 @@ export function AdminPage() {
       </Dialog>
 
       {/* Dialog: novo membro */}
-      <Dialog open={memberDialog} onOpenChange={setMemberDialog}>
+      <Dialog open={memberDialog} onOpenChange={(open) => { if (!open) { setMemberDialog(false); setMemberSuccess(null) } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Novo Membro</DialogTitle>
           </DialogHeader>
+          {memberSuccess ? (
+            <>
+              <div className="py-4 space-y-2 text-sm">
+                <p className="font-medium text-green-700">Membro criado com sucesso!</p>
+                <p>Senha temporária: <span className="font-mono font-bold">{memberSuccess.password}</span></p>
+                {memberSuccess.contact
+                  ? <p className="text-muted-foreground">WhatsApp enviado para {memberSuccess.contact}.</p>
+                  : <p className="text-muted-foreground">Nenhum contato informado — WhatsApp não enviado.</p>}
+              </div>
+              <DialogFooter>
+                <Button onClick={() => { setMemberDialog(false); setMemberSuccess(null) }}>Fechar</Button>
+              </DialogFooter>
+            </>
+          ) : (
+          <>
           <div className="space-y-3 py-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -549,7 +704,7 @@ export function AdminPage() {
                 <Input type="email" value={memberForm.email} onChange={(e) => setMember('email', e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label>Senha inicial</Label>
+                <Label>Senha inicial <span className="text-muted-foreground font-normal">(gerada automaticamente se vazio)</span></Label>
                 <Input type="password" value={memberForm.password} onChange={(e) => setMember('password', e.target.value)} />
               </div>
             </div>
@@ -674,11 +829,101 @@ export function AdminPage() {
             <Button variant="outline" onClick={() => setMemberDialog(false)}>Cancelar</Button>
             <Button
               onClick={handleSaveMember}
-              disabled={savingMember || !memberForm.name || !memberForm.email || !memberForm.password}
+              disabled={savingMember || !memberForm.name || !memberForm.email}
             >
               {savingMember ? 'Criando...' : 'Criar membro'}
             </Button>
           </DialogFooter>
+          </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: importar CSV */}
+      <Dialog open={csvDialog} onOpenChange={(open) => { if (!open) closeCsvDialog() }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Importar membros via CSV</DialogTitle>
+          </DialogHeader>
+
+          {!csvResults && csvRows.length === 0 && (
+            <div className="py-4 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Exporte o Google Forms como CSV. Colunas esperadas: Timestamp, Nome, e-mail, Whatsapp, Logradouro, Complemento, Bairro, CEP, Retirada, Frequência, …, …, Tamanho Cota.
+              </p>
+              <input
+                type="file"
+                accept=".csv"
+                className="block text-sm"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvFile(f) }}
+              />
+            </div>
+          )}
+
+          {!csvResults && csvRows.length > 0 && (
+            <>
+              <div className="py-2 max-h-72 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b">
+                      <th className="pb-1 pr-3">Nome</th>
+                      <th className="pb-1 pr-3">E-mail</th>
+                      <th className="pb-1 pr-3">Retirada</th>
+                      <th className="pb-1">Frequência</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvRows.map((r, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="py-1 pr-3 font-medium">{r.name}</td>
+                        <td className="py-1 pr-3 text-muted-foreground">{r.email}</td>
+                        <td className="py-1 pr-3 capitalize">{r.deliveryType === 'colmeia' ? 'Colmeia' : 'Entrega'}</td>
+                        <td className="py-1 capitalize">{r.frequency}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCsvRows([])}>Voltar</Button>
+                <Button onClick={handleCsvImport} disabled={csvImporting}>
+                  {csvImporting ? 'Criando...' : `Criar ${csvRows.length} membro${csvRows.length > 1 ? 's' : ''}`}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {csvResults && (
+            <>
+              <div className="py-2 max-h-72 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b">
+                      <th className="pb-1 pr-3">Nome</th>
+                      <th className="pb-1 pr-3">E-mail</th>
+                      <th className="pb-1">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvResults.map((r, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="py-1 pr-3 font-medium">{r.name}</td>
+                        <td className="py-1 pr-3 text-muted-foreground">{r.email}</td>
+                        <td className="py-1">
+                          {r.success
+                            ? <span className="text-green-700">✓ criado</span>
+                            : <span className="text-destructive" title={r.error}>✗ erro</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <DialogFooter>
+                <Button onClick={closeCsvDialog}>Fechar</Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -844,8 +1089,8 @@ export function AdminPage() {
                 setResettingPassword(true)
                 setResetLink(null)
                 try {
-                  const { link } = await usersApi.resetPassword(editingUser.id, colmeia.id)
-                  setResetLink(link)
+                  const { link, whatsappSent } = await usersApi.resetPassword(editingUser.id, colmeia.id)
+                  setResetLink(whatsappSent ? `__whatsapp__${link}` : link)
                 } catch {
                   setResetLink('Erro ao gerar link.')
                 } finally {
@@ -857,18 +1102,24 @@ export function AdminPage() {
             </Button>
             {resetLink && (
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Input value={resetLink} readOnly className="text-xs" />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => navigator.clipboard.writeText(resetLink)}
-                  >
-                    Copiar
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">Compartilhe com o membro para que ele redefina sua senha.</p>
+                {resetLink.startsWith('__whatsapp__') ? (
+                  <p className="text-sm text-green-700">WhatsApp enviado para {editingUser?.contact}.</p>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Input value={resetLink} readOnly className="text-xs" />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigator.clipboard.writeText(resetLink)}
+                      >
+                        Copiar
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Nenhum contato cadastrado. Compartilhe o link manualmente.</p>
+                  </>
+                )}
               </div>
             )}
           </div>

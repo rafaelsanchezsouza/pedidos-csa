@@ -10,6 +10,9 @@ interface ColmeiaDoc {
   quotaInteira?: number
   quotaMeia?: number
   dueDay?: number
+  orderSendDay?: number
+  orderSendHour?: number
+  weekChangeDay?: number
 }
 
 router.get('/', async (req: Request, res: Response) => {
@@ -61,11 +64,17 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const { quotaInteira, quotaMeia, dueDay } = req.body as { quotaInteira?: number; quotaMeia?: number; dueDay?: number }
+    const { quotaInteira, quotaMeia, dueDay, orderSendDay, orderSendHour, weekChangeDay } = req.body as {
+      quotaInteira?: number; quotaMeia?: number; dueDay?: number
+      orderSendDay?: number; orderSendHour?: number; weekChangeDay?: number
+    }
     const updates: Partial<ColmeiaDoc> = {}
     if (quotaInteira !== undefined) updates.quotaInteira = quotaInteira
     if (quotaMeia !== undefined) updates.quotaMeia = quotaMeia
     if (dueDay !== undefined) updates.dueDay = dueDay
+    if (orderSendDay !== undefined) updates.orderSendDay = orderSendDay
+    if (orderSendHour !== undefined) updates.orderSendHour = orderSendHour
+    if (weekChangeDay !== undefined) updates.weekChangeDay = weekChangeDay
     await updateDoc<ColmeiaDoc>('colmeias', req.params['id'] as string, updates)
     const colmeia = await getDoc<ColmeiaDoc>('colmeias', req.params['id'] as string)
     res.json(colmeia)

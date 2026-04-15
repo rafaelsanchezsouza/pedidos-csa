@@ -9,7 +9,7 @@ import { WeekNavigator } from '@/components/WeekNavigator'
 
 export function ConsolidadoPage() {
   const { colmeia } = useAuth()
-  const [weekId, setWeekId] = useState(getPresentWeekId())
+  const [weekId, setWeekId] = useState(() => getPresentWeekId(colmeia?.weekChangeDay ?? 0))
   const [offerings, setOfferings] = useState<WeeklyOffering[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -20,10 +20,15 @@ export function ConsolidadoPage() {
   const [sent, setSent] = useState<string | null>(null)
   const [sendError, setSendError] = useState<string | null>(null)
 
+  const [editingOrder, setEditingOrder] = useState<string | null>(null)
+  const [editedQtys, setEditedQtys] = useState<Record<string, Record<string, number>>>({})
+  const [savingOrder, setSavingOrder] = useState<string | null>(null)
+
   const load = useCallback(async () => {
     if (!colmeia) return
     setLoading(true)
     setTexts({})
+    setEditedQtys({})
     try {
       const [offs, ords] = await Promise.all([
         offeringsApi.list(weekId, colmeia.id),
@@ -71,6 +76,23 @@ export function ConsolidadoPage() {
     }
   }
 
+  async function handleSaveOrderEdits(order: Order, offering: WeeklyOffering) {
+    if (!colmeia) return
+    setSavingOrder(order.id)
+    try {
+      const changes = editedQtys[order.id] ?? {}
+      const updatedItems = order.items.map((item) =>
+        changes[item.productId] !== undefined ? { ...item, qty: changes[item.productId] } : item
+      )
+      await ordersApi.update(order.id, { items: updatedItems }, colmeia.id)
+      setEditedQtys((prev) => { const next = { ...prev }; delete next[order.id]; return next })
+      setEditingOrder(null)
+      await load()
+    } finally {
+      setSavingOrder(null)
+    }
+  }
+
   const sentOrders = orders.filter((o) => o.status === 'enviado')
 
   return (
@@ -97,17 +119,18 @@ export function ConsolidadoPage() {
             o.items.some((i) => offering.items.some((oi) => oi.productId === i.productId))
           )
 
-          // Aggregate totals per product
+          // Aggregate totals per product (usando qtd editada se houver)
           const totals = new Map<string, { name: string; unit: string; qty: number; type: string }>()
           for (const order of relevantOrders) {
             for (const item of order.items) {
               const oi = offering.items.find((i) => i.productId === item.productId)
               if (!oi) continue
+              const qty = editedQtys[order.id]?.[item.productId] ?? item.qty
               const existing = totals.get(item.productId)
               if (existing) {
-                existing.qty += item.qty
+                existing.qty += qty
               } else {
-                totals.set(item.productId, { name: item.productName, unit: item.unit, qty: item.qty, type: oi.type })
+                totals.set(item.productId, { name: item.productName, unit: item.unit, qty, type: oi.type })
               }
             }
           }
@@ -148,18 +171,64 @@ export function ConsolidadoPage() {
                       </tbody>
                     </table>
 
-                    <div className="space-y-1 pt-1">
+                    <div className="space-y-2 pt-1">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Membros</p>
                       {relevantOrders.map((order) => {
                         const userItems = order.items.filter((i) =>
                           offering.items.some((oi) => oi.productId === i.productId)
                         )
+                        const isEditing = editingOrder === order.id
                         return (
-                          <div key={order.id} className="text-sm flex gap-2">
-                            <span className="font-medium w-36 shrink-0">{order.userName}</span>
-                            <span className="text-muted-foreground">
-                              {userItems.map((i) => `${i.productName} ×${i.qty}`).join(', ')}
-                            </span>
+                          <div key={order.id} className="space-y-0.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium">{order.userName}</span>
+                              <div className="flex gap-1">
+                                {!isEditing && (
+                                  <Button size="sm" variant="ghost"
+                                    onClick={() => { setEditingOrder(order.id); setEditedQtys((p) => ({ ...p, [order.id]: {} })) }}
+                                  >
+                                    Editar
+                                  </Button>
+                                )}
+                                {isEditing && (
+                                  <>
+                                    <Button size="sm" variant="outline"
+                                      onClick={() => { setEditingOrder(null); setEditedQtys((p) => { const n = { ...p }; delete n[order.id]; return n }) }}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                    <Button size="sm" disabled={savingOrder === order.id}
+                                      onClick={() => handleSaveOrderEdits(order, offering)}
+                                    >
+                                      {savingOrder === order.id ? 'Salvando...' : 'Salvar'}
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            {userItems.map((item) => {
+                              const currentQty = editedQtys[order.id]?.[item.productId] ?? item.qty
+                              return (
+                                <div key={item.productId} className="flex items-center gap-2 text-sm text-muted-foreground pl-2">
+                                  <span className="flex-1">{item.productName}</span>
+                                  {isEditing ? (
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={currentQty}
+                                      className="w-14 text-right border rounded px-1 bg-background"
+                                      onChange={(e) => setEditedQtys((prev) => ({
+                                        ...prev,
+                                        [order.id]: { ...(prev[order.id] ?? {}), [item.productId]: Number(e.target.value) },
+                                      }))}
+                                    />
+                                  ) : (
+                                    <span>{currentQty}</span>
+                                  )}
+                                  <span>{item.unit}</span>
+                                </div>
+                              )
+                            })}
                           </div>
                         )
                       })}

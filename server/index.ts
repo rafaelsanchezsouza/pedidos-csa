@@ -15,6 +15,7 @@ import rolesRouter from './routes/roles.js'
 import whatsappAuthRouter from './routes/whatsappAuth.js'
 import { db } from './repositories/firestore.js'
 import { startQuotaJob } from './jobs/quotaJob.js'
+import { startSendOrdersJob } from './jobs/sendOrdersJob.js'
 
 declare module 'express' {
   interface Request {
@@ -69,4 +70,5 @@ app.use('/api/roles', rolesRouter)
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`)
   startQuotaJob()
+  startSendOrdersJob()
 })

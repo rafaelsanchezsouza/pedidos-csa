@@ -2,40 +2,7 @@ import { Router, Request, Response } from 'express'
 import { listDocs, createDoc, updateDoc, getDoc, db } from '../repositories/firestore.js'
 import { upsertPaymentsForOrder } from '../services/paymentService.js'
 import { sendWhatsAppMessage } from '../services/whatsapp/index.js'
-
-function normalizePhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '')
-  if (digits.startsWith('55') && digits.length >= 12) return digits
-  return '55' + digits
-}
-
-async function buildConsolidatedText(colmeiaId: string, weekId: string, producerId: string): Promise<string> {
-  const [orders, offering, colmeia] = await Promise.all([
-    listDocs<OrderDoc>('orders', [
-      ['colmeiaId', '==', colmeiaId],
-      ['weekId', '==', weekId],
-      ['status', '==', 'enviado'],
-    ]),
-    listDocs<{ producerName: string; items: Array<{ productId: string; productName: string; unit: string; type: string }> }>(
-      'weekly_offerings',
-      [['colmeiaId', '==', colmeiaId], ['weekStart', '==', weekId], ['producerId', '==', producerId]]
-    ),
-    getDoc<{ name: string }>('colmeias', colmeiaId),
-  ])
-
-  const colmeiaName = colmeia?.name ?? 'CSA'
-  const producerItemIds = new Set((offering[0]?.items ?? []).map((i) => i.productId))
-  const relevantOrders = orders.filter((o) => o.items.some((i) => producerItemIds.has(i.productId)))
-
-  const lines: string[] = [`*${colmeiaName} — Semana de ${weekId}*`, '']
-  for (const order of relevantOrders) {
-    lines.push(order.userName)
-    order.items
-      .filter((i) => producerItemIds.has(i.productId))
-      .forEach((i) => lines.push(`  ${i.qty} ${i.unit} ${i.productName}`))
-  }
-  return lines.join('\n')
-}
+import { buildConsolidatedText, normalizePhone } from '../services/ordersService.js'
 
 const router = Router()
 
@@ -140,6 +107,7 @@ router.post('/send-consolidated-whatsapp', async (req: Request, res: Response) =
     }
 
     const text = await buildConsolidatedText(colmeiaId, weekId, producerId)
+    if (!text) { res.status(400).json({ message: 'Nenhum pedido enviado para este produtor na semana' }); return }
     await sendWhatsAppMessage(normalizePhone(producer.contact), text)
 
     const lockId = `${colmeiaId}_${weekId}`
@@ -225,6 +193,13 @@ router.get('/monthly', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data = req.body as Omit<OrderDoc, 'dateCreated' | 'dateUpdated'>
+    const lockSnap = await db.collection('week_locks').doc(`${data.colmeiaId}_${data.weekId}`).get()
+    if (lockSnap.exists) {
+      const userSnap = await db.collection('users').doc(req.user!.uid).get()
+      const acesso = (userSnap.data() as { acesso?: string } | undefined)?.acesso
+      const isAdmin = acesso === 'admin' || acesso === 'superadmin'
+      if (!isAdmin) { res.status(403).json({ message: 'Pedido bloqueado após envio ao produtor' }); return }
+    }
     const now = new Date().toISOString()
     const order = await createDoc<OrderDoc>('orders', { ...data, dateCreated: now, dateUpdated: now })
     if (order.status === 'enviado') {

@@ -18,7 +18,7 @@ export function PedidosPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
-  const [weekId, setWeekId] = useState(getPresentWeekId())
+  const [weekId, setWeekId] = useState(() => getPresentWeekId(colmeia?.weekChangeDay ?? 0))
   const [locked, setLocked] = useState(false)
   const showFixo = user ? isUserDeliveryWeek(user, weekId) : true
   const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
@@ -141,7 +141,7 @@ export function PedidosPage() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Pedido de Extras da Semana</h1>
+          <h1 className="text-2xl font-bold">Extras</h1>
           {order && (
             <Badge variant={order.status === 'enviado' ? 'default' : 'secondary'}>
               {order.status === 'enviado' ? 'Enviado' : 'Rascunho'}
