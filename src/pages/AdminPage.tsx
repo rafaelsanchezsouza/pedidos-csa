@@ -114,10 +114,13 @@ export function AdminPage() {
   const [showNewRoleInput, setShowNewRoleInput] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Configurações de cota
+  // Configurações de cota e agendamento
   const [quotaInteira, setQuotaInteira] = useState(String(colmeia?.quotaInteira ?? 65))
   const [quotaMeia, setQuotaMeia] = useState(String(colmeia?.quotaMeia ?? 40))
   const [dueDay, setDueDay] = useState(String(colmeia?.dueDay ?? 10))
+  const [orderSendDay, setOrderSendDay] = useState(String(colmeia?.orderSendDay ?? 2))
+  const [orderSendHour, setOrderSendHour] = useState(String(colmeia?.orderSendHour ?? 6))
+  const [weekChangeDay, setWeekChangeDay] = useState(String(colmeia?.weekChangeDay ?? 0))
   const [savingQuota, setSavingQuota] = useState(false)
   const [quotaMessage, setQuotaMessage] = useState('')
 
@@ -326,6 +329,9 @@ export function AdminPage() {
         quotaInteira: parseFloat(quotaInteira) || 0,
         quotaMeia: parseFloat(quotaMeia) || 0,
         dueDay: parseInt(dueDay) || 10,
+        orderSendDay: parseInt(orderSendDay),
+        orderSendHour: parseInt(orderSendHour),
+        weekChangeDay: parseInt(weekChangeDay),
       })
       await refreshUser()
       setQuotaMessage('Salvo!')
@@ -571,6 +577,43 @@ export function AdminPage() {
                     value={dueDay}
                     onChange={(e) => setDueDay(e.target.value)}
                   />
+                </div>
+              </div>
+              <h2 className="font-semibold pt-2">Agendamento</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label>Dia de envio dos extras</Label>
+                  <select
+                    value={orderSendDay}
+                    onChange={(e) => setOrderSendDay(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                  >
+                    {['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'].map((d, i) => (
+                      <option key={i} value={i}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Horário de envio (h)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={orderSendHour}
+                    onChange={(e) => setOrderSendHour(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Dia de troca de semana</Label>
+                  <select
+                    value={weekChangeDay}
+                    onChange={(e) => setWeekChangeDay(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                  >
+                    {['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'].map((d, i) => (
+                      <option key={i} value={i}>{d}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="flex items-center gap-3">

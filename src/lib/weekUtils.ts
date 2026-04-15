@@ -45,10 +45,14 @@ export function getWeekDelivery(weekStart: string): string {
   return `${y}-${m}-${dd}`
 }
 
-// Semana presente usando domingo como início (se hoje é domingo, semana começa na próxima segunda)
-export function getPresentWeekId(): string {
+// Semana presente. Se hoje é weekChangeDay, avança para a próxima segunda (mostra semana seguinte).
+// weekChangeDay: 0=Dom (padrão), 1=Seg, ..., 6=Sáb
+export function getPresentWeekId(weekChangeDay = 0): string {
   const d = new Date()
-  if (d.getDay() === 0) d.setDate(d.getDate() + 1)
+  if (d.getDay() === weekChangeDay) {
+    const daysToNextMonday = ((1 - d.getDay() + 7) % 7) || 7
+    d.setDate(d.getDate() + daysToNextMonday)
+  }
   return getWeekStart(d)
 }
 

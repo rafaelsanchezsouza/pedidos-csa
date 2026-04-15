@@ -3,6 +3,12 @@ import { listDocs, db } from '../repositories/firestore.js'
 import { getProducerMessages } from '../services/ordersService.js'
 import { sendWhatsAppMessage } from '../services/whatsapp/index.js'
 
+interface ColmeiaDoc {
+  name: string
+  orderSendDay?: number   // 0-6, default 2 (terça)
+  orderSendHour?: number  // 0-23, default 6
+}
+
 function getWeekStart(date = new Date()): string {
   const d = new Date(date)
   const day = d.getDay()
@@ -14,38 +20,54 @@ function getWeekStart(date = new Date()): string {
   return `${y}-${m}-${dd}`
 }
 
-export function startSendOrdersJob(): void {
-  // Toda terça-feira às 6h (horário do servidor)
-  cron.schedule('0 6 * * 2', async () => {
-    const weekId = getWeekStart()
-    console.log(`[sendOrdersJob] Enviando pedidos da semana ${weekId}`)
+async function enviarParaColmeia(colmeia: ColmeiaDoc & { id: string }, weekId: string) {
+  const messages = await getProducerMessages(colmeia.id, weekId)
+  if (messages.length === 0) {
+    console.log(`[sendOrdersJob] ${colmeia.name}: sem pedidos, ignorando`)
+    return
+  }
+  for (const { contact, text } of messages) {
+    try {
+      await sendWhatsAppMessage(contact, text)
+    } catch (err) {
+      console.error(`[sendOrdersJob] ${colmeia.name}: erro ao enviar para ${contact}:`, err)
+    }
+  }
+  await db.collection('week_locks').doc(`${colmeia.id}_${weekId}`).set({
+    colmeiaId: colmeia.id,
+    weekId,
+    lockedAt: new Date().toISOString(),
+  })
+  console.log(`[sendOrdersJob] ${colmeia.name}: ${messages.length} produtor(es) notificado(s), semana bloqueada`)
+}
 
-    const colmeias = await listDocs<{ name: string }>('colmeias')
+export function startSendOrdersJob(): void {
+  // Executa toda hora; cada colmeia define seu próprio dia/hora de envio
+  cron.schedule('0 * * * *', async () => {
+    const now = new Date()
+    const currentDay = now.getDay()    // 0-6
+    const currentHour = now.getHours() // 0-23
+    const weekId = getWeekStart()
+
+    const colmeias = await listDocs<ColmeiaDoc>('colmeias')
     for (const colmeia of colmeias) {
+      const sendDay = colmeia.orderSendDay ?? 2   // default: terça (2)
+      const sendHour = colmeia.orderSendHour ?? 6  // default: 6h
+      if (currentDay !== sendDay || currentHour !== sendHour) continue
+
+      const lockSnap = await db.collection('week_locks').doc(`${colmeia.id}_${weekId}`).get()
+      if (lockSnap.exists) {
+        console.log(`[sendOrdersJob] ${colmeia.name}: semana já bloqueada, ignorando`)
+        continue
+      }
+
       try {
-        const messages = await getProducerMessages(colmeia.id, weekId)
-        if (messages.length === 0) {
-          console.log(`[sendOrdersJob] ${colmeia.name}: sem pedidos, ignorando`)
-          continue
-        }
-        for (const { contact, text } of messages) {
-          try {
-            await sendWhatsAppMessage(contact, text)
-          } catch (err) {
-            console.error(`[sendOrdersJob] ${colmeia.name}: erro ao enviar para ${contact}:`, err)
-          }
-        }
-        await db.collection('week_locks').doc(`${colmeia.id}_${weekId}`).set({
-          colmeiaId: colmeia.id,
-          weekId,
-          lockedAt: new Date().toISOString(),
-        })
-        console.log(`[sendOrdersJob] ${colmeia.name}: ${messages.length} produtor(es) notificado(s), semana bloqueada`)
+        await enviarParaColmeia(colmeia, weekId)
       } catch (err) {
         console.error(`[sendOrdersJob] Erro na colmeia ${colmeia.name}:`, err)
       }
     }
   })
 
-  console.log('[sendOrdersJob] Agendado: terças-feiras às 6h')
+  console.log('[sendOrdersJob] Agendado: verificação horária (dia/hora configurável por colmeia)')
 }

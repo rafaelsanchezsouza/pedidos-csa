@@ -18,7 +18,7 @@ export function PedidosPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
-  const [weekId, setWeekId] = useState(getPresentWeekId())
+  const [weekId, setWeekId] = useState(() => getPresentWeekId(colmeia?.weekChangeDay ?? 0))
   const [locked, setLocked] = useState(false)
   const showFixo = user ? isUserDeliveryWeek(user, weekId) : true
   const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'

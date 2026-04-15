@@ -6,6 +6,9 @@ export interface Colmeia {
   quotaInteira?: number
   quotaMeia?: number
   dueDay?: number
+  orderSendDay?: number   // 0-6 (0=Dom, 2=Ter), default 2
+  orderSendHour?: number  // 0-23, default 6
+  weekChangeDay?: number  // 0-6 (0=Dom), default 0
 }
 
 export interface User {
