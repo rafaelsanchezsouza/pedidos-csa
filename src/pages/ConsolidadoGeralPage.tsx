@@ -4,7 +4,8 @@ import { ordersApi, usersApi, offeringsApi } from '@/services/api'
 import type { Order, User, WeeklyOffering } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Pencil } from 'lucide-react'
 import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
 
@@ -19,7 +20,7 @@ export function ConsolidadoGeralPage() {
   const [reportCopied, setReportCopied] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
   const [togglingDoacao, setTogglingDoacao] = useState<string | null>(null)
-  const [editingOrder, setEditingOrder] = useState<string | null>(null)
+  const [editingOrder, setEditingOrder] = useState<{ order: Order; userName: string } | null>(null)
   const [editedQtys, setEditedQtys] = useState<Record<string, number>>({})
   const [savingOrder, setSavingOrder] = useState(false)
   const [texts, setTexts] = useState<Record<string, string>>({})
@@ -98,22 +99,18 @@ export function ConsolidadoGeralPage() {
     }
   }
 
-  function openEditOrder(order: Order) {
+  function openEditOrder(order: Order, userName: string) {
     const qtys: Record<string, number> = {}
     order.items.forEach((i) => { qtys[i.productId] = i.qty })
     setEditedQtys(qtys)
-    setEditingOrder(order.id)
+    setEditingOrder({ order, userName })
   }
 
-  function cancelEditOrder() {
-    setEditingOrder(null)
-    setEditedQtys({})
-  }
-
-  async function saveOrderEdits(order: Order) {
-    if (!colmeia) return
+  async function saveOrderEdits() {
+    if (!colmeia || !editingOrder) return
     setSavingOrder(true)
     try {
+      const { order } = editingOrder
       const updatedItems = order.items.map((i) => ({ ...i, qty: editedQtys[i.productId] ?? i.qty }))
       await ordersApi.update(order.id, { items: updatedItems }, colmeia.id)
       setEditingOrder(null)
@@ -222,6 +219,35 @@ export function ConsolidadoGeralPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={editingOrder !== null} onOpenChange={(open) => { if (!open) { setEditingOrder(null); setEditedQtys({}) } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar pedido — {editingOrder?.userName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            {editingOrder?.order.items.map((item) => (
+              <div key={item.productId} className="flex items-center gap-2 text-sm">
+                <span className="flex-1">{item.productName}</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={editedQtys[item.productId] ?? item.qty}
+                  className="w-14 text-right border rounded px-1 bg-background"
+                  onChange={(e) => setEditedQtys((p) => ({ ...p, [item.productId]: Number(e.target.value) }))}
+                />
+                <span className="text-muted-foreground w-8">{item.unit}</span>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditingOrder(null); setEditedQtys({}) }}>Cancelar</Button>
+            <Button disabled={savingOrder} onClick={saveOrderEdits}>
+              {savingOrder ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {loading ? (
         <div className="py-8 text-center text-muted-foreground">Carregando...</div>
       ) : (
@@ -259,7 +285,17 @@ export function ConsolidadoGeralPage() {
                       return (
                         <tr key={u.id} className={`border-b last:border-0 ${order?.doacao ? 'bg-orange-50' : ''}`}>
                           <td className="px-4 py-2 font-medium">
-                            <div>{u.name}</div>
+                            <div className="flex items-center gap-1.5">
+                              {order && order.items.length > 0 && (
+                                <button
+                                  onClick={() => openEditOrder(order, u.name)}
+                                  className="text-muted-foreground hover:text-foreground flex-shrink-0"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                              <span>{u.name}</span>
+                            </div>
                             {u.quota && <div className="text-xs text-muted-foreground">{u.quota}</div>}
                             {u.contact && <div className="text-xs text-muted-foreground">{u.contact}</div>}
                             {u.deliveryType === 'colmeia' && (
@@ -270,39 +306,13 @@ export function ConsolidadoGeralPage() {
                             )}
                           </td>
                           <td className="px-4 py-2">
-                            {editingOrder === order?.id ? (
-                              <div className="space-y-1">
-                                {order.items.map((item) => (
-                                  <div key={item.productId} className="flex items-center gap-1 text-sm">
-                                    <span className="flex-1">{item.productName}</span>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={editedQtys[item.productId] ?? item.qty}
-                                      className="w-12 text-right border rounded px-1 bg-background"
-                                      onChange={(e) => setEditedQtys((p) => ({ ...p, [item.productId]: Number(e.target.value) }))}
-                                    />
-                                    <span className="text-muted-foreground">{item.unit}</span>
-                                  </div>
-                                ))}
-                                <div className="flex gap-1 pt-1">
-                                  <Button size="sm" variant="outline" onClick={cancelEditOrder}>Cancelar</Button>
-                                  <Button size="sm" disabled={savingOrder} onClick={() => saveOrderEdits(order)}>
-                                    {savingOrder ? 'Salvando...' : 'Salvar'}
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : order && order.items.length > 0 ? (
-                              <div className="space-y-0.5 group">
+                            {order && order.items.length > 0 ? (
+                              <div className="space-y-0.5">
                                 {order.items.map((item, i) => (
-                                  <div key={`${item.offeringId}_${item.productId}_${i}`}>
+                                  <div key={`${item.offeringId}_${item.productId}_${i}`} className="text-sm">
                                     {item.productName} × {item.qty} {item.unit}
                                   </div>
                                 ))}
-                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs mt-0.5"
-                                  onClick={() => openEditOrder(order)}>
-                                  Editar
-                                </Button>
                               </div>
                             ) : (
                               <span className="text-muted-foreground">—</span>
