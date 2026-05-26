@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Wand2, Check, X, History, Pencil } from 'lucide-react'
+import { Plus, Wand2, Check, X, History, Pencil, Lock, Unlock } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { offeringsApi, producersApi, productsApi } from '@/services/api'
+import { offeringsApi, producersApi, productsApi, colmeiasApi } from '@/services/api'
 import { formatDeliveryDate, getPresentWeekId } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
@@ -44,6 +44,8 @@ export function OfertasPage() {
   const [fallingBack, setFallingBack] = useState<string | null>(null)
   const [fallbackMessage, setFallbackMessage] = useState<Record<string, string>>({})
   const [editing, setEditing] = useState<WeeklyOffering | null>(null)
+  const [extrasAberto, setExtrasAberto] = useState<boolean>(true)
+  const [togglingExtras, setTogglingExtras] = useState(false)
 
   const [weekId, setWeekId] = useState(getPresentWeekId())
 
@@ -51,14 +53,16 @@ export function OfertasPage() {
     if (!colmeia) return
     setLoading(true)
     try {
-      const [offs, prods, prdsrs] = await Promise.all([
+      const [offs, prods, prdsrs, freshColmeia] = await Promise.all([
         offeringsApi.list(weekId, colmeia.id),
         producersApi.list(colmeia.id),
         productsApi.list(colmeia.id),
+        colmeiasApi.get(colmeia.id),
       ])
       setOfferings(offs)
       setProducers(prods)
       setProducts(prdsrs)
+      setExtrasAberto(freshColmeia.extrasAberto ?? true)
     } catch {
       // silencioso — erros de carregamento não são exibidos ao usuário aqui
     } finally {
@@ -67,6 +71,18 @@ export function OfertasPage() {
   }, [colmeia, weekId])
 
   useEffect(() => { load() }, [load])
+
+  async function handleToggleExtras() {
+    if (!colmeia) return
+    setTogglingExtras(true)
+    try {
+      const novo = !extrasAberto
+      await colmeiasApi.update(colmeia.id, { extrasAberto: novo })
+      setExtrasAberto(novo)
+    } finally {
+      setTogglingExtras(false)
+    }
+  }
 
   // Auto-abre dialog se producerId vier por URL (fluxo: Admin → Novo Produtor)
   useEffect(() => {
@@ -190,7 +206,20 @@ export function OfertasPage() {
           <h1 className="text-2xl font-bold">Extras da Semana</h1>
           <p className="text-muted-foreground text-sm">Entrega em {formatDeliveryDate(weekId)}</p>
         </div>
-        <WeekNavigator weekId={weekId} onChange={setWeekId} />
+        <div className="flex items-center gap-2">
+          <Button
+            variant={extrasAberto ? 'outline' : 'destructive'}
+            size="sm"
+            onClick={handleToggleExtras}
+            disabled={togglingExtras}
+          >
+            {extrasAberto
+              ? <><Unlock className="h-4 w-4 mr-1" />Extras abertos</>
+              : <><Lock className="h-4 w-4 mr-1" />Extras encerrados</>
+            }
+          </Button>
+          <WeekNavigator weekId={weekId} onChange={setWeekId} />
+        </div>
       </div>
 
       {loading ? (

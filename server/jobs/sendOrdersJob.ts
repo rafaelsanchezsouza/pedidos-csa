@@ -33,11 +33,13 @@ async function enviarParaColmeia(colmeia: ColmeiaDoc & { id: string }, weekId: s
       console.error(`[sendOrdersJob] ${colmeia.name}: erro ao enviar para ${contact}:`, err)
     }
   }
+  const now = new Date().toISOString()
   await db.collection('week_locks').doc(`${colmeia.id}_${weekId}`).set({
     colmeiaId: colmeia.id,
     weekId,
-    lockedAt: new Date().toISOString(),
+    lockedAt: now,
   })
+  await db.collection('colmeias').doc(colmeia.id).update({ extrasAberto: false })
   console.log(`[sendOrdersJob] ${colmeia.name}: ${messages.length} produtor(es) notificado(s), semana bloqueada`)
 }
 

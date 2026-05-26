@@ -111,11 +111,12 @@ router.post('/send-consolidated-whatsapp', async (req: Request, res: Response) =
     await sendWhatsAppMessage(normalizePhone(producer.contact), text)
 
     const lockId = `${colmeiaId}_${weekId}`
-    await db.collection('week_locks').doc(lockId).set({
-      colmeiaId,
-      weekId,
-      lockedAt: new Date().toISOString(),
-    })
+    const lockedAt = new Date().toISOString()
+    // week_lock e extrasAberto são independentes — falha em um não cancela o outro
+    await db.collection('week_locks').doc(lockId).set({ colmeiaId, weekId, lockedAt })
+      .catch((err) => console.error('[send-consolidated] week_lock falhou:', err))
+    await db.collection('colmeias').doc(colmeiaId).update({ extrasAberto: false })
+      .catch((err) => console.error('[send-consolidated] extrasAberto falhou:', err))
 
     res.json({ success: true })
   } catch (err) {
@@ -193,12 +194,15 @@ router.get('/monthly', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data = req.body as Omit<OrderDoc, 'dateCreated' | 'dateUpdated'>
-    const lockSnap = await db.collection('week_locks').doc(`${data.colmeiaId}_${data.weekId}`).get()
-    if (lockSnap.exists) {
-      const userSnap = await db.collection('users').doc(req.user!.uid).get()
-      const acesso = (userSnap.data() as { acesso?: string } | undefined)?.acesso
-      const isAdmin = acesso === 'admin' || acesso === 'superadmin'
-      if (!isAdmin) { res.status(403).json({ message: 'Pedido bloqueado após envio ao produtor' }); return }
+    const [userSnap, colmeiaSnap] = await Promise.all([
+      db.collection('users').doc(req.user!.uid).get(),
+      db.collection('colmeias').doc(data.colmeiaId).get(),
+    ])
+    const acesso = (userSnap.data() as { acesso?: string } | undefined)?.acesso
+    const isAdmin = acesso === 'admin' || acesso === 'superadmin'
+    const extrasAberto = (colmeiaSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
+    if (!extrasAberto && !isAdmin) {
+      res.status(403).json({ message: 'Pedidos de extras estão encerrados no momento' }); return
     }
     const now = new Date().toISOString()
     const order = await createDoc<OrderDoc>('orders', { ...data, dateCreated: now, dateUpdated: now })
@@ -215,14 +219,15 @@ router.put('/:id', async (req: Request, res: Response) => {
   try {
     const existing = await getDoc<OrderDoc>('orders', req.params['id'] as string)
     if (existing) {
-      const snap = await db.collection('week_locks').doc(`${existing.colmeiaId}_${existing.weekId}`).get()
-      if (snap.exists) {
-        const userSnap = await db.collection('users').doc(req.user!.uid).get()
-        const userData = userSnap.data() as { acesso?: string } | undefined
-        const isAdmin = userData?.acesso === 'admin' || userData?.acesso === 'superadmin'
-        if (!isAdmin) {
-          res.status(403).json({ message: 'Pedido bloqueado após envio ao produtor' }); return
-        }
+      const [userSnap, colmeiaSnap] = await Promise.all([
+        db.collection('users').doc(req.user!.uid).get(),
+        db.collection('colmeias').doc(existing.colmeiaId).get(),
+      ])
+      const userData = userSnap.data() as { acesso?: string } | undefined
+      const isAdmin = userData?.acesso === 'admin' || userData?.acesso === 'superadmin'
+      const extrasAberto = (colmeiaSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
+      if (!extrasAberto && !isAdmin) {
+        res.status(403).json({ message: 'Pedidos de extras estão encerrados no momento' }); return
       }
     }
     const updates = { ...req.body as Partial<OrderDoc>, dateUpdated: new Date().toISOString() }
