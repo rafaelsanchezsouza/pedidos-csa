@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { offeringsApi, ordersApi } from '@/services/api'
+import { offeringsApi, ordersApi, colmeiasApi } from '@/services/api'
 import type { WeeklyOffering, Order, OrderItem } from '@/types'
 import { Minus, Plus, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -19,23 +19,24 @@ export function PedidosPage() {
   const [message, setMessage] = useState('')
 
   const [weekId, setWeekId] = useState(() => getPresentWeekId(colmeia?.weekChangeDay ?? 0))
-  const [locked, setLocked] = useState(false)
+  const [extrasAberto, setExtrasAberto] = useState(true)
   const showFixo = user ? isUserDeliveryWeek(user, weekId) : true
   const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
+  const pedidosBloqueados = !extrasAberto && !isAdmin
 
   const load = useCallback(async () => {
     if (!colmeia) return
     setLoading(true)
     setQuantities({})
     try {
-      const [offs, myOrder, lockStatus] = await Promise.all([
+      const [offs, myOrder, freshColmeia] = await Promise.all([
         offeringsApi.list(weekId, colmeia.id),
         ordersApi.getMy(weekId, colmeia.id),
-        ordersApi.getWeekLock(weekId, colmeia.id),
+        colmeiasApi.get(colmeia.id),
       ])
       setOfferings(offs)
       setOrder(myOrder)
-      setLocked(lockStatus.locked)
+      setExtrasAberto(freshColmeia.extrasAberto ?? true)
       if (myOrder) {
         const q: Record<string, number> = {}
         offs.forEach((off) => {
@@ -154,17 +155,17 @@ export function PedidosPage() {
         </div>
       </div>
 
-      {locked && !isAdmin && (
+      {pedidosBloqueados && (
         <Card className="border-yellow-300 bg-yellow-50">
           <CardContent className="py-3 text-sm text-yellow-800">
-            Pedido bloqueado — o pedido desta semana já foi enviado ao produtor. Contate o administrador para alterações.
+            Pedidos de extras estão encerrados no momento.
           </CardContent>
         </Card>
       )}
 
       <Card
-        className={order?.doacao ? 'border-orange-300 bg-orange-50 cursor-pointer' : locked && !isAdmin ? 'opacity-50' : 'cursor-pointer hover:bg-muted/50'}
-        onClick={() => !saving && (!locked || isAdmin) && handleDoacao(!order?.doacao)}
+        className={order?.doacao ? 'border-orange-300 bg-orange-50 cursor-pointer' : pedidosBloqueados ? 'opacity-50' : 'cursor-pointer hover:bg-muted/50'}
+        onClick={() => !saving && !pedidosBloqueados && handleDoacao(!order?.doacao)}
       >
         <CardContent className="py-3 flex items-center gap-3">
           <Heart className={`h-4 w-4 flex-shrink-0 ${order?.doacao ? 'fill-orange-500 text-orange-500' : 'text-muted-foreground'}`} />
@@ -219,13 +220,13 @@ export function PedidosPage() {
                   </span>
                   <div className="flex items-center gap-1">
                     <Button variant="outline" size="icon" className="h-10 w-10"
-                      disabled={locked && !isAdmin}
+                      disabled={pedidosBloqueados}
                       onClick={() => setQty(key, qty - 1)}>
                       <Minus className="h-3 w-3" />
                     </Button>
                     <span className="w-8 text-center text-sm font-medium tabular-nums">{qty}</span>
                     <Button variant="outline" size="icon" className="h-10 w-10"
-                      disabled={locked && !isAdmin}
+                      disabled={pedidosBloqueados}
                       onClick={() => setQty(key, qty + 1)}>
                       <Plus className="h-3 w-3" />
                     </Button>
@@ -240,13 +241,13 @@ export function PedidosPage() {
       )}
 
       {!loading && offerings.length > 0 && (
-        <div className="sticky bottom-0 bg-background border-t flex items-center justify-between py-2">
+        <div className="border-t flex items-center justify-between py-2">
           <div className="text-base font-semibold">
             Total: R$ {total.toFixed(2)}
           </div>
           <div className="flex items-center gap-3">
             {message && <span className="text-sm text-muted-foreground">{message}</span>}
-            <Button size="sm" onClick={handleSave} disabled={saving || (locked && !isAdmin)}>
+            <Button size="sm" onClick={handleSave} disabled={saving || pedidosBloqueados}>
               {saving ? 'Salvando...' : order ? 'Atualizar Pedido' : 'Enviar Pedido'}
             </Button>
           </div>
