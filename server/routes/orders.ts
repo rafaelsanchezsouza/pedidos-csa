@@ -111,14 +111,12 @@ router.post('/send-consolidated-whatsapp', async (req: Request, res: Response) =
     await sendWhatsAppMessage(normalizePhone(producer.contact), text)
 
     const lockId = `${colmeiaId}_${weekId}`
-    await Promise.all([
-      db.collection('week_locks').doc(lockId).set({
-        colmeiaId,
-        weekId,
-        lockedAt: new Date().toISOString(),
-      }),
-      db.collection('colmeias').doc(colmeiaId).update({ extrasAberto: false }),
-    ])
+    const lockedAt = new Date().toISOString()
+    // week_lock e extrasAberto são independentes — falha em um não cancela o outro
+    await db.collection('week_locks').doc(lockId).set({ colmeiaId, weekId, lockedAt })
+      .catch((err) => console.error('[send-consolidated] week_lock falhou:', err))
+    await db.collection('colmeias').doc(colmeiaId).update({ extrasAberto: false })
+      .catch((err) => console.error('[send-consolidated] extrasAberto falhou:', err))
 
     res.json({ success: true })
   } catch (err) {

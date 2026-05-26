@@ -53,14 +53,16 @@ export function OfertasPage() {
     if (!colmeia) return
     setLoading(true)
     try {
-      const [offs, prods, prdsrs] = await Promise.all([
+      const [offs, prods, prdsrs, freshColmeia] = await Promise.all([
         offeringsApi.list(weekId, colmeia.id),
         producersApi.list(colmeia.id),
         productsApi.list(colmeia.id),
+        colmeiasApi.get(colmeia.id),
       ])
       setOfferings(offs)
       setProducers(prods)
       setProducts(prdsrs)
+      setExtrasAberto(freshColmeia.extrasAberto ?? true)
     } catch {
       // silencioso — erros de carregamento não são exibidos ao usuário aqui
     } finally {
@@ -69,10 +71,6 @@ export function OfertasPage() {
   }, [colmeia, weekId])
 
   useEffect(() => { load() }, [load])
-
-  useEffect(() => {
-    setExtrasAberto(colmeia?.extrasAberto ?? true)
-  }, [colmeia])
 
   async function handleToggleExtras() {
     if (!colmeia) return

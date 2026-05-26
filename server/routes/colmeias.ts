@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { listDocs, createDoc, getDoc, updateDoc } from '../repositories/firestore.js'
+import { listDocs, createDoc, getDoc, updateDoc, db } from '../repositories/firestore.js'
 
 const router = Router()
 
@@ -65,6 +65,13 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.put('/:id', async (req: Request, res: Response) => {
   try {
+    const userSnap = await db.collection('users').doc(req.user!.uid).get()
+    const userData = userSnap.data() as { acesso?: string; colmeiaId?: string } | undefined
+    const isSuperAdmin = userData?.acesso === 'superadmin'
+    const isColmeiaAdmin = userData?.acesso === 'admin' && userData?.colmeiaId === req.params['id']
+    if (!isSuperAdmin && !isColmeiaAdmin) {
+      res.status(403).json({ message: 'Sem permissão' }); return
+    }
     const { quotaInteira, quotaMeia, dueDay, orderSendDay, orderSendHour, weekChangeDay, extrasAberto } = req.body as {
       quotaInteira?: number; quotaMeia?: number; dueDay?: number
       orderSendDay?: number; orderSendHour?: number; weekChangeDay?: number
