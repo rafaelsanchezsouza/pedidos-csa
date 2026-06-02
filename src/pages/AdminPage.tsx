@@ -105,7 +105,7 @@ function parseGoogleFormCsv(text: string): ParsedRow[] {
 }
 
 export function AdminPage() {
-  const { colmeia, refreshUser } = useAuth()
+  const { colmeia, colmeias, user, refreshUser } = useAuth()
   const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
   const [producers, setProducers] = useState<Producer[]>([])
@@ -123,6 +123,12 @@ export function AdminPage() {
   const [weekChangeDay, setWeekChangeDay] = useState(String(colmeia?.weekChangeDay ?? 0))
   const [savingQuota, setSavingQuota] = useState(false)
   const [quotaMessage, setQuotaMessage] = useState('')
+
+  // Colmeia dialog
+  const [colmeiaDialog, setColmeiaDialog] = useState(false)
+  const [newColmeiaName, setNewColmeiaName] = useState('')
+  const [savingColmeia, setSavingColmeia] = useState(false)
+  const [colmeiaError, setColmeiaError] = useState('')
 
   // Producer dialog
   const [producerDialog, setProducerDialog] = useState(false)
@@ -169,6 +175,23 @@ export function AdminPage() {
   }, [colmeia])
 
   useEffect(() => { load() }, [load])
+
+  // --- Colmeias ---
+  async function handleCreateColmeia() {
+    if (!newColmeiaName.trim()) return
+    setSavingColmeia(true)
+    setColmeiaError('')
+    try {
+      await colmeiasApi.create({ name: newColmeiaName.trim() })
+      await refreshUser()
+      setColmeiaDialog(false)
+      setNewColmeiaName('')
+    } catch (err) {
+      setColmeiaError(String(err))
+    } finally {
+      setSavingColmeia(false)
+    }
+  }
 
   // --- Produtores ---
   function openCreateProducer() {
@@ -353,6 +376,9 @@ export function AdminPage() {
           <TabsTrigger value="usuarios">Usuários</TabsTrigger>
           <TabsTrigger value="produtores">Produtores</TabsTrigger>
           <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
+          {user?.acesso === 'superadmin' && (
+            <TabsTrigger value="colmeias">Colmeias</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="usuarios">
@@ -625,7 +651,64 @@ export function AdminPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {user?.acesso === 'superadmin' && (
+          <TabsContent value="colmeias">
+            <div className="flex justify-end mb-4">
+              <Button onClick={() => { setNewColmeiaName(''); setColmeiaError(''); setColmeiaDialog(true) }}>
+                <Plus className="mr-2 h-4 w-4" /> Nova Colmeia
+              </Button>
+            </div>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Criada em</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {colmeias.map(c => (
+                      <TableRow key={c.id}>
+                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell>{new Date(c.dateCreated).toLocaleDateString('pt-BR')}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
+
+      {/* Dialog: nova colmeia */}
+      <Dialog open={colmeiaDialog} onOpenChange={setColmeiaDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova Colmeia</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>Nome</Label>
+              <Input
+                value={newColmeiaName}
+                onChange={(e) => setNewColmeiaName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateColmeia()}
+                placeholder="Ex: Colmeia Jardim"
+              />
+            </div>
+            {colmeiaError && <p className="text-sm text-destructive">{colmeiaError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setColmeiaDialog(false)}>Cancelar</Button>
+            <Button onClick={handleCreateColmeia} disabled={savingColmeia || !newColmeiaName.trim()}>
+              {savingColmeia ? 'Criando...' : 'Criar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog: produtor */}
       <Dialog open={producerDialog} onOpenChange={setProducerDialog}>

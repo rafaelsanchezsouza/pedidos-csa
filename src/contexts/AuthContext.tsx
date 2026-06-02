@@ -56,10 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setColmeia(allColmeias[0])
       } else {
         const saved = localStorage.getItem(`colmeia_${fbUser.uid}`)
-        if (saved) {
-          const found = allColmeias.find((c) => c.id === saved)
-          if (found) setColmeia(found)
-        }
+        const savedFound = saved ? allColmeias.find((c) => c.id === saved) : null
+        const ownColmeia = me.colmeiaId ? allColmeias.find((c) => c.id === me.colmeiaId) : null
+        setColmeia(savedFound ?? ownColmeia ?? allColmeias[0] ?? null)
       }
     } catch (err) {
       setUser(null)

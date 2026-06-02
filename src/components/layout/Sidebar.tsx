@@ -3,6 +3,7 @@ import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, Use
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { ReportarProblema } from '@/components/ReportarProblema'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const navItems = [
   { to: '/pedidos', label: 'Meus Pedidos', icon: ShoppingCart, adminOnly: false, produtorVisible: false },
@@ -17,16 +18,30 @@ const navItems = [
 ]
 
 export function Sidebar() {
-  const { user, colmeia } = useAuth()
+  const { user, colmeia, colmeias, selectColmeia } = useAuth()
   const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
   const isProdutor = user?.acesso === 'produtor'
+  const isSuperAdmin = user?.acesso === 'superadmin'
 
   return (
     <aside className="w-56 border-r bg-background flex flex-col">
       {colmeia && (
         <div className="px-4 py-3 border-b">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Colmeia</p>
-          <p className="font-medium text-sm truncate">{colmeia.name}</p>
+          {isSuperAdmin && colmeias.length > 1 ? (
+            <Select value={colmeia.id} onValueChange={selectColmeia}>
+              <SelectTrigger className="h-auto text-sm font-medium border-0 p-0 shadow-none focus:ring-0 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {colmeias.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="font-medium text-sm truncate">{colmeia.name}</p>
+          )}
         </div>
       )}
       <nav className="flex-1 py-2">
