@@ -157,8 +157,11 @@ export function PedidosPage() {
 
       {pedidosBloqueados && (
         <Card className="border-yellow-300 bg-yellow-50">
-          <CardContent className="py-3 text-sm text-yellow-800">
-            Pedidos de extras estão encerrados no momento.
+          <CardContent className="py-3 flex items-center justify-between text-sm text-yellow-800">
+            <span>Pedidos de extras estão encerrados no momento.</span>
+            <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
+              Atualizar
+            </Button>
           </CardContent>
         </Card>
       )}
