@@ -151,6 +151,10 @@ export function AdminPage() {
   const [memberError, setMemberError] = useState('')
   const [memberSuccess, setMemberSuccess] = useState<{ password: string; contact: string } | null>(null)
 
+  // Filtros de usuários
+  const [filterName, setFilterName] = useState('')
+  const [showInactive, setShowInactive] = useState(false)
+
   // CSV import dialog
   const [csvDialog, setCsvDialog] = useState(false)
   const [csvRows, setCsvRows] = useState<ParsedRow[]>([])
@@ -367,6 +371,11 @@ export function AdminPage() {
 
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
 
+  const visibleUsers = users
+    .filter((u) => !u.deleted)
+    .filter((u) => showInactive || !u.disabled)
+    .filter((u) => !filterName.trim() || u.name.toLowerCase().includes(filterName.toLowerCase()))
+
   return (
     <div className="max-w-4xl space-y-6">
       <h1 className="text-2xl font-bold">Administração</h1>
@@ -382,7 +391,19 @@ export function AdminPage() {
         </TabsList>
 
         <TabsContent value="usuarios">
-          <div className="flex justify-end gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <Input
+              placeholder="Buscar por nome..."
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              className="flex-1 min-w-[160px]"
+            />
+            <Button
+              variant={showInactive ? 'default' : 'outline'}
+              onClick={() => setShowInactive((v) => !v)}
+            >
+              Mostrar inativos
+            </Button>
             <Button variant="outline" onClick={() => { setCsvRows([]); setCsvResults(null); setCsvDialog(true) }}>
               <Upload className="mr-2 h-4 w-4" /> Importar CSV
             </Button>
@@ -404,14 +425,14 @@ export function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.filter((u) => !u.deleted).length === 0 ? (
+                {visibleUsers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                       Nenhum usuário encontrado.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  users.filter((u) => !u.deleted).map((u) => (
+                  visibleUsers.map((u) => (
                     <TableRow key={u.id} className={u.disabled ? 'opacity-50' : ''}>
                       <TableCell className="font-medium">
                         {u.name}
@@ -433,9 +454,11 @@ export function AdminPage() {
                           <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)} title={u.disabled ? 'Habilitar' : 'Desabilitar'}>
                             {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)} title="Excluir">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          {user?.acesso === 'superadmin' && (
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)} title="Excluir">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -447,14 +470,14 @@ export function AdminPage() {
 
           {/* Mobile */}
           <div className="md:hidden space-y-3">
-            {users.filter((u) => !u.deleted).length === 0 ? (
+            {visibleUsers.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   Nenhum usuário encontrado.
                 </CardContent>
               </Card>
             ) : (
-              users.filter((u) => !u.deleted).map((u) => (
+              visibleUsers.map((u) => (
                 <Card key={u.id} className={u.disabled ? 'opacity-50' : ''}>
                   <CardContent className="py-3 px-4 space-y-1">
                     <div className="flex items-center justify-between gap-2">
@@ -480,9 +503,11 @@ export function AdminPage() {
                       <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)}>
                         {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {user?.acesso === 'superadmin' && (
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
