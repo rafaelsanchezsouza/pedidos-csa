@@ -81,6 +81,13 @@ function parseCsvLine(line: string): string[] {
   return fields
 }
 
+function acolhidaBadge(expiry: string) {
+  const today = new Date().toISOString().split('T')[0]
+  const active = expiry >= today
+  const [, m, d] = expiry.split('-')
+  return { active, label: active ? `Acolhida até ${d}/${m}` : 'Acolhida encerrada' }
+}
+
 // Formato: exportação do Google Forms (Timestamp,Nome,e-mail,Whatsapp,Logradouro,Complemento,Bairro,CEP,Retirada,Frequência,...,Tamanho Cota)
 function parseGoogleFormCsv(text: string): ParsedRow[] {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
@@ -150,6 +157,7 @@ export function AdminPage() {
   const [savingMember, setSavingMember] = useState(false)
   const [memberError, setMemberError] = useState('')
   const [memberSuccess, setMemberSuccess] = useState<{ password: string; contact: string } | null>(null)
+  const [inAcolhida, setInAcolhida] = useState(true)
 
   // Filtros de usuários
   const [filterName, setFilterName] = useState('')
@@ -251,6 +259,7 @@ export function AdminPage() {
       role: u.role,
       isentoCotas: u.isentoCotas,
       quota: u.quota,
+      acolhidaExpiry: u.acolhidaExpiry,
     })
     setResetLink(null)
     setEditDialog(true)
@@ -295,6 +304,7 @@ export function AdminPage() {
     setMemberForm(emptyMemberForm)
     setMemberError('')
     setMemberSuccess(null)
+    setInAcolhida(true)
     setMemberDialog(true)
   }
 
@@ -303,7 +313,13 @@ export function AdminPage() {
     setSavingMember(true)
     setMemberError('')
     try {
-      const result = await usersApi.createMember({ ...memberForm, colmeiaId: colmeia.id }, colmeia.id)
+      const acolhidaExpiry = inAcolhida
+        ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        : undefined
+      const result = await usersApi.createMember(
+        { ...memberForm, colmeiaId: colmeia.id, ...(acolhidaExpiry ? { acolhidaExpiry } : {}) },
+        colmeia.id
+      )
       await load()
       setMemberSuccess({ password: result.password ?? memberForm.password, contact: memberForm.contact })
     } catch (err) {
@@ -437,6 +453,11 @@ export function AdminPage() {
                       <TableCell className="font-medium">
                         {u.name}
                         {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
+                        {u.acolhidaExpiry && (
+                          <span className={`ml-2 text-xs ${acolhidaBadge(u.acolhidaExpiry).active ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                            ({acolhidaBadge(u.acolhidaExpiry).label})
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="capitalize">{u.frequency}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
@@ -484,6 +505,11 @@ export function AdminPage() {
                       <span className="font-medium">
                         {u.name}
                         {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
+                        {u.acolhidaExpiry && (
+                          <span className={`ml-2 text-xs ${acolhidaBadge(u.acolhidaExpiry).active ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                            ({acolhidaBadge(u.acolhidaExpiry).label})
+                          </span>
+                        )}
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground capitalize">
@@ -909,6 +935,18 @@ export function AdminPage() {
                 Isento de cota mensal
               </Label>
             </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="memberAcolhida"
+                checked={inAcolhida}
+                onChange={(e) => setInAcolhida(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="memberAcolhida" className="font-normal cursor-pointer">
+                Em acolhida (30 dias)
+              </Label>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Frequência</Label>
@@ -1150,6 +1188,24 @@ export function AdminPage() {
               <Label htmlFor="editIsentoCotas" className="font-normal cursor-pointer">
                 Isento de cota mensal
               </Label>
+            </div>
+            <div className="space-y-1">
+              <Label>Acolhida — encerramento</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={editForm.acolhidaExpiry ?? ''}
+                  onChange={(e) => setEditForm((p) => ({ ...p, acolhidaExpiry: e.target.value }))}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditForm((p) => ({ ...p, acolhidaExpiry: '' }))}
+                >
+                  Remover
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
