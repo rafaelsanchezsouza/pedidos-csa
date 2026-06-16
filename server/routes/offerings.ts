@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { listDocs, createDoc, updateDoc } from '../repositories/firestore.js'
+import { listDocs, createDoc, updateDoc, db } from '../repositories/firestore.js'
 import { parseProducerMessage } from '../services/parseMessage/index.js'
 
 const router = Router()
@@ -28,6 +28,15 @@ interface ProductDoc {
   price: number
   producerId: string
   colmeiaId: string
+  dateUpdated: string
+}
+
+interface OrderDoc {
+  userId: string
+  userName: string
+  colmeiaId: string
+  weekId: string
+  items: Array<{ productId: string; offeringId: string; [key: string]: unknown }>
   dateUpdated: string
 }
 
@@ -180,6 +189,29 @@ router.post('/', async (req: Request, res: Response) => {
         rawMessage: data.rawMessage,
       })
       offering = { ...existing[0], items: deduped, rawMessage: data.rawMessage }
+
+      // Produtos removidos da oferta → descartar dos pedidos da semana
+      const prevIds = new Set(existing[0].items.map((i) => i.productId))
+      const newIds = new Set(deduped.map((i) => i.productId))
+      const removidos = [...prevIds].filter((id) => !newIds.has(id))
+      if (removidos.length > 0) {
+        const orders = await listDocs<OrderDoc>('orders', [
+          ['colmeiaId', '==', data.colmeiaId],
+          ['weekId', '==', data.weekStart],
+        ])
+        const affected = orders.filter((o) =>
+          o.items.some((item) => item.offeringId === existing[0].id && removidos.includes(item.productId))
+        )
+        const now = new Date().toISOString()
+        await Promise.all(affected.map((o) =>
+          updateDoc<OrderDoc>('orders', o.id, {
+            items: o.items.filter(
+              (item) => !(item.offeringId === existing[0].id && removidos.includes(item.productId))
+            ),
+            dateUpdated: now,
+          })
+        ))
+      }
     } else {
       offering = await createDoc<OfferingDoc>('weekly_offerings', {
         ...data,
@@ -187,6 +219,15 @@ router.post('/', async (req: Request, res: Response) => {
         dateCreated: new Date().toISOString(),
       })
     }
+
+    // Auto-desbloqueio: nova oferta publicada → reabrir pedidos se estiverem fechados
+    const colmeiaSnap = await db.collection('colmeias').doc(data.colmeiaId).get()
+    const extrasAtual = (colmeiaSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
+    if (!extrasAtual) {
+      await db.collection('colmeias').doc(data.colmeiaId).update({ extrasAberto: true })
+        .catch((err) => console.error('[offerings POST] auto-unlock falhou:', err))
+    }
+
     res.status(201).json(offering)
   } catch (err) {
     res.status(500).json({ message: String(err) })
