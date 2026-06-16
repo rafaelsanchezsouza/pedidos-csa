@@ -21,6 +21,7 @@ interface UserDoc {
   disabled?: boolean
   deleted?: boolean
   quota?: 'Cota inteira' | 'Meia cota'
+  acolhidaExpiry?: string
 }
 
 function gerarSenha() {

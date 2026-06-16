@@ -30,6 +30,7 @@ export interface User {
   mustChangePassword?: boolean
   quinzenalParity?: 'par' | 'impar'
   quota?: 'Cota inteira' | 'Meia cota'
+  acolhidaExpiry?: string
 }
 
 export interface ColmeiaRole {

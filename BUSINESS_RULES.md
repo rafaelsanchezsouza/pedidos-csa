@@ -30,7 +30,18 @@
 - `isentoCotas: boolean` — quando `true`, o usuário não tem cota mensal gerada e não aparece na lista de verificação de pagamentos de cota
 - `disabled: boolean` — quando `true`, usuário inativo; excluído da geração de cotas
 - `deleted: boolean` — quando `true`, usuário removido; excluído da geração de cotas
+- `acolhidaExpiry: string (ISO date)` — data de encerramento do período de acolhida; ausente ou vazio = sem acolhida
 - Usuário informa: nome, endereço, contato, frequência (semanal/quinzenal), tipo de retirada (na colmeia ou por entrega)
+
+## Período de Acolhida
+
+- Novos membros entram no período de acolhida de **30 dias** por padrão ao ser cadastrados (checkbox pré-marcado na criação)
+- Campo `acolhidaExpiry` (ISO date, ex: `"2026-07-15"`) registra a data de encerramento
+- Apenas informativo: não afeta pedidos, cotas, pagamentos nem permissões de sistema
+- Admin pode ajustar a data ou remover o período via dialog de edição
+- Badge exibido na lista de membros da AdminPage:
+  - **Ativo** (`acolhidaExpiry >= hoje`): texto amarelo `"Acolhida até DD/MM"`
+  - **Encerrado** (`acolhidaExpiry < hoje`): texto cinza `"Acolhida encerrada"`
 
 ## Catálogo de Produtos
 
