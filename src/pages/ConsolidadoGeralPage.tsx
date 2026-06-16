@@ -5,7 +5,7 @@ import type { Order, User, WeeklyOffering } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Pencil } from 'lucide-react'
+import { Pencil, StickyNote } from 'lucide-react'
 import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
 
@@ -23,6 +23,9 @@ export function ConsolidadoGeralPage() {
   const [editingOrder, setEditingOrder] = useState<{ order: Order; userName: string } | null>(null)
   const [editedQtys, setEditedQtys] = useState<Record<string, number>>({})
   const [savingOrder, setSavingOrder] = useState(false)
+  const [editingNote, setEditingNote] = useState<{ userId: string; userName: string; order: Order | null } | null>(null)
+  const [noteText, setNoteText] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
   const [texts, setTexts] = useState<Record<string, string>>({})
   const [generating, setGenerating] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -121,6 +124,33 @@ export function ConsolidadoGeralPage() {
     }
   }
 
+  function openEditNote(u: User) {
+    const order = orderByUser.get(u.id) ?? null
+    setNoteText(order?.weeklyNote ?? '')
+    setEditingNote({ userId: u.id, userName: u.name, order })
+  }
+
+  async function saveNote() {
+    if (!colmeia || !editingNote) return
+    setSavingNote(true)
+    try {
+      const { userId, userName, order } = editingNote
+      if (order) {
+        await ordersApi.update(order.id, { weeklyNote: noteText }, colmeia.id)
+        setOrders((prev) => prev.map((o) => o.userId === userId ? { ...o, weeklyNote: noteText } : o))
+      } else {
+        const created = await ordersApi.create({
+          userId, userName, colmeiaId: colmeia.id, weekId, items: [], status: 'rascunho', weeklyNote: noteText,
+        }, colmeia.id)
+        setOrders((prev) => [...prev, created])
+      }
+      setEditingNote(null)
+      setNoteText('')
+    } finally {
+      setSavingNote(false)
+    }
+  }
+
   async function handleGenerate(producerId: string) {
     if (!colmeia) return
     setGenerating(producerId)
@@ -162,7 +192,7 @@ export function ConsolidadoGeralPage() {
     const lines = [`Consolidado — ${dataStr}`]
     activeUsers.forEach((u) => {
       const order = orderByUser.get(u.id)
-      const parts = [u.name, '--------------------------', u.quota, u.neighborhood, u.address, u.contact]
+      const parts = [u.name, '--------------------------', u.quota, u.neighborhood, order?.weeklyAddress ?? u.address, u.contact]
       if (order?.doacao) parts.push('⟶ DOAÇÃO')
       if (order?.recebido) parts.push('⟶ RECEBIDO')
       if (order?.status === 'enviado' && order.items.length > 0) {
@@ -216,6 +246,29 @@ export function ConsolidadoGeralPage() {
               </div>
             )
           })()}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editingNote !== null} onOpenChange={(open) => { if (!open) { setEditingNote(null); setNoteText('') } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Nota da semana — {editingNote?.userName}</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <textarea
+              rows={3}
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="Ex: horário especial, doação pontual..."
+              className="w-full text-sm border rounded px-2 py-1.5 resize-none bg-background"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditingNote(null); setNoteText('') }}>Cancelar</Button>
+            <Button disabled={savingNote} onClick={saveNote}>
+              {savingNote ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -294,8 +347,17 @@ export function ConsolidadoGeralPage() {
                                   <Pencil className="h-3.5 w-3.5" />
                                 </button>
                               )}
+                              <button
+                                onClick={() => openEditNote(u)}
+                                className={`flex-shrink-0 ${order?.weeklyNote ? 'text-yellow-500' : 'text-muted-foreground hover:text-foreground'}`}
+                              >
+                                <StickyNote className="h-3.5 w-3.5" />
+                              </button>
                               <span>{u.name}</span>
                             </div>
+                            {order?.weeklyNote && (
+                              <div className="mt-0.5 text-xs bg-yellow-100 text-yellow-800 rounded px-1 inline-block">{order.weeklyNote}</div>
+                            )}
                             {u.quota && <div className="text-xs text-muted-foreground">{u.quota}</div>}
                             {u.contact && <div className="text-xs text-muted-foreground">{u.contact}</div>}
                             {u.deliveryType === 'colmeia' && (

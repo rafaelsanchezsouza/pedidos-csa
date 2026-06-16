@@ -96,6 +96,9 @@ export interface Order {
   status: 'rascunho' | 'enviado'
   doacao?: boolean
   recebido?: boolean
+  weeklyNote?: string
+  weeklyAddress?: string
+  suspensa?: boolean
   dateCreated: string
   dateUpdated: string
 }
