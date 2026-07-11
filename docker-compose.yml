@@ -1,6 +1,7 @@
 services:
   evolution-api:
     image: evoapicloud/evolution-api:v2.3.6
+    restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
@@ -23,6 +24,7 @@ services:
 
   evolution-api-db:
     image: postgres:15-alpine
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=evolution
       - POSTGRES_PASSWORD=evolution
@@ -37,6 +39,7 @@ services:
 
   evolution-redis:
     image: redis:7-alpine
+    restart: unless-stopped
     volumes:
       - evolution_redis_data:/data
     healthcheck:
