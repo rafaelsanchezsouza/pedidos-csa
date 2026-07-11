@@ -26,6 +26,8 @@ declare module 'express' {
 
 const app = express()
 const PORT = process.env.PORT ?? 3001
+// 127.0.0.1: backend nunca exposto direto — só via nginx (prod) ou localhost (dev)
+const HOST = process.env.HOST || '127.0.0.1'
 
 app.use(cors())
 app.use(express.json())
@@ -67,8 +69,8 @@ app.use('/api/users', usersRouter)
 app.use('/api/issues', issuesRouter)
 app.use('/api/roles', rolesRouter)
 
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`)
+app.listen(Number(PORT), HOST, () => {
+  console.log(`Servidor rodando em http://${HOST}:${PORT}`)
   startQuotaJob()
   startSendOrdersJob()
 })
