@@ -10,8 +10,11 @@ export function getWeekStart(date = new Date()): string {
 }
 
 export function getISOWeekNumber(weekStart: string): number {
-  const date = new Date(weekStart)
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  // weekStart é 'YYYY-MM-DD'. Parseamos os componentes na mão: `new Date('YYYY-MM-DD')`
+  // resolve para meia-noite UTC e, lido com getters locais em fuso negativo (BR),
+  // recua um dia — o que invertia a paridade quinzenal de todo mundo (#43).
+  const [year, month, day] = weekStart.split('-').map(Number)
+  const d = new Date(Date.UTC(year, month - 1, day))
   const dayNum = d.getUTCDay() || 7
   d.setUTCDate(d.getUTCDate() + 4 - dayNum)
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))

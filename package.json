@@ -8,6 +8,9 @@
     "dev:server": "cross-env NODE_ENV=development tsx watch server/index.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "typecheck": "tsc -b",
+    "test": "cross-env TZ=America/Sao_Paulo vitest run",
+    "test:watch": "cross-env TZ=America/Sao_Paulo vitest",
+    "test:tz": "npm test && cross-env TZ=UTC vitest run && cross-env TZ=Pacific/Kiritimati vitest run",
     "build": "npm run typecheck && vite build --mode production",
     "build:backend": "tsc -p server/tsconfig.json",
     "build:all": "npm run build && npm run build:backend",
@@ -51,6 +54,7 @@
     "tailwindcss": "^3.4.13",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
-    "vite": "^7.0.0"
+    "vite": "^7.0.0",
+    "vitest": "^4.1.10"
   }
 }
