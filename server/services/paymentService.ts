@@ -1,4 +1,5 @@
 import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
+import { isFixoWeekFromDate } from './weekMath.js'
 
 interface OrderItem {
   price: number
@@ -59,13 +60,6 @@ function buildDueDate(month: string, type: 'cota' | 'extras', dueDay: number): s
   return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`
 }
 
-function getISOWeekFromDate(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const dayNum = d.getUTCDay() || 7
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
-}
 
 function countDeliveryWeeks(
   month: string,
@@ -86,11 +80,10 @@ function countDeliveryWeeks(
       if (frequency === 'semanal') {
         count++
       } else {
-        const isoWeek = getISOWeekFromDate(cur)
-        const isOdd = isoWeek % 2 === 1
-        if (quinzenalParity === 'impar' && isOdd) count++
-        else if (quinzenalParity === 'par' && !isOdd) count++
-        else if (!quinzenalParity && isOdd) count++ // fallback: semanas ímpares
+        const fixo = isFixoWeekFromDate(cur)
+        if (quinzenalParity === 'impar' && fixo) count++
+        else if (quinzenalParity === 'par' && !fixo) count++
+        else if (!quinzenalParity && fixo) count++ // fallback: comportamento global
       }
     }
     cur.setDate(cur.getDate() + 7)
