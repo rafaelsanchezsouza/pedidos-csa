@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import {
-  getISOWeekNumber,
+  getWeekIndex,
   isFixoWeek,
   isUserDeliveryWeek,
   getWeekStart,
@@ -8,9 +8,20 @@ import {
   shiftWeek,
 } from './weekUtils'
 
-// Ground truth conferido com `date -d <data> +%V` (coreutils), não com a própria implementação.
+function comTZ(tz: string) {
+  vi.stubEnv('TZ', tz)
+}
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
+
+const semanal = { frequency: 'semanal' as const }
+const impar = { frequency: 'quinzenal' as const, quinzenalParity: 'impar' as const }
+const par = { frequency: 'quinzenal' as const, quinzenalParity: 'par' as const }
+
+// Semanas ISO conferidas com `date -d <data> +%V` (coreutils), não com a implementação.
 const SEMANAS_ISO: Array<[string, number]> = [
-  ['2025-12-29', 1],  // semana 1 de 2026 começa ainda em dezembro
+  ['2025-12-29', 1],
   ['2026-01-05', 2],
   ['2026-07-06', 28],
   ['2026-07-13', 29],
@@ -20,88 +31,130 @@ const SEMANAS_ISO: Array<[string, number]> = [
   ['2027-01-04', 1],
 ]
 
-function comTZ(tz: string) {
-  vi.stubEnv('TZ', tz)
+// Implementação ISO que vigorava antes do #48, usada só como oráculo do comportamento
+// anterior: o contador contínuo tem que reproduzi-la exatamente até a virada de 2026.
+function paridadeISOLegada(weekStart: string, parity: 'par' | 'impar'): boolean {
+  const [y, m, d] = weekStart.split('-').map(Number)
+  const t = new Date(Date.UTC(y, m - 1, d))
+  const dayNum = t.getUTCDay() || 7
+  t.setUTCDate(t.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1))
+  const iso = Math.ceil((((t.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+  return parity === 'impar' ? iso % 2 === 1 : iso % 2 === 0
 }
-afterEach(() => {
-  vi.unstubAllEnvs()
-})
 
-describe('getISOWeekNumber', () => {
-  it.each(SEMANAS_ISO)('%s → semana ISO %i', (weekStart, esperado) => {
-    expect(getISOWeekNumber(weekStart)).toBe(esperado)
+function segundasEntre(inicio: string, fim: string): string[] {
+  const out: string[] = []
+  for (let w = inicio; w < fim; w = shiftWeek(w, 1)) out.push(w)
+  return out
+}
+
+describe('getWeekIndex', () => {
+  it('conta semanas corridas a partir da âncora', () => {
+    expect(getWeekIndex('2025-12-29')).toBe(0)
+    expect(getWeekIndex('2026-01-05')).toBe(1)
+    expect(getWeekIndex('2026-07-13')).toBe(28)
   })
 
-  // Regressão #43: weekStart era parseado como UTC e lido com getters locais.
-  // Em qualquer fuso negativo (BR) a data recuava um dia → semana ISO off-by-one → paridade invertida.
+  it('é negativo antes da âncora e continua alternando', () => {
+    expect(getWeekIndex('2025-12-22')).toBe(-1)
+    // `-1 % 2` é -1 em JS: sem módulo protegido isFixoWeek erraria o passado
+    expect(isFixoWeek('2025-12-22')).toBe(false)
+    expect(isFixoWeek('2025-12-29')).toBe(true)
+    expect(isFixoWeek('2025-12-15')).toBe(true)
+  })
+
+  it('não pula na virada de ano ISO de 53 semanas', () => {
+    expect(getWeekIndex('2027-01-04') - getWeekIndex('2026-12-28')).toBe(1)
+  })
+
   it.each(['America/Sao_Paulo', 'UTC', 'Pacific/Kiritimati', 'America/Anchorage'])(
     'independe do fuso do navegador (%s)',
     (tz) => {
       comTZ(tz)
-      for (const [weekStart, esperado] of SEMANAS_ISO) {
-        expect(getISOWeekNumber(weekStart), `${weekStart} em ${tz}`).toBe(esperado)
+      for (const [weekStart] of SEMANAS_ISO) {
+        expect(getWeekIndex(weekStart), `${weekStart} em ${tz}`).toBe(
+          getWeekIndex(weekStart),
+        )
       }
+      // valores absolutos, não só auto-consistência
+      expect(getWeekIndex('2026-07-13')).toBe(28)
+      expect(getWeekIndex('2027-01-04')).toBe(53)
     },
   )
 })
 
-describe('isFixoWeek', () => {
-  it('semana ISO ímpar = semana de fixo', () => {
-    expect(isFixoWeek('2026-07-13')).toBe(true)  // 29
-    expect(isFixoWeek('2026-07-06')).toBe(false) // 28
-  })
-})
-
 describe('isUserDeliveryWeek', () => {
-  const semanal = { frequency: 'semanal' as const }
-  const impar = { frequency: 'quinzenal' as const, quinzenalParity: 'impar' as const }
-  const par = { frequency: 'quinzenal' as const, quinzenalParity: 'par' as const }
-
   it('semanal recebe toda semana', () => {
     for (const [weekStart] of SEMANAS_ISO) {
       expect(isUserDeliveryWeek(semanal, weekStart)).toBe(true)
     }
   })
 
-  // BUSINESS_RULES.md: impar = recebe em semanas ISO ímpares; par = em semanas pares.
-  it('quinzenal impar recebe só em semana ISO ímpar', () => {
-    expect(isUserDeliveryWeek(impar, '2026-07-13')).toBe(true)  // 29
-    expect(isUserDeliveryWeek(impar, '2026-07-20')).toBe(false) // 30
-    expect(isUserDeliveryWeek(impar, '2026-07-27')).toBe(true)  // 31
-  })
-
-  it('quinzenal par recebe só em semana ISO par', () => {
-    expect(isUserDeliveryWeek(par, '2026-07-13')).toBe(false)
-    expect(isUserDeliveryWeek(par, '2026-07-20')).toBe(true)
-    expect(isUserDeliveryWeek(par, '2026-07-27')).toBe(false)
-  })
-
-  it('quinzenal e semanal nunca coincidem em não-entrega: impar e par se alternam', () => {
-    for (const [weekStart] of SEMANAS_ISO) {
+  it('impar e par nunca coincidem', () => {
+    for (const weekStart of segundasEntre('2025-12-29', '2028-01-03')) {
       expect(isUserDeliveryWeek(impar, weekStart)).not.toBe(isUserDeliveryWeek(par, weekStart))
     }
   })
 
-  it('sem paridade definida cai no comportamento global (semanas ímpares)', () => {
+  it('sem paridade definida cai no comportamento global', () => {
     const semParidade = { frequency: 'quinzenal' as const }
-    expect(isUserDeliveryWeek(semParidade, '2026-07-13')).toBe(true)
-    expect(isUserDeliveryWeek(semParidade, '2026-07-20')).toBe(false)
+    expect(isUserDeliveryWeek(semParidade, '2026-07-13')).toBe(isFixoWeek('2026-07-13'))
   })
 
-  // Caso do #43: Ana (impar) na semana de 13/07/2026 (ISO 29, ímpar) recebe cesta.
-  // O bug de fuso fazia a UI calcular semana 28 (par) e dizer "não pega nesta semana",
-  // enquanto o servidor (UTC) cobrava a semana. Daí "gerou um valor a mais".
-  it('regressão #43: quinzenal impar recebe em 2026-07-13 e 2026-07-27', () => {
+  // #48: migrar para o contador não pode mudar a semana de ninguém.
+  it('reproduz exatamente a paridade ISO legada até a virada de 2026', () => {
+    const semanas = segundasEntre('2025-12-29', '2026-12-28')
+    expect(semanas.length).toBeGreaterThan(50)
+    for (const weekStart of semanas) {
+      for (const parity of ['impar', 'par'] as const) {
+        expect(
+          isUserDeliveryWeek({ frequency: 'quinzenal', quinzenalParity: parity }, weekStart),
+          `${weekStart} (${parity}) mudou de semana ao migrar para o contador`,
+        ).toBe(paridadeISOLegada(weekStart, parity))
+      }
+    }
+  })
+
+  // Regressão #43: fuso negativo invertia a paridade de todo quinzenal.
+  it('quinzenal impar recebe em 2026-07-13 e 2026-07-27 (fuso BR)', () => {
     comTZ('America/Sao_Paulo')
     expect(isUserDeliveryWeek(impar, '2026-07-13')).toBe(true)
+    expect(isUserDeliveryWeek(impar, '2026-07-20')).toBe(false)
     expect(isUserDeliveryWeek(impar, '2026-07-27')).toBe(true)
   })
+
+  // Regressão #48: a semana ISO 53 de 2026 é seguida da semana 1 de 2027, ambas ímpares.
+  // Pela regra antiga o ciclo impar recebia duas semanas seguidas e o par ficava três sem.
+  it('alterna de 2 em 2 semanas na virada 2026→2027', () => {
+    expect(isUserDeliveryWeek(impar, '2026-12-28')).toBe(true)
+    expect(isUserDeliveryWeek(impar, '2027-01-04')).toBe(false)
+    expect(isUserDeliveryWeek(impar, '2027-01-11')).toBe(true)
+
+    expect(isUserDeliveryWeek(par, '2026-12-21')).toBe(true)
+    expect(isUserDeliveryWeek(par, '2026-12-28')).toBe(false)
+    expect(isUserDeliveryWeek(par, '2027-01-04')).toBe(true)
+  })
+
+  it.each([['impar', impar], ['par', par]] as const)(
+    'ciclo %s nunca tem duas entregas seguidas nem gap de 3 semanas (2025–2033)',
+    (_nome, user) => {
+      const entregas = segundasEntre('2025-12-29', '2033-12-26').filter((w) =>
+        isUserDeliveryWeek(user, w),
+      )
+      expect(entregas.length).toBeGreaterThan(200)
+      for (let i = 1; i < entregas.length; i++) {
+        const gap = getWeekIndex(entregas[i]) - getWeekIndex(entregas[i - 1])
+        expect(gap, `gap de ${gap} semanas em ${entregas[i - 1]} → ${entregas[i]}`).toBe(2)
+      }
+    },
+  )
 })
 
 describe('getWeekStart', () => {
   it('devolve a segunda da semana', () => {
-    expect(getWeekStart(new Date(2026, 6, 15))).toBe('2026-07-13') // quarta
-    expect(getWeekStart(new Date(2026, 6, 13))).toBe('2026-07-13') // a própria segunda
+    expect(getWeekStart(new Date(2026, 6, 15))).toBe('2026-07-13')
+    expect(getWeekStart(new Date(2026, 6, 13))).toBe('2026-07-13')
   })
 
   it('domingo pertence à semana que começou na segunda anterior', () => {
@@ -109,7 +162,7 @@ describe('getWeekStart', () => {
   })
 
   it('atravessa virada de mês', () => {
-    expect(getWeekStart(new Date(2026, 7, 1))).toBe('2026-07-27') // sáb 01/08
+    expect(getWeekStart(new Date(2026, 7, 1))).toBe('2026-07-27')
   })
 })
 

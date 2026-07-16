@@ -130,8 +130,11 @@
 - Usuários `quinzenal`: recebem itens fixos a cada duas semanas, conforme seu ciclo individual
 - Extras estão disponíveis para todos independente da frequência
 - Cada membro quinzenal tem `quinzenalParity: 'par' | 'impar'` definido no cadastro, derivado da data da última entrega informada no formulário
-- `impar` = recebe em semanas ISO ímpares (1, 3, 5...); `par` = recebe em semanas ISO pares (2, 4, 6...)
-- Implementação: `isUserDeliveryWeek(user, weekStart)` em `src/lib/weekUtils.ts`
+- As semanas são contadas de forma **contínua** a partir de uma âncora fixa (segunda-feira da semana ISO 1 de 2026): `impar` recebe nas semanas de índice par, `par` nas de índice ímpar
+- Os nomes `par`/`impar` vêm da regra antiga, que derivava o ciclo do número da semana ISO. Não usar semana ISO para isso: a numeração reseta todo ano e, em ano de 53 semanas (2026, 2032...), a paridade repetiria na virada — um ciclo receberia duas semanas seguidas e o outro ficaria três sem receber
+- A âncora não é arbitrária: é a única (mod 2) que preserva a escala que já vigorava, então a migração não mudou a semana de nenhum membro
+- O que importa para o membro é **alternar de 2 em 2 semanas**, nunca o rótulo A/B
+- Implementação: `isUserDeliveryWeek(user, weekStart)` em `src/lib/weekUtils.ts`; espelho no backend em `server/services/weekMath.ts` (duplicação sai no #18), mantidos em sincronia por `server/services/weekMath.test.ts`
 - Na página de pedidos: itens fixos são ocultados quando não é a semana de entrega do usuário
 - Na visão de entregas: quinzenais são excluídos da lista quando não é sua semana de entrega
 
