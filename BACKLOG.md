@@ -5,7 +5,7 @@ Ordem de execução. Feedback de usuário (`feedback.md`) tem prioridade sobre i
 Toda issue aberta tem label de prioridade (`P0`–`P3`) no GitHub — esta é a fonte de verdade
 para o *porquê* da ordem; as labels são para filtrar.
 
-## P0 — bugs que quebram uso hoje
+## ✅ P0 — concluído, em produção (PR #49)
 
 | # | Item | Issue | Status |
 |---|------|-------|--------|
@@ -14,7 +14,8 @@ para o *porquê* da ordem; as labels são para filtrar.
 
 Eram bugs independentes, não a mesma raiz:
 
-- **#43** — `getISOWeekNumber` parseava a data como UTC e lia com getters locais; em fuso
+- **#43** — em produção de 19/03 a 16/07/2026 (~4 meses, nunca houve versão correta no ar).
+  `getISOWeekNumber` parseava a data como UTC e lia com getters locais; em fuso
   negativo (BR) a semana ISO saía off-by-one e invertia a paridade de todo quinzenal. O
   servidor acertava a semana, então a UI dizia "não pega" enquanto a cobrança contava → valor
   a mais. Corrigido em `008a901`, com testes travando a independência de fuso.
@@ -30,6 +31,7 @@ Eram bugs independentes, não a mesma raiz:
 
 | # | Item | Issue | Nota |
 |---|------|-------|------|
+| 2.9 | Conferir cobranças emitidas enquanto o #43 esteve no ar | #50 | Rastro do #43; o código não corrige o passado. Faturas mar–jul/2026. |
 | 3 | Quantidade por pedido: cota cheia / meia / N cotas (padrão 1) | #45 | Hoje André precisa de 2 cadastros; Luciano recebe 2–3 meias. Muda modelo de dados. |
 | 4 | Ordem manual (drag and drop) da lista de entrega, persistida entre semanas | #46 | Lista dos motoboys |
 | 5 | Ordem alfabética na administração | #46 | Trivial, sai junto do 4 |
@@ -62,9 +64,9 @@ como o #43. 14 é grande; fazer incremental junto das telas do P1.
 
 ## Perguntas em aberto
 
-- #43 inverteu a paridade de todos os quinzenais em produção enquanto esteve no ar. As
-  cobranças já emitidas precisam de conferência/estorno, ou resolve daqui pra frente?
 - Quantidade (#3): campo livre ou enum (cheia/meia/2×meia)? Afeta cobrança automaticamente?
 - Ordem persistida (#4): por colmeia ou global? Membro novo entra onde?
 - Comprovante (#6): onde armazenar? Alguém valida ou só anexa?
+- Cobranças (#50): conferir caso a caso ou resolver daqui pra frente? Quem foi cobrado a
+  menos — cobrar retroativo ou absorver?
 - #12 antes ou depois do #3?
