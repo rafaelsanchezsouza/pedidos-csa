@@ -21,15 +21,15 @@ Eram bugs independentes, não a mesma raiz:
 - **#44** — `DialogContent` sem `max-h`/`overflow`; dialog alto transbordava a viewport e os
   campos do fim ficavam inalcançáveis. Corrigido em `81fb6f2`, vale para todos os dialogs.
 
-Achado de passagem, **não corrigido**: #48 — a paridade quinzenal quebra na virada de
-2026→2027 (ano ISO de 53 semanas ⇒ duas semanas ímpares seguidas). Estoura em dezembro e
-depende de decisão de negócio. Promovido a P1.
+- **#48** — achado de passagem: a paridade quebrava na virada 2026→2027 (ano ISO de 53
+  semanas ⇒ duas semanas ímpares seguidas). Corrigido em `513a318` trocando a paridade ISO
+  por um contador contínuo, que não tem virada de ano. Backend tinha a regra duplicada e
+  mudou junto; sincronia travada por teste até o #18 unificar.
 
 ## P1 — feedback de usuário
 
 | # | Item | Issue | Nota |
 |---|------|-------|------|
-| 2.5 | Paridade quinzenal quebra na virada de ano ISO de 53 semanas | #48 | Estoura dez/2026. Precisa decisão de negócio. |
 | 3 | Quantidade por pedido: cota cheia / meia / N cotas (padrão 1) | #45 | Hoje André precisa de 2 cadastros; Luciano recebe 2–3 meias. Muda modelo de dados. |
 | 4 | Ordem manual (drag and drop) da lista de entrega, persistida entre semanas | #46 | Lista dos motoboys |
 | 5 | Ordem alfabética na administração | #46 | Trivial, sai junto do 4 |
@@ -62,8 +62,6 @@ como o #43. 14 é grande; fazer incremental junto das telas do P1.
 
 ## Perguntas em aberto
 
-- Virada de ano (#48): quem recebe em 04/01/2027, o ciclo `impar` ou o `par`? Migrar para
-  âncora por membro ou remendar só a virada? Reprocessar cobranças passadas?
 - #43 inverteu a paridade de todos os quinzenais em produção enquanto esteve no ar. As
   cobranças já emitidas precisam de conferência/estorno, ou resolve daqui pra frente?
 - Quantidade (#3): campo livre ou enum (cheia/meia/2×meia)? Afeta cobrança automaticamente?
