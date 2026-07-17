@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi } from '@/services/api'
 import type { Payment } from '@/types'
+import { statusLabel, statusVariant } from '@/lib/statusPagamento'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,18 +11,6 @@ import { MonthNavigator } from '@/components/MonthNavigator'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
-}
-
-function statusLabel(p: Payment) {
-  if (p.verified) return 'Verificado'
-  if (p.proofUrl) return 'Aguardando verificação'
-  return 'Pendente'
-}
-
-function statusVariant(p: Payment): 'default' | 'secondary' | 'destructive' {
-  if (p.verified) return 'default'
-  if (p.proofUrl) return 'secondary'
-  return 'destructive'
 }
 
 export function VerificarPagamentosPage() {

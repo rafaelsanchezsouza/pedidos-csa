@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi, ordersApi } from '@/services/api'
 import { useUploadProof } from '@/hooks/useUploadProof'
 import type { Payment, User, Order, OrderItem } from '@/types'
+import { statusLabel, statusVariant } from '@/lib/statusPagamento'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -11,18 +12,6 @@ import { getWeekDelivery } from '@/lib/weekUtils'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
-}
-
-function statusLabel(p: Payment) {
-  if (p.verified) return 'Verificado'
-  if (p.proofUrl) return 'Aguardando verificação'
-  return 'Pendente'
-}
-
-function statusVariant(p: Payment): 'default' | 'secondary' | 'destructive' {
-  if (p.verified) return 'default'
-  if (p.proofUrl) return 'secondary'
-  return 'destructive'
 }
 
 // --- Helpers para breakdown semanal ---
