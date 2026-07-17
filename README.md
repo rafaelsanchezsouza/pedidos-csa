@@ -84,6 +84,22 @@ npm run build          # Apenas frontend
 npm run build:backend  # Apenas backend
 ```
 
+## Testes
+
+```bash
+npm test          # Suíte completa (fuso America/Sao_Paulo, o dos usuários)
+npm run test:watch
+npm run test:tz   # Roda também em UTC e UTC+14
+```
+
+Vitest, com os testes ao lado do código (`*.test.ts`). **Não há CI** — rode `npm test` e
+`npm run build` antes de abrir PR para `main`, porque o verde local é o único portão antes
+de produção.
+
+`test:tz` existe porque cálculo de data já quebrou o app três vezes por fuso: o navegador
+do membro roda em BR (UTC−3) e o container de produção em UTC, e as duas pontas precisam
+concordar. Ver "Datas e fusos" em [`definicoes_projeto.md`](definicoes_projeto.md).
+
 ## Outros comandos
 
 ```bash

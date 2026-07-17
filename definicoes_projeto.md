@@ -15,6 +15,7 @@ App web para gestão de pedidos de uma CSA (Comunidade que Sustenta a Agricultur
 | Banco | Firebase Firestore (NoSQL) |
 | Auth | Firebase Authentication (email/senha) |
 | Parsing | fuzzy matching (ativo) / OpenAI GPT-4o-mini (alternativa) |
+| Testes | Vitest (ambiente `node`, sem DOM) |
 | Env | dotenv |
 
 ## Comandos
@@ -26,7 +27,13 @@ npm run dev:all      # Ambos simultaneamente
 npm run build        # tsc -b + vite build
 npm run build:backend # tsc -p server/tsconfig.json
 npm run lint         # ESLint
+npm test             # Vitest (fuso America/Sao_Paulo)
+npm run test:watch   # Vitest em watch
+npm run test:tz      # Suíte em 3 fusos (BR/UTC/Kiritimati) — ver "Datas e fusos"
 ```
+
+Testes ficam ao lado do código (`*.test.ts`). Não há CI: **o verde local é o único portão
+antes de produção**.
 
 ## Estrutura de Pastas
 
@@ -46,7 +53,9 @@ src/
 ├── hooks/
 │   └── useAuth.ts
 ├── lib/
-│   └── utils.ts               # cn() para classnames
+│   ├── utils.ts               # cn() para classnames
+│   ├── weekUtils.ts           # Semanas, entregas e ciclo quinzenal (ver "Datas e fusos")
+│   └── weekUtils.test.ts
 ├── pages/
 │   ├── LoginPage.tsx
 │   ├── PedidosPage.tsx
@@ -74,6 +83,9 @@ server/
 ├── repositories/
 │   └── firestore.ts           # Abstração Firestore
 └── services/
+    ├── paymentService.ts      # Faturas, cotas e contagem de semanas de entrega
+    ├── weekMath.ts            # Espelho puro de weekUtils p/ o backend (ver "Datas e fusos")
+    ├── weekMath.test.ts       # Trava a sincronia weekMath x weekUtils
     └── parseMessage/          # Serviço de domínio: parsing de mensagens de produtor
         ├── index.ts           # Exporta implementação ativa (fuzzy)
         ├── types.ts           # MessageParser, ParsedProduct, ExistingProduct
@@ -259,11 +271,37 @@ Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
 7. Middleware `auth.ts` verifica token via Firebase Admin SDK
 8. Middleware `colmeia.ts` injeta `req.colmeiaId`
 
+## Datas e fusos
+
+Área que já gerou três bugs (#43, #48 e um anterior em `getWeekStart`). Regras:
+
+**Nunca** faça `new Date('YYYY-MM-DD')` e leia com getter local. A string resolve para
+meia-noite **UTC**; lida com `getFullYear()/getMonth()/getDate()` em fuso negativo (BR) ela
+recua um dia. Foi o #43: a semana saía off-by-one e invertia a paridade de todo quinzenal.
+Parseie os componentes na mão, ou ancore em `T12:00:00` como fazem `shiftWeek`/`getWeekDelivery`.
+
+**Nunca** derive o ciclo quinzenal do número da semana ISO. A numeração reseta todo ano e em
+ano de 53 semanas (2026, 2032...) a paridade repete na virada. Foi o #48. O ciclo vem de um
+contador contínuo a partir de âncora fixa — ver `getWeekIndex` e `BUSINESS_RULES.md`.
+
+**Regra duplicada entre client e server**: `src/lib/weekUtils.ts` e `server/services/weekMath.ts`
+implementam o mesmo cálculo porque o `rootDir` do tsconfig do server impede importar de `src/`.
+Mudar um exige mudar o outro — `server/services/weekMath.test.ts` compara os dois semana a
+semana e reprova a divergência. Client e server discordarem foi a causa do #43. A unificação
+sai no #18.
+
+Os testes rodam em fuso BR por padrão porque é o dos usuários; `npm run test:tz` roda também
+em UTC (o container de produção) e Kiritimati (UTC+14) para travar independência de fuso.
+
 ## Padrões de Design
 
 **Multi-tenancy**: Todo dado tem `colmeiaId`. Queries sempre filtram por colmeia. Superadmin vê todas; admin e user veem apenas a própria.
 
 **Parsing Flow**: Admin cola mensagem WhatsApp → `POST /api/offerings/parse` → OpenAI retorna `ParsedProduct[]` → admin revisa → salva como `WeeklyOffering`.
+
+**Lógica testável fora do IO**: cálculo puro não fica em módulo que importa Firestore, senão
+não dá para testar sem subir o firebase-admin. Ex.: `server/services/weekMath.ts` foi extraído
+do `paymentService.ts` por isso.
 
 **Abstração Firestore** (`server/repositories/firestore.ts`):
 ```typescript

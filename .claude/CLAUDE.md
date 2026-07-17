@@ -20,6 +20,11 @@
 ## Planos
 - Ao final de cada plano: lista de perguntas não resolvidas (extremamente concisas)
 
+## Testes
+- Vitest; testes ao lado do código (`*.test.ts`)
+- Sem CI: rodar `npm test` + `npm run build` antes de PR para `main`
+- Cálculo de data/fuso: `npm run test:tz` (já quebrou 3x por fuso — ver "Datas e fusos" em `definicoes_projeto.md`)
+
 ## Arquitetura
 DIP + Ports & Adapters: domínio define interfaces (portas), tecnologias externas são adaptadores plugáveis. Rotas dependem de abstrações, nunca de implementações concretas.
 - Serviços nomeados pelo domínio, não pela tecnologia (`parseMessage`, não `openai`)
