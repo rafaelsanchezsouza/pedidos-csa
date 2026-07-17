@@ -6,8 +6,9 @@ import { Minus, Plus, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getWeekDelivery, getPresentWeekId, isUserDeliveryWeek } from '@/lib/weekUtils'
+import { formatDeliveryDate, getPresentWeekId, isUserDeliveryWeek } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
+import { PageHeader } from '@/components/PageHeader'
 
 export function PedidosPage() {
   const { user, colmeia } = useAuth()
@@ -140,20 +141,16 @@ export function PedidosPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Extras</h1>
-          {order && (
-            <Badge variant={order.status === 'enviado' ? 'default' : 'secondary'}>
-              {order.status === 'enviado' ? 'Enviado' : 'Rascunho'}
-            </Badge>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <span className="text-sm text-muted-foreground mr-9">Entrega em</span>
-          <WeekNavigator weekId={weekId} onChange={setWeekId} />
-        </div>
-      </div>
+      <PageHeader
+        title="Extras"
+        titleExtra={order && (
+          <Badge variant={order.status === 'enviado' ? 'default' : 'secondary'}>
+            {order.status === 'enviado' ? 'Enviado' : 'Rascunho'}
+          </Badge>
+        )}
+        subtitle={`Entrega em ${formatDeliveryDate(weekId)}`}
+        dateNav={<WeekNavigator weekId={weekId} onChange={setWeekId} />}
+      />
 
       {pedidosBloqueados && (
         <Card className="border-yellow-300 bg-yellow-50">

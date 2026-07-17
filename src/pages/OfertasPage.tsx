@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi, colmeiasApi } from '@/services/api'
 import { formatDeliveryDate, getPresentWeekId } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
+import { PageHeader } from '@/components/PageHeader'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -200,13 +201,11 @@ export function OfertasPage() {
   }
 
   return (
-    <div className="max-w-4xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Extras da Semana</h1>
-          <p className="text-muted-foreground text-sm">Entrega em {formatDeliveryDate(weekId)}</p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="max-w-3xl space-y-6">
+      <PageHeader
+        title="Extras da Semana"
+        subtitle={`Entrega em ${formatDeliveryDate(weekId)}`}
+        primaryAction={
           <Button
             variant={extrasAberto ? 'outline' : 'destructive'}
             size="sm"
@@ -218,9 +217,9 @@ export function OfertasPage() {
               : <><Lock className="h-4 w-4 mr-1" />Extras encerrados</>
             }
           </Button>
-          <WeekNavigator weekId={weekId} onChange={setWeekId} />
-        </div>
-      </div>
+        }
+        dateNav={<WeekNavigator weekId={weekId} onChange={setWeekId} />}
+      />
 
       {loading ? (
         <div className="py-8 text-center text-muted-foreground">Carregando...</div>
