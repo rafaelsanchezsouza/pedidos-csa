@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MonthNavigator } from '@/components/MonthNavigator'
 import { PageHeader } from '@/components/PageHeader'
+import { EstadoLista } from '@/components/EstadoLista'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
@@ -54,8 +55,6 @@ export function VerificarPagamentosPage() {
     }
   }
 
-  if (loading) return <div className="text-muted-foreground">Carregando...</div>
-
   return (
     <div className="max-w-3xl space-y-6">
       <PageHeader
@@ -63,13 +62,11 @@ export function VerificarPagamentosPage() {
         dateNav={<MonthNavigator month={month} onChange={setMonth} />}
       />
 
-      {payments.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Nenhum pagamento registrado para este mês.
-          </CardContent>
-        </Card>
-      ) : (
+      <EstadoLista
+        loading={loading}
+        vazio={payments.length === 0}
+        mensagemVazia="Nenhum pagamento registrado para este mês."
+      >
         <>
           {/* Desktop */}
           <div className="hidden md:block">
@@ -145,7 +142,7 @@ export function VerificarPagamentosPage() {
             ))}
           </div>
         </>
-      )}
+      </EstadoLista>
     </div>
   )
 }

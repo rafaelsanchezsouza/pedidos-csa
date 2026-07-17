@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatDeliveryDate, getPresentWeekId, isUserDeliveryWeek } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@/components/PageHeader'
+import { EstadoLista } from '@/components/EstadoLista'
 
 export function PedidosPage() {
   const { user, colmeia } = useAuth()
@@ -188,16 +189,12 @@ export function PedidosPage() {
         </Card>
       )}
 
-      {loading ? (
-        <div className="py-8 text-center text-muted-foreground">Carregando...</div>
-      ) : offerings.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Nenhuma oferta disponível para esta semana.
-          </CardContent>
-        </Card>
-      ) : (
-        offerings.map((offering) => {
+      <EstadoLista
+        loading={loading}
+        vazio={offerings.length === 0}
+        mensagemVazia="Nenhuma oferta disponível para esta semana."
+      >
+        {offerings.map((offering) => {
           const visibleItems = offering.items.filter((i) => showFixo || i.type !== 'fixo')
           if (visibleItems.length === 0) return null
           return (
@@ -237,8 +234,8 @@ export function PedidosPage() {
             </CardContent>
           </Card>
           )
-        })
-      )}
+        })}
+      </EstadoLista>
 
       {!loading && offerings.length > 0 && (
         <div className="border-t flex items-center justify-between py-2">

@@ -9,6 +9,7 @@ import { StickyNote, Ban, MapPin } from 'lucide-react'
 import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@/components/PageHeader'
+import { EstadoLista } from '@/components/EstadoLista'
 
 export function EntregasPage() {
   const { colmeia } = useAuth()
@@ -248,15 +249,12 @@ export function EntregasPage() {
         </DialogContent>
       </Dialog>
 
-      {loading ? (
-        <div className="py-8 text-center text-muted-foreground">Carregando...</div>
-      ) : activeUsers.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Nenhum membro ativo para esta semana.
-          </CardContent>
-        </Card>
-      ) : porEntrega.length === 0 ? null : (
+      <EstadoLista
+        loading={loading}
+        vazio={activeUsers.length === 0}
+        mensagemVazia="Nenhum membro ativo para esta semana."
+      >
+        {porEntrega.length === 0 ? null : (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
@@ -347,7 +345,8 @@ export function EntregasPage() {
             </table>
           </CardContent>
         </Card>
-      )}
+        )}
+      </EstadoLista>
     </div>
   )
 }
