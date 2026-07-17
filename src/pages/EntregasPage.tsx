@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { StickyNote, Ban, MapPin } from 'lucide-react'
 import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
+import { PageHeader } from '@/components/PageHeader'
+import { EstadoLista } from '@/components/EstadoLista'
 
 export function EntregasPage() {
   const { colmeia } = useAuth()
@@ -164,20 +166,16 @@ export function EntregasPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Entregas da Semana</h1>
-          <p className="text-muted-foreground text-sm">
-            {fixoThisWeek ? 'Semana de fixo (quinzenais recebem)' : 'Semana sem fixo (quinzenais não recebem)'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title="Entregas da Semana"
+        subtitle={fixoThisWeek ? 'Semana de fixo (quinzenais recebem)' : 'Semana sem fixo (quinzenais não recebem)'}
+        secondaryAction={
           <Button variant="outline" size="sm" onClick={() => { setReportOpen(true); setCopied(false) }} disabled={loading || activeUsers.length === 0}>
             Relatório
           </Button>
-          <WeekNavigator weekId={weekId} onChange={setWeekId} />
-        </div>
-      </div>
+        }
+        dateNav={<WeekNavigator weekId={weekId} onChange={setWeekId} />}
+      />
 
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent className="max-w-lg">
@@ -251,15 +249,12 @@ export function EntregasPage() {
         </DialogContent>
       </Dialog>
 
-      {loading ? (
-        <div className="py-8 text-center text-muted-foreground">Carregando...</div>
-      ) : activeUsers.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Nenhum membro ativo para esta semana.
-          </CardContent>
-        </Card>
-      ) : porEntrega.length === 0 ? null : (
+      <EstadoLista
+        loading={loading}
+        vazio={activeUsers.length === 0}
+        mensagemVazia="Nenhum membro ativo para esta semana."
+      >
+        {porEntrega.length === 0 ? null : (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
@@ -350,7 +345,8 @@ export function EntregasPage() {
             </table>
           </CardContent>
         </Card>
-      )}
+        )}
+      </EstadoLista>
     </div>
   )
 }

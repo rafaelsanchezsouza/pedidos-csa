@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { usersApi } from '@/services/api'
 import type { User } from '@/types'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/PageHeader'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -55,7 +56,7 @@ export function PerfilPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <h1 className="text-2xl font-bold">Meu Perfil</h1>
+      <PageHeader title="Meu Perfil" />
 
       <Card>
         <CardHeader>

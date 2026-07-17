@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Pencil, StickyNote } from 'lucide-react'
 import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
+import { PageHeader } from '@/components/PageHeader'
 
 export function ConsolidadoGeralPage() {
   const { colmeia } = useAuth()
@@ -211,20 +212,16 @@ export function ConsolidadoGeralPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Consolidado</h1>
-          <p className="text-muted-foreground text-sm">
-            {fixoThisWeek ? 'Semana de fixo (quinzenais recebem)' : 'Semana sem fixo (quinzenais não recebem)'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title="Consolidado"
+        subtitle={fixoThisWeek ? 'Semana de fixo (quinzenais recebem)' : 'Semana sem fixo (quinzenais não recebem)'}
+        secondaryAction={
           <Button variant="outline" size="sm" onClick={() => { setReportOpen(true); setReportCopied(false) }} disabled={loading || activeUsers.length === 0}>
             Relatório
           </Button>
-          <WeekNavigator weekId={weekId} onChange={setWeekId} />
-        </div>
-      </div>
+        }
+        dateNav={<WeekNavigator weekId={weekId} onChange={setWeekId} />}
+      />
 
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent className="max-w-lg">

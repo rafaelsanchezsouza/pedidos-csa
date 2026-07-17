@@ -3,25 +3,16 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi } from '@/services/api'
 import type { Payment } from '@/types'
+import { statusLabel, statusVariant } from '@/lib/statusPagamento'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MonthNavigator } from '@/components/MonthNavigator'
+import { PageHeader } from '@/components/PageHeader'
+import { EstadoLista } from '@/components/EstadoLista'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
-}
-
-function statusLabel(p: Payment) {
-  if (p.verified) return 'Verificado'
-  if (p.proofUrl) return 'Aguardando verificação'
-  return 'Pendente'
-}
-
-function statusVariant(p: Payment): 'default' | 'secondary' | 'destructive' {
-  if (p.verified) return 'default'
-  if (p.proofUrl) return 'secondary'
-  return 'destructive'
 }
 
 export function VerificarPagamentosPage() {
@@ -64,22 +55,18 @@ export function VerificarPagamentosPage() {
     }
   }
 
-  if (loading) return <div className="text-muted-foreground">Carregando...</div>
-
   return (
     <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Verificar Pagamentos</h1>
-        <MonthNavigator month={month} onChange={setMonth} />
-      </div>
+      <PageHeader
+        title="Verificar Pagamentos"
+        dateNav={<MonthNavigator month={month} onChange={setMonth} />}
+      />
 
-      {payments.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Nenhum pagamento registrado para este mês.
-          </CardContent>
-        </Card>
-      ) : (
+      <EstadoLista
+        loading={loading}
+        vazio={payments.length === 0}
+        mensagemVazia="Nenhum pagamento registrado para este mês."
+      >
         <>
           {/* Desktop */}
           <div className="hidden md:block">
@@ -155,7 +142,7 @@ export function VerificarPagamentosPage() {
             ))}
           </div>
         </>
-      )}
+      </EstadoLista>
     </div>
   )
 }

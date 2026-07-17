@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { productsApi, producersApi } from '@/services/api'
 import type { Product, Producer } from '@/types'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/PageHeader'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -109,16 +110,21 @@ export function CatalogoPage() {
     .filter((p) => !filterName.trim() || p.name.toLowerCase().includes(filterName.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 
+  // Guarda mantida: o vazio desta tela vive dentro de <TableRow>, incompatível com
+  // EstadoLista (baseado em Card). Sem ela, a tabela anuncia "Nenhum produto cadastrado"
+  // enquanto os dados ainda estão vindo.
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Catálogo de Produtos</h1>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2" /> Novo Produto
-        </Button>
-      </div>
+      <PageHeader
+        title="Catálogo de Produtos"
+        primaryAction={
+          <Button onClick={openCreate}>
+            <Plus className="mr-2" /> Novo Produto
+          </Button>
+        }
+      />
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Select value={filterProducer} onValueChange={setFilterProducer}>

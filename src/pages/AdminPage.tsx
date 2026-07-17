@@ -6,6 +6,7 @@ import { usersApi, producersApi, colmeiasApi, rolesApi } from '@/services/api'
 import type { BatchResult } from '@/services/api'
 import type { User, Producer, ColmeiaRole } from '@/types'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/PageHeader'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
@@ -113,6 +114,7 @@ function parseGoogleFormCsv(text: string): ParsedRow[] {
 
 export function AdminPage() {
   const { colmeia, colmeias, user, refreshUser } = useAuth()
+  const [tab, setTab] = useState('usuarios')
   const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
   const [producers, setProducers] = useState<Producer[]>([])
@@ -392,11 +394,38 @@ export function AdminPage() {
     .filter((u) => showInactive || !u.disabled)
     .filter((u) => !filterName.trim() || u.name.toLowerCase().includes(filterName.toLowerCase()))
 
+  // Ação principal de cada aba. Não repete a checagem de superadmin da aba `colmeias`:
+  // o trigger e o TabsContent dela já são guardados e setTab só é chamado pelo próprio
+  // Tabs, então `tab === 'colmeias'` é inalcançável para os demais. Guarda redundante aqui
+  // sugeriria que o portão é este, e não é.
+  const acaoPrincipalDaAba =
+    tab === 'usuarios' ? (
+      <Button onClick={openCreateMember}>
+        <Plus className="mr-2 h-4 w-4" /> Novo Membro
+      </Button>
+    ) : tab === 'produtores' ? (
+      <Button onClick={openCreateProducer}>
+        <Plus className="mr-2 h-4 w-4" /> Novo Produtor
+      </Button>
+    ) : tab === 'colmeias' ? (
+      <Button onClick={() => { setNewColmeiaName(''); setColmeiaError(''); setColmeiaDialog(true) }}>
+        <Plus className="mr-2 h-4 w-4" /> Nova Colmeia
+      </Button>
+    ) : null
+
   return (
     <div className="max-w-4xl space-y-6">
-      <h1 className="text-2xl font-bold">Administração</h1>
+      <PageHeader
+        title="Administração"
+        secondaryAction={tab === 'usuarios' && (
+          <Button variant="outline" onClick={() => { setCsvRows([]); setCsvResults(null); setCsvDialog(true) }}>
+            <Upload className="mr-2 h-4 w-4" /> Importar CSV
+          </Button>
+        )}
+        primaryAction={acaoPrincipalDaAba}
+      />
 
-      <Tabs defaultValue="usuarios">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="usuarios">Usuários</TabsTrigger>
           <TabsTrigger value="produtores">Produtores</TabsTrigger>
@@ -419,12 +448,6 @@ export function AdminPage() {
               onClick={() => setShowInactive((v) => !v)}
             >
               Mostrar inativos
-            </Button>
-            <Button variant="outline" onClick={() => { setCsvRows([]); setCsvResults(null); setCsvDialog(true) }}>
-              <Upload className="mr-2 h-4 w-4" /> Importar CSV
-            </Button>
-            <Button onClick={openCreateMember}>
-              <Plus className="mr-2 h-4 w-4" /> Novo Membro
             </Button>
           </div>
           {/* Desktop */}
@@ -543,11 +566,6 @@ export function AdminPage() {
         </TabsContent>
 
         <TabsContent value="produtores">
-          <div className="flex justify-end mb-4">
-            <Button onClick={openCreateProducer}>
-              <Plus className="mr-2 h-4 w-4" /> Novo Produtor
-            </Button>
-          </div>
           {/* Desktop */}
           <div className="hidden md:block">
             <Table>
@@ -705,11 +723,6 @@ export function AdminPage() {
 
         {user?.acesso === 'superadmin' && (
           <TabsContent value="colmeias">
-            <div className="flex justify-end mb-4">
-              <Button onClick={() => { setNewColmeiaName(''); setColmeiaError(''); setColmeiaDialog(true) }}>
-                <Plus className="mr-2 h-4 w-4" /> Nova Colmeia
-              </Button>
-            </div>
             <Card>
               <CardContent className="p-0">
                 <Table>
