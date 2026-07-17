@@ -6,10 +6,8 @@ import { PedidosPage } from '@/pages/PedidosPage'
 import { CatalogoPage } from '@/pages/CatalogoPage'
 import { OfertasPage } from '@/pages/OfertasPage'
 import { AdminPage } from '@/pages/AdminPage'
-import { ConsolidadoPage } from '@/pages/ConsolidadoPage'
 import { PagamentosPage } from '@/pages/PagamentosPage'
 import { PerfilPage } from '@/pages/PerfilPage'
-import { HistoricoPage } from '@/pages/HistoricoPage'
 import { EntregasPage } from '@/pages/EntregasPage'
 import { ConsolidadoGeralPage } from '@/pages/ConsolidadoGeralPage'
 import { VerificarPagamentosPage } from '@/pages/VerificarPagamentosPage'
@@ -75,18 +73,9 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/consolidado"
-          element={
-            <ProtectedRoute adminOnly>
-              <ConsolidadoPage />
-            </ProtectedRoute>
-          }
-        />
         <Route path="/pagamentos" element={<PagamentosPage />} />
         <Route path="/verificar-pagamentos" element={<VerificarPagamentosPage />} />
         <Route path="/perfil" element={<PerfilPage />} />
-        <Route path="/historico" element={<HistoricoPage />} />
         <Route
           path="/entregas"
           element={

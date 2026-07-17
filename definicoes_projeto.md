@@ -58,9 +58,15 @@ src/
 │   └── weekUtils.test.ts
 ├── pages/
 │   ├── LoginPage.tsx
-│   ├── PedidosPage.tsx
+│   ├── DefinirSenhaPage.tsx
+│   ├── PedidosPage.tsx        # Membro: pedido da semana
+│   ├── PerfilPage.tsx
+│   ├── PagamentosPage.tsx     # Membro: faturas do mês
 │   ├── CatalogoPage.tsx       # Admin: catálogo de produtos
 │   ├── OfertasPage.tsx        # Admin: ofertas semanais + parsing
+│   ├── EntregasPage.tsx       # Admin: lista de entrega da semana
+│   ├── ConsolidadoGeralPage.tsx # Admin: todos os membros da semana + texto WhatsApp
+│   ├── VerificarPagamentosPage.tsx
 │   └── AdminPage.tsx
 ├── services/
 │   ├── firebase.ts            # Init Firebase client

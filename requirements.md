@@ -22,7 +22,9 @@ App web para gestão de pedidos de uma CSA (Comunidade que Sustenta a Agricultur
 
 ## Fase 3 — Operação e Histórico ⬜
 - Visão de entregas semanal com extras por usuário
-- Histórico de pedidos por usuário
+- ~~Histórico de pedidos por usuário~~ — **descartado**. A tela chegou a ser construída,
+  foi ocultada da navegação em `8b836a0` (02/04/2026) e removida do código em 17/07/2026.
+  Recuperável no git se voltar a fazer sentido.
 - Frequência quinzenal (mostrar/ocultar itens conforme frequência do usuário)
 
 ## Fase 4 — Futuro ⬜
