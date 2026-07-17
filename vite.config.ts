@@ -4,8 +4,11 @@ import path from 'path'
 
 export default defineConfig({
   test: {
+    // node é o padrão: cálculo puro (weekUtils, weekMath) não paga o custo do jsdom.
+    // Teste de componente declara `// @vitest-environment jsdom` no topo do arquivo.
     environment: 'node',
-    include: ['{src,server}/**/*.test.ts'],
+    include: ['{src,server}/**/*.test.{ts,tsx}'],
+    setupFiles: ['./src/test/setup.ts'],
   },
   plugins: [react()],
   resolve: {
