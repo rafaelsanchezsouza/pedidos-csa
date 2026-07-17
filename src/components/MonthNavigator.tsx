@@ -31,11 +31,11 @@ export function MonthNavigator({ month, onChange }: { month: string; onChange: (
   const atMax = month >= options[0]
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 w-full sm:w-auto">
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8"
+        className="h-8 w-8 shrink-0"
         onClick={() => onChange(shiftMonth(month, -1))}
         disabled={atMin}
       >
@@ -44,7 +44,7 @@ export function MonthNavigator({ month, onChange }: { month: string; onChange: (
       <select
         value={month}
         onChange={(e) => onChange(e.target.value)}
-        className="border rounded px-2 py-1 text-sm capitalize"
+        className="border rounded px-2 py-1 text-sm capitalize flex-1 sm:flex-none min-w-0"
       >
         {options.map((m) => (
           <option key={m} value={m}>{formatMonth(m)}</option>
@@ -53,7 +53,7 @@ export function MonthNavigator({ month, onChange }: { month: string; onChange: (
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8"
+        className="h-8 w-8 shrink-0"
         onClick={() => onChange(shiftMonth(month, 1))}
         disabled={atMax}
       >

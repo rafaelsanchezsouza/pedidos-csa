@@ -21,9 +21,13 @@
 - Ao final de cada plano: lista de perguntas não resolvidas (extremamente concisas)
 
 ## Testes
-- Vitest; testes ao lado do código (`*.test.ts`)
+- Vitest; testes ao lado do código — `*.test.ts` (lógica, ambiente node) e `*.test.tsx` (componente, `// @vitest-environment jsdom` + Testing Library)
 - Sem CI: rodar `npm test` + `npm run build` antes de PR para `main`
 - Cálculo de data/fuso: `npm run test:tz` (já quebrou 3x por fuso — ver "Datas e fusos" em `definicoes_projeto.md`)
+
+## Deploy
+- **Merge em `main` NÃO faz deploy** — não há CI/CD. Produção só atualiza rodando `./deploy.sh` (build local + scp para a VM Oracle + pm2 restart)
+- Site em produção: https://csaparahyba.com.br
 
 ## Arquitetura
 DIP + Ports & Adapters: domínio define interfaces (portas), tecnologias externas são adaptadores plugáveis. Rotas dependem de abstrações, nunca de implementações concretas.
