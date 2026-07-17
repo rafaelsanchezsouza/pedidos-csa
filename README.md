@@ -92,9 +92,11 @@ npm run test:watch
 npm run test:tz   # Roda também em UTC e UTC+14
 ```
 
-Vitest, com os testes ao lado do código (`*.test.ts`). **Não há CI** — rode `npm test` e
-`npm run build` antes de abrir PR para `main`, porque o verde local é o único portão antes
-de produção.
+Vitest, com os testes ao lado do código: `*.test.ts` para lógica pura (ambiente `node`) e
+`*.test.tsx` para componente (declaram `// @vitest-environment jsdom` no topo e usam Testing
+Library). **Não há CI** — rode `npm test` e `npm run build` antes de abrir PR para `main`,
+porque o verde local é o único portão antes de produção. E lembre: o merge em `main` não
+faz deploy; produção só atualiza rodando `./deploy.sh`.
 
 `test:tz` existe porque cálculo de data já quebrou o app três vezes por fuso: o navegador
 do membro roda em BR (UTC−3) e o container de produção em UTC, e as duas pontas precisam

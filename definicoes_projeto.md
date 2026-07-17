@@ -32,8 +32,11 @@ npm run test:watch   # Vitest em watch
 npm run test:tz      # Suíte em 3 fusos (BR/UTC/Kiritimati) — ver "Datas e fusos"
 ```
 
-Testes ficam ao lado do código (`*.test.ts`). Não há CI: **o verde local é o único portão
-antes de produção**.
+Testes ficam ao lado do código (`*.test.ts` para lógica, `*.test.tsx` para componente). O
+ambiente padrão é `node`; teste de componente declara `// @vitest-environment jsdom` na
+primeira linha e usa Testing Library (`render`/`screen`). Não há CI: **o verde local é o
+único portão antes de produção**, e o deploy é manual via `deploy.sh` (ver README) — merge
+em `main` não sobe nada.
 
 ## Estrutura de Pastas
 
@@ -46,7 +49,13 @@ src/
 │   ├── layout/
 │   │   ├── Header.tsx
 │   │   ├── Layout.tsx         # Wrapper para páginas autenticadas
-│   │   └── Sidebar.tsx
+│   │   ├── Sidebar.tsx
+│   │   └── BottomNav.tsx      # Navegação mobile
+│   ├── PageHeader.tsx         # Cabeçalho único de todas as telas (ver "Padrões de Design")
+│   ├── EstadoLista.tsx        # Estados carregando/vazio de lista
+│   ├── WeekNavigator.tsx      # Navegação semanal (slot dateNav do PageHeader)
+│   ├── MonthNavigator.tsx     # Navegação mensal (slot dateNav do PageHeader)
+│   ├── ReportarProblema.tsx
 │   └── ui/                    # Componentes shadcn/ui
 ├── contexts/
 │   └── AuthContext.tsx        # Auth state + seleção de colmeia
@@ -54,6 +63,7 @@ src/
 │   └── useAuth.ts
 ├── lib/
 │   ├── utils.ts               # cn() para classnames
+│   ├── statusPagamento.ts     # statusLabel/statusVariant da fatura (+ .test.ts)
 │   ├── weekUtils.ts           # Semanas, entregas e ciclo quinzenal (ver "Datas e fusos")
 │   └── weekUtils.test.ts
 ├── pages/
@@ -302,6 +312,10 @@ em UTC (o container de produção) e Kiritimati (UTC+14) para travar independên
 ## Padrões de Design
 
 **Multi-tenancy**: Todo dado tem `colmeiaId`. Queries sempre filtram por colmeia. Superadmin vê todas; admin e user veem apenas a própria.
+
+**Cabeçalho de tela via `PageHeader`**: toda tela com header monta o topo pelo `PageHeader`, nunca com JSX solto. Os slots são nomeados (`title`, `titleExtra`, `subtitle`, `secondaryAction`, `primaryAction`, `dateNav`) e a ordem à direita é fixa: `secondaryAction → primaryAction → dateNav`. Quem usa preenche o slot certo e não escolhe a ordem, então as telas não divergem entre si por construção. A ordem é travada por `PageHeader.test.tsx` — mexer nela quebra o teste. Ordem vertical abaixo do header: `PageHeader → Abas (só AdminPage) → Filtragem → Conteúdo`.
+
+**`EstadoLista` para carregando/vazio**: `loading` vence `vazio` (anunciar "nenhum resultado" antes dos dados chegarem é mentira). **Só serve para empty-state em `Card`** — telas cujo vazio vive em `<TableRow>` (CatalogoPage, AdminPage) mantêm a guarda `if (loading) return` manual e não usam o componente.
 
 **Parsing Flow**: Admin cola mensagem WhatsApp → `POST /api/offerings/parse` → OpenAI retorna `ParsedProduct[]` → admin revisa → salva como `WeeklyOffering`.
 
