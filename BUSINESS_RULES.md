@@ -175,3 +175,13 @@
   - Usuário com `isentoCotas: true` → não tem cota gerada; não aparece na lista de verificação
 - **Geração automática:** cron job executa às 08h do dia 1 de cada mês (`server/jobs/quotaJob.ts`), gerando cotas para todos os elegíveis de todas as colmeias
 - `POST /payments/quota/all` permanece disponível para reprocessamento manual via API
+
+### Frete da Entrega
+- Fatura mensal (`producerName === 'Entrega'`) para membros que recebem por entrega (`deliveryType === 'entrega'`)
+- Valor **por entrega**, não fixo mensal: `frete × countDeliveryWeeks(month, frequency, quinzenalParity)` — mesma contagem da cota, respeita quinzenal
+- Frete efetivo = **override do membro** (`user.freteDelivery`) **ou** o **padrão da colmeia** (`colmeia.freteDelivery`); `0` explícito é entrega grátis e vence o padrão (resolvido por `resolveFrete` em `server/services/freteMath.ts`)
+- **Elegibilidade:** `deliveryType === 'entrega'` + `!disabled` + `!deleted` + frete efetivo `> 0` (frete 0 não gera fatura)
+- Membro anexa comprovante e admin verifica — mesmo fluxo das outras faturas (reusa Firebase Storage via `useUploadProof`)
+- Vencimento: dia `dueDay` do **mês seguinte** (pós-consumo, como extras)
+- **Geração automática:** mesmo cron da cota (dia 1, 08h); `upsertPaymentsForOrder` nunca toca em `'Entrega'`
+- `POST /payments/frete/all` disponível para reprocessamento manual via API; `POST /payments/frete` garante a fatura do próprio membro (auto-ensure ao abrir Meus Pagamentos)
