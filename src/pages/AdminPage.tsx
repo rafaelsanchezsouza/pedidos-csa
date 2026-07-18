@@ -126,6 +126,7 @@ export function AdminPage() {
   // Configurações de cota e agendamento
   const [quotaInteira, setQuotaInteira] = useState(String(colmeia?.quotaInteira ?? 65))
   const [quotaMeia, setQuotaMeia] = useState(String(colmeia?.quotaMeia ?? 40))
+  const [freteDelivery, setFreteDelivery] = useState(String(colmeia?.freteDelivery ?? 0))
   const [dueDay, setDueDay] = useState(String(colmeia?.dueDay ?? 10))
   const [orderSendDay, setOrderSendDay] = useState(String(colmeia?.orderSendDay ?? 2))
   const [orderSendHour, setOrderSendHour] = useState(String(colmeia?.orderSendHour ?? 6))
@@ -262,6 +263,7 @@ export function AdminPage() {
       isentoCotas: u.isentoCotas,
       quota: u.quota,
       acolhidaExpiry: u.acolhidaExpiry,
+      freteDelivery: u.freteDelivery,
     })
     setResetLink(null)
     setEditDialog(true)
@@ -373,6 +375,7 @@ export function AdminPage() {
       await colmeiasApi.update(colmeia.id, {
         quotaInteira: parseFloat(quotaInteira) || 0,
         quotaMeia: parseFloat(quotaMeia) || 0,
+        freteDelivery: parseFloat(freteDelivery) || 0,
         dueDay: parseInt(dueDay) || 10,
         orderSendDay: parseInt(orderSendDay),
         orderSendHour: parseInt(orderSendHour),
@@ -662,6 +665,16 @@ export function AdminPage() {
                     min="0"
                     value={quotaMeia}
                     onChange={(e) => setQuotaMeia(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Frete por entrega (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={freteDelivery}
+                    onChange={(e) => setFreteDelivery(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1">
@@ -1243,6 +1256,25 @@ export function AdminPage() {
                 </Select>
               </div>
             </div>
+            {editForm.deliveryType === 'entrega' && (
+              <div className="space-y-1">
+                <Label>Frete por entrega (R$) — opcional</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder={`Padrão da colmeia: R$ ${(colmeia?.freteDelivery ?? 0).toFixed(2)}`}
+                  value={editForm.freteDelivery ?? ''}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      freteDelivery: e.target.value === '' ? undefined : Number(e.target.value),
+                    }))
+                  }
+                />
+                <p className="text-xs text-muted-foreground">Vazio = usa o padrão da colmeia.</p>
+              </div>
+            )}
             {editForm.frequency === 'quinzenal' && (
               <div className="space-y-1">
                 <Label>Ciclo quinzenal</Label>
