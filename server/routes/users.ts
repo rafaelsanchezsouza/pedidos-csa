@@ -23,6 +23,7 @@ interface UserDoc {
   quota?: 'Cota inteira' | 'Meia cota'
   acolhidaExpiry?: string
   deliveryOrder?: number
+  freteDelivery?: number
 }
 
 function gerarSenha() {

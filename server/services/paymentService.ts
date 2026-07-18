@@ -38,11 +38,14 @@ interface UserDoc {
   isentoCotas?: boolean
   disabled?: boolean
   deleted?: boolean
+  deliveryType?: 'colmeia' | 'entrega'
+  freteDelivery?: number
 }
 
 interface ColmeiaSettings {
   quotaInteira?: number
   quotaMeia?: number
+  freteDelivery?: number
   dueDay?: number
 }
 

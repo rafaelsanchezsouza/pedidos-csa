@@ -5,6 +5,7 @@ export interface Colmeia {
   dateCreated: string
   quotaInteira?: number
   quotaMeia?: number
+  freteDelivery?: number  // frete padrão da colmeia (por entrega); membro pode ter override
   dueDay?: number
   orderSendDay?: number   // 0-6 (0=Dom, 2=Ter), default 2
   orderSendHour?: number  // 0-23, default 6
@@ -32,6 +33,7 @@ export interface User {
   quota?: 'Cota inteira' | 'Meia cota'
   acolhidaExpiry?: string
   deliveryOrder?: number // posição manual na lista de entrega (só deliveryType 'entrega'); ausente = não ordenado
+  freteDelivery?: number // override do frete deste membro; ausente = usa o padrão da colmeia
 }
 
 export interface ColmeiaRole {
