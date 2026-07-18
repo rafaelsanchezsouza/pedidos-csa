@@ -243,6 +243,8 @@ Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
 | PUT | `/api/users/me` | Atualiza perfil |
 | GET | `/api/users?colmeiaId=` | Lista usuários da colmeia (admin) |
 | POST | `/api/users` | Cria usuário |
+| PUT | `/api/users/reorder-delivery` | Persiste a ordem da lista de entrega (lista completa de ids → `deliveryOrder`). Registrada antes de `/:uid`. |
+| PUT | `/api/users/:uid` | Atualiza usuário (admin) |
 
 ### Produtos
 | Método | Rota | Descrição |

@@ -110,6 +110,16 @@
 - Membro marcado para doação é **removido** do planejamento de entrega (tela Entregas)
 - Membro com doação aparece no **Consolidado Geral** com a coluna "Doação" marcada automaticamente
 
+### Ordem da lista de entrega
+
+- A lista de entrega (membros `deliveryType: 'entrega'`) pode ser reordenada manualmente pelo admin, arrastando — para sair na ordem que os motoboys usam
+- A ordem é salva em `deliveryOrder` (número) por membro; **persiste entre semanas** e é **por colmeia** (o membro pertence a uma)
+- Membro sem `deliveryOrder` (recém-cadastrado) aparece **no fim, em ordem alfabética**, até ser posicionado
+- Reordenar numa semana em que um quinzenal não aparece **não altera** a posição relativa dele (o merge preserva os ocultos)
+- O **texto de WhatsApp** dos motoboys segue essa mesma ordem
+- Só vale para a lista de entrega; a lista de retirada na colmeia não é ordenável
+- A lista de membros na **Administração** é sempre alfabética (não usa `deliveryOrder`)
+
 ### Consolidado Geral
 
 - Tela administrativa que mostra **todos** os membros ativos da semana (tanto `entrega` quanto `colmeia`)
