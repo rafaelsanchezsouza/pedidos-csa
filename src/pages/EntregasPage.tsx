@@ -371,15 +371,15 @@ function LinhaEntrega({ user: u, order, isSuspending, onEditAddress, onEditNote,
       style={style}
       className={`border-b last:border-0 ${suspensa ? 'opacity-50 bg-gray-50' : ''} ${isDragging ? 'bg-background shadow' : ''}`}
     >
-      <td className="w-8 px-2 py-2 align-top">
+      <td className="w-10 px-1 align-middle">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          className="flex h-11 w-9 items-center justify-center cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
           title="Arrastar para reordenar"
           aria-label={`Reordenar ${u.name}`}
         >
-          <GripVertical className="h-4 w-4" />
+          <GripVertical className="h-5 w-5" />
         </button>
       </td>
       <td className="px-4 py-2 font-medium">
