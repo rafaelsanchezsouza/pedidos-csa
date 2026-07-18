@@ -393,6 +393,7 @@ export function AdminPage() {
     .filter((u) => !u.deleted)
     .filter((u) => showInactive || !u.disabled)
     .filter((u) => !filterName.trim() || u.name.toLowerCase().includes(filterName.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) // admin sempre em ordem alfabética (#46)
 
   // Ação principal de cada aba. Não repete a checagem de superadmin da aba `colmeias`:
   // o trigger e o TabsContent dela já são guardados e setTab só é chamado pelo próprio

@@ -31,6 +31,7 @@ export interface User {
   quinzenalParity?: 'par' | 'impar'
   quota?: 'Cota inteira' | 'Meia cota'
   acolhidaExpiry?: string
+  deliveryOrder?: number // posição manual na lista de entrega (só deliveryType 'entrega'); ausente = não ordenado
 }
 
 export interface ColmeiaRole {

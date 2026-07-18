@@ -177,6 +177,8 @@ export const usersApi = {
     request<{ results: BatchResult[] }>('/users/create-member-batch', { method: 'POST', body: JSON.stringify({ members }) }, colmeiaId),
   update: (uid: string, data: Partial<User>, colmeiaId: string) =>
     request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
+  reorderDelivery: (orderedIds: string[], colmeiaId: string) =>
+    request<{ updated: number }>('/users/reorder-delivery', { method: 'PUT', body: JSON.stringify({ orderedIds }) }, colmeiaId),
   disable: (uid: string, colmeiaId: string) =>
     request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify({ disabled: true }) }, colmeiaId),
   enable: (uid: string, colmeiaId: string) =>

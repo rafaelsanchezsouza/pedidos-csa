@@ -22,6 +22,7 @@ interface UserDoc {
   deleted?: boolean
   quota?: 'Cota inteira' | 'Meia cota'
   acolhidaExpiry?: string
+  deliveryOrder?: number
 }
 
 function gerarSenha() {
@@ -124,6 +125,33 @@ router.post('/create-member-batch', async (req: Request, res: Response) => {
       }
     }
     res.status(200).json({ results })
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// Admin persiste a ordem manual da lista de entrega. Recebe a lista COMPLETA de ids de
+// entrega já na ordem desejada (o merge com quem não aparece na semana é feito no front) e
+// grava deliveryOrder = posição. Registrada antes de /:uid, senão /:uid captura a rota.
+router.put('/reorder-delivery', async (req: Request, res: Response) => {
+  try {
+    const colmeiaId = req.colmeiaId
+    if (!colmeiaId) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
+    const { orderedIds } = req.body as { orderedIds: string[] }
+    if (!Array.isArray(orderedIds)) { res.status(400).json({ message: 'orderedIds deve ser um array' }); return }
+
+    // Cada id tem que ser um usuário desta colmeia — não deixar reordenar de fora.
+    const membros = await listDocs<UserDoc>('users', [['colmeiaId', '==', colmeiaId]])
+    const idsDaColmeia = new Set(membros.map((u) => u.id))
+    const invalidos = orderedIds.filter((id) => !idsDaColmeia.has(id))
+    if (invalidos.length > 0) {
+      res.status(400).json({ message: `ids fora da colmeia: ${invalidos.join(', ')}` }); return
+    }
+
+    const batch = db.batch()
+    orderedIds.forEach((id, i) => batch.update(db.collection('users').doc(id), { deliveryOrder: i }))
+    await batch.commit()
+    res.json({ updated: orderedIds.length })
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }

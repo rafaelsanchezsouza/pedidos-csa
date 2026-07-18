@@ -27,12 +27,17 @@ Eram bugs independentes, não a mesma raiz:
   por um contador contínuo, que não tem virada de ano. Backend tinha a regra duplicada e
   mudou junto; sincronia travada por teste até o #18 unificar.
 
-## P1 — feedback de usuário
+## ✅ Também concluído e em produção
+
+- **#40 — componentização/padronização do frontend** (PR #52, deploy 2026-07-17). PageHeader/EstadoLista, statusPagamento, remoção de telas órfãs, 1ª infra de teste de UI.
+- **Header mobile empilhado + navegador sticky** (PR #53, deploy 2026-07-17, verificado no aparelho pelo usuário). Follow-up do #40.
+- **#50 — conferência das cobranças do #43** — verificado e resolvido pelo usuário.
+
+## P1 — feedback de usuário (PRÓXIMA FASE)
 
 | # | Item | Issue | Nota |
 |---|------|-------|------|
-| 2.9 | Conferir cobranças emitidas enquanto o #43 esteve no ar | #50 | Rastro do #43; o código não corrige o passado. Faturas mar–jul/2026. |
-| 3 | Quantidade por pedido: cota cheia / meia / N cotas (padrão 1) | #45 | Hoje André precisa de 2 cadastros; Luciano recebe 2–3 meias. Muda modelo de dados. |
+| 3 | Quantidade por pedido: cota cheia / meia / N cotas (padrão 1) | #45 | Hoje André precisa de 2 cadastros; Luciano recebe 2–3 meias. Muda modelo de dados. Ver #18 antes. |
 | 4 | Ordem manual (drag and drop) da lista de entrega, persistida entre semanas | #46 | Lista dos motoboys |
 | 5 | Ordem alfabética na administração | #46 | Trivial, sai junto do 4 |
 | 6 | Upload de comprovante de pagamento do delivery pelo membro | #47 | Precisa storage + tela |
@@ -56,17 +61,16 @@ reavaliar depois. 10 é o único puramente cosmético.
 | 11 | Sanitizar mensagens de erro nos handlers | #10 |
 | 12 | Extrair PaymentService + cron job para cotas | #18 |
 | 13 | Observabilidade — Sentry, Pino, métricas | #22 |
-| 14 | Componentização e padronização visual do frontend | #40 |
+| 14 | `npm run lint` quebrado (eslint fora das devDeps; nunca rodou) | sem issue |
+| 15 | CatalogoPage esconde o header no load (empty-state em `<TableRow>`, migrar p/ Card) | sem issue |
 
-11 é segurança e barato. 12 provavelmente encosta no P0 #2 e no P1 #3 — considerar puxar
-para antes do #3 se o modelo de cotas for mexido de qualquer forma. 13 ajuda a achar bugs
-como o #43. 14 é grande; fazer incremental junto das telas do P1.
+11 é segurança e barato. 12 provavelmente encosta no P1 #3 — considerar puxar para antes do
+#3 se o modelo de cotas for mexido de qualquer forma. 13 ajuda a achar bugs como o #43.
+14 é rápido e destrava um portão de qualidade. 15 é pequeno. (#40 concluído — ver acima.)
 
 ## Perguntas em aberto
 
 - Quantidade (#3): campo livre ou enum (cheia/meia/2×meia)? Afeta cobrança automaticamente?
 - Ordem persistida (#4): por colmeia ou global? Membro novo entra onde?
-- Comprovante (#6): onde armazenar? Alguém valida ou só anexa?
-- Cobranças (#50): conferir caso a caso ou resolver daqui pra frente? Quem foi cobrado a
-  menos — cobrar retroativo ou absorver?
-- #12 antes ou depois do #3?
+- Comprovante (#6): onde armazenar? (Firestore não guarda binário — precisa de storage.) Alguém valida ou só anexa?
+- #12 (#18) antes ou depois do #3? Se o modelo de cotas muda no #3, refatorar o PaymentService antes evita mexer duas vezes.
