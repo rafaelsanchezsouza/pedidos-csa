@@ -113,6 +113,10 @@ export const paymentsApi = {
     request<Payment>(`/payments/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
   ensureQuota: (month: string, colmeiaId: string) =>
     request<Payment>('/payments/quota', { method: 'POST', body: JSON.stringify({ month, colmeiaId }) }, colmeiaId),
+  ensureFrete: (month: string, colmeiaId: string) =>
+    request<Payment | { skipped: true }>('/payments/frete', { method: 'POST', body: JSON.stringify({ month, colmeiaId }) }, colmeiaId),
+  generateFreteAll: (month: string, colmeiaId: string) =>
+    request<{ generated: number }>('/payments/frete/all', { method: 'POST', body: JSON.stringify({ month, colmeiaId }) }, colmeiaId),
 }
 
 export const issuesApi = {

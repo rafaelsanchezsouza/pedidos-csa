@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { listDocs, updateDoc } from '../repositories/firestore.js'
-import { generateQuotaForUser, generateQuotaForAll } from '../services/paymentService.js'
+import { generateQuotaForUser, generateQuotaForAll, generateFreteForUser, generateFreteForAll } from '../services/paymentService.js'
 
 export { upsertPaymentsForOrder } from '../services/paymentService.js'
 
@@ -43,6 +43,33 @@ router.post('/quota/all', async (req: Request, res: Response) => {
     const month = req.body.month as string
     if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
     const result = await generateQuotaForAll(colmeiaId, month)
+    res.json(result)
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// POST /api/payments/frete — cria/atualiza a fatura de frete do mês do próprio usuário
+router.post('/frete', async (req: Request, res: Response) => {
+  try {
+    const colmeiaId = (req.body.colmeiaId as string) || req.colmeiaId
+    const month = req.body.month as string
+    const uid = req.user!.uid
+    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
+    const result = await generateFreteForUser(uid, colmeiaId, month)
+    res.json(result)
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// POST /api/payments/frete/all — gera fatura de frete para todos os membros de entrega (admin)
+router.post('/frete/all', async (req: Request, res: Response) => {
+  try {
+    const colmeiaId = (req.body.colmeiaId as string) || req.colmeiaId
+    const month = req.body.month as string
+    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
+    const result = await generateFreteForAll(colmeiaId, month)
     res.json(result)
   } catch (err) {
     res.status(500).json({ message: String(err) })

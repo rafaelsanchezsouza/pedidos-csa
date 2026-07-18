@@ -1,6 +1,6 @@
 import cron from 'node-cron'
 import { listDocs } from '../repositories/firestore.js'
-import { generateQuotaForAll } from '../services/paymentService.js'
+import { generateQuotaForAll, generateFreteForAll } from '../services/paymentService.js'
 
 interface ColmeiaDoc {
   name: string
@@ -17,8 +17,9 @@ export function startQuotaJob(): void {
     await Promise.all(
       colmeias.map(async (c) => {
         try {
-          const result = await generateQuotaForAll(c.id, month)
-          console.log(`[quotaJob] ${c.name}: ${result.generated} cotas geradas`)
+          const cotas = await generateQuotaForAll(c.id, month)
+          const fretes = await generateFreteForAll(c.id, month)
+          console.log(`[quotaJob] ${c.name}: ${cotas.generated} cotas, ${fretes.generated} fretes gerados`)
         } catch (err) {
           console.error(`[quotaJob] Erro na colmeia ${c.name}:`, err)
         }
