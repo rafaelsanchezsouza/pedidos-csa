@@ -38,9 +38,11 @@ Eram bugs independentes, não a mesma raiz:
 | # | Item | Issue | Nota |
 |---|------|-------|------|
 | 3 | Quantidade por pedido: cota cheia / meia / N cotas (padrão 1) | #45 | Hoje André precisa de 2 cadastros; Luciano recebe 2–3 meias. Muda modelo de dados. Ver #18 antes. |
-| 4 | Ordem manual (drag and drop) da lista de entrega, persistida entre semanas | #46 | Lista dos motoboys |
-| 5 | Ordem alfabética na administração | #46 | Trivial, sai junto do 4 |
 | 6 | Upload de comprovante de pagamento do delivery pelo membro | #47 | Precisa storage + tela |
+
+**#46 (drag-and-drop da lista de entrega + admin alfabético)** — deployado em produção
+2026-07-18 (PR #54). Issue mantida ABERTA até o usuário confirmar o arrastar no mobile
+(lição do #44: não fechar antes da validação no aparelho). Itens 4 e 5 do feedback.
 
 ## P2 — issues de produto
 
