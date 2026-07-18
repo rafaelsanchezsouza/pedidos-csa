@@ -205,18 +205,21 @@ function PaymentCard({
 
 // --- Card de cota mensal ---
 
+// Card de fatura sem breakdown de pedido (Cota, Frete): valor + comprovante.
 function QuotaCard({
   payment,
   colmeiaId,
   userId,
   month,
   onReload,
+  title = 'Cota Mensal',
 }: {
   payment: Payment
   colmeiaId: string
   userId: string
   month: string
   onReload: () => void
+  title?: string
 }) {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
@@ -242,7 +245,7 @@ function QuotaCard({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between text-base">
-          <span>Cota Mensal</span>
+          <span>{title}</span>
           <Badge variant={statusVariant(payment)}>{statusLabel(payment)}</Badge>
         </CardTitle>
       </CardHeader>
@@ -292,21 +295,31 @@ function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
   const [month, setMonth] = useState(currentMonth())
   const [payments, setPayments] = useState<Payment[]>([])
   const [quotaPayment, setQuotaPayment] = useState<Payment | null>(null)
+  const [fretePayment, setFretePayment] = useState<Payment | null>(null)
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const all = await paymentsApi.getMy(month, colmeiaId)
-      setPayments(all.filter((p) => p.producerName !== 'Cota'))
+      // Cota e Entrega têm cards próprios (flat); o resto são faturas de produtor.
+      setPayments(all.filter((p) => p.producerName !== 'Cota' && p.producerName !== 'Entrega'))
       if (user.quota && !user.isentoCotas) {
         const qp = await paymentsApi.ensureQuota(month, colmeiaId)
         if (qp && 'amount' in qp) setQuotaPayment(qp)
+      } else {
+        setQuotaPayment(null)
+      }
+      if (user.deliveryType === 'entrega') {
+        const fp = await paymentsApi.ensureFrete(month, colmeiaId)
+        setFretePayment(fp && 'amount' in fp ? fp : null)
+      } else {
+        setFretePayment(null)
       }
     } finally {
       setLoading(false)
     }
-  }, [month, colmeiaId, user.quota, user.isentoCotas])
+  }, [month, colmeiaId, user.quota, user.isentoCotas, user.deliveryType])
 
   useEffect(() => { load() }, [load])
 
@@ -326,6 +339,17 @@ function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
           userId={user.id}
           month={month}
           onReload={load}
+        />
+      )}
+
+      {fretePayment && (
+        <QuotaCard
+          payment={fretePayment}
+          colmeiaId={colmeiaId}
+          userId={user.id}
+          month={month}
+          onReload={load}
+          title="Frete da Entrega"
         />
       )}
 
