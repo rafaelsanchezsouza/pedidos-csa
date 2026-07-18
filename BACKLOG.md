@@ -33,16 +33,15 @@ Eram bugs independentes, não a mesma raiz:
 - **Header mobile empilhado + navegador sticky** (PR #53, deploy 2026-07-17, verificado no aparelho pelo usuário). Follow-up do #40.
 - **#50 — conferência das cobranças do #43** — verificado e resolvido pelo usuário.
 
-## P1 — feedback de usuário (PRÓXIMA FASE)
+## P1 — feedback de usuário
 
 | # | Item | Issue | Nota |
 |---|------|-------|------|
 | 3 | Quantidade por pedido: cota cheia / meia / N cotas (padrão 1) | #45 | Hoje André precisa de 2 cadastros; Luciano recebe 2–3 meias. Muda modelo de dados. Ver #18 antes. |
 | 6 | Upload de comprovante de pagamento do delivery pelo membro | #47 | Precisa storage + tela |
 
-**#46 (drag-and-drop da lista de entrega + admin alfabético)** — deployado em produção
-2026-07-18 (PR #54). Issue mantida ABERTA até o usuário confirmar o arrastar no mobile
-(lição do #44: não fechar antes da validação no aparelho). Itens 4 e 5 do feedback.
+Feito: **#46** (drag-and-drop da lista de entrega + admin alfabético) — em produção,
+validado no mobile (PRs #54/#55). Itens 4 e 5 do feedback original.
 
 ## P2 — issues de produto
 
@@ -53,8 +52,10 @@ Eram bugs independentes, não a mesma raiz:
 | 9 | Exportar lista de entregas (CSV) | #30 |
 | 10 | Conteúdo lúdico semanal (foto/frase) | #29 |
 
-7 e 8 são administração recorrente. 9 pode virar dispensável se o 4 entregar a lista pronta —
-reavaliar depois. 10 é o único puramente cosmético.
+7 e 8 são administração recorrente. **9 (CSV) — reavaliar antes de fazer**: o #46 já entrega
+a lista de entrega ordenada e o texto de WhatsApp na ordem dos motoboys; confirmar com o
+usuário se o CSV ainda faz falta ou se pode fechar como não-necessário. 10 é o único puramente
+cosmético.
 
 ## P3 — dívida técnica
 

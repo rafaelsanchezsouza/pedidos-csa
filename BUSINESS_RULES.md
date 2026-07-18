@@ -110,6 +110,16 @@
 - Membro marcado para doação é **removido** do planejamento de entrega (tela Entregas)
 - Membro com doação aparece no **Consolidado Geral** com a coluna "Doação" marcada automaticamente
 
+### Ordem da lista de entrega
+
+- A lista de entrega (membros `deliveryType: 'entrega'`) pode ser reordenada manualmente pelo admin, arrastando — para sair na ordem que os motoboys usam
+- A ordem é salva em `deliveryOrder` (número) por membro; **persiste entre semanas** e é **por colmeia** (o membro pertence a uma)
+- Membro sem `deliveryOrder` (recém-cadastrado) aparece **no fim, em ordem alfabética**, até ser posicionado
+- Reordenar numa semana em que um quinzenal não aparece **não altera** a posição relativa dele (o merge preserva os ocultos)
+- O **texto de WhatsApp** dos motoboys segue essa mesma ordem
+- Só vale para a lista de entrega; a lista de retirada na colmeia não é ordenável
+- A lista de membros na **Administração** é sempre alfabética (não usa `deliveryOrder`)
+
 ### Consolidado Geral
 
 - Tela administrativa que mostra **todos** os membros ativos da semana (tanto `entrega` quanto `colmeia`)
@@ -165,3 +175,13 @@
   - Usuário com `isentoCotas: true` → não tem cota gerada; não aparece na lista de verificação
 - **Geração automática:** cron job executa às 08h do dia 1 de cada mês (`server/jobs/quotaJob.ts`), gerando cotas para todos os elegíveis de todas as colmeias
 - `POST /payments/quota/all` permanece disponível para reprocessamento manual via API
+
+### Frete da Entrega
+- Fatura mensal (`producerName === 'Entrega'`) para membros que recebem por entrega (`deliveryType === 'entrega'`)
+- Valor **por entrega**, não fixo mensal: `frete × countDeliveryWeeks(month, frequency, quinzenalParity)` — mesma contagem da cota, respeita quinzenal
+- Frete efetivo = **override do membro** (`user.freteDelivery`) **ou** o **padrão da colmeia** (`colmeia.freteDelivery`); `0` explícito é entrega grátis e vence o padrão (resolvido por `resolveFrete` em `server/services/freteMath.ts`)
+- **Elegibilidade:** `deliveryType === 'entrega'` + `!disabled` + `!deleted` + frete efetivo `> 0` (frete 0 não gera fatura)
+- Membro anexa comprovante e admin verifica — mesmo fluxo das outras faturas (reusa Firebase Storage via `useUploadProof`)
+- Vencimento: dia `dueDay` do **mês seguinte** (pós-consumo, como extras)
+- **Geração automática:** mesmo cron da cota (dia 1, 08h); `upsertPaymentsForOrder` nunca toca em `'Entrega'`
+- `POST /payments/frete/all` disponível para reprocessamento manual via API; `POST /payments/frete` garante a fatura do próprio membro (auto-ensure ao abrir Meus Pagamentos)
