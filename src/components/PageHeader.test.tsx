@@ -17,8 +17,17 @@ describe('PageHeader', () => {
   it('não renderiza a área direita quando não há nenhuma ação', () => {
     const { container } = render(<PageHeader title="Meu Perfil" />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    // só o bloco do título
-    expect(container.querySelector('.flex.items-center.justify-between')?.children).toHaveLength(1)
+    // sem ações e sem dateNav, não há barra sticky
+    expect(container.querySelector('.sticky')).toBeNull()
+  })
+
+  it('envolve o dateNav numa barra sticky (fica visível ao rolar no mobile)', () => {
+    const { container } = render(
+      <PageHeader title="Entregas" dateNav={<button>Navegador</button>} />,
+    )
+    const sticky = container.querySelector('.sticky')
+    expect(sticky).not.toBeNull()
+    expect(sticky).toContainElement(screen.getByRole('button', { name: 'Navegador' }))
   })
 
   // A razão de existir do componente: a ordem não é escolha de quem usa.
