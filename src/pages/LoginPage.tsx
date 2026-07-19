@@ -107,8 +107,8 @@ export function LoginPage() {
             <div className="flex justify-center mb-2">
               <Leaf className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle>Selecionar Colmeia</CardTitle>
-            <CardDescription>Você pertence a mais de uma colmeia</CardDescription>
+            <CardTitle>Selecionar Padaria</CardTitle>
+            <CardDescription>Você pertence a mais de uma padaria</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Select onValueChange={selectColmeia}>
@@ -136,7 +136,7 @@ export function LoginPage() {
           <div className="flex justify-center mb-2">
             <Leaf className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Pedidos CSA</CardTitle>
+          <CardTitle className="text-2xl">Fermentou</CardTitle>
           <CardDescription>Comunidade que Sustenta a Agricultura</CardDescription>
         </CardHeader>
         <CardContent>

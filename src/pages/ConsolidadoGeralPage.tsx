@@ -302,18 +302,18 @@ export function ConsolidadoGeralPage() {
         <div className="py-8 text-center text-muted-foreground">Carregando...</div>
       ) : (
         <>
-          {/* Tabela de membros */}
+          {/* Tabela de clientes */}
           {activeUsers.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
-                Nenhum membro ativo para esta semana.
+                Nenhum cliente ativo para esta semana.
               </CardContent>
             </Card>
           ) : (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between text-base">
-                  <span>Todos os membros</span>
+                  <span>Todos os clientes</span>
                   <span className="text-sm font-normal text-muted-foreground">{activeUsers.length} membros</span>
                 </CardTitle>
               </CardHeader>
@@ -321,7 +321,7 @@ export function ConsolidadoGeralPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-muted-foreground">
-                      <th className="text-left px-4 py-2">Membro</th>
+                      <th className="text-left px-4 py-2">Cliente</th>
                       <th className="text-left px-4 py-2">Extras</th>
                       <th className="text-center px-3 py-2">Doação</th>
                       <th className="text-center px-3 py-2">Recebido</th>
@@ -358,7 +358,7 @@ export function ConsolidadoGeralPage() {
                             {u.quota && <div className="text-xs text-muted-foreground">{u.quota}</div>}
                             {u.contact && <div className="text-xs text-muted-foreground">{u.contact}</div>}
                             {u.deliveryType === 'colmeia' && (
-                              <div className="text-xs text-blue-600">retira na colmeia</div>
+                              <div className="text-xs text-blue-600">retira na loja</div>
                             )}
                             {u.frequency === 'quinzenal' && (
                               <div className="text-xs text-muted-foreground">quinzenal</div>
@@ -412,11 +412,11 @@ export function ConsolidadoGeralPage() {
             </Card>
           )}
 
-          {/* Pedido por agricultor */}
+          {/* Pedido por fornecedor */}
           {offerings.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Pedido por agricultor</CardTitle>
+                <CardTitle className="text-base">Pedido por fornecedor</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {offerings.map((offering) => (

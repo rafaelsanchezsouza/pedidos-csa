@@ -302,14 +302,14 @@ export function EntregasPage() {
       <EstadoLista
         loading={loading}
         vazio={activeUsers.length === 0}
-        mensagemVazia="Nenhum membro ativo para esta semana."
+        mensagemVazia="Nenhum cliente ativo para esta semana."
       >
         {porEntrega.length === 0 ? null : (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
               <span>Entrega em Domicílio</span>
-              <span className="text-sm font-normal text-muted-foreground">{porEntrega.length} membros</span>
+              <span className="text-sm font-normal text-muted-foreground">{porEntrega.length} clientes</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -318,7 +318,7 @@ export function EntregasPage() {
                 <thead>
                   <tr className="border-b text-muted-foreground">
                     <th className="w-8 px-2 py-2"></th>
-                    <th className="text-left px-4 py-2">Membro</th>
+                    <th className="text-left px-4 py-2">Cliente</th>
                     <th className="text-left px-4 py-2">Extras</th>
                     <th className="px-3 py-2"></th>
                   </tr>

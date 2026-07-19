@@ -134,7 +134,7 @@ export function AdminPage() {
   const [savingQuota, setSavingQuota] = useState(false)
   const [quotaMessage, setQuotaMessage] = useState('')
 
-  // Colmeia dialog
+  // Padaria dialog
   const [colmeiaDialog, setColmeiaDialog] = useState(false)
   const [newColmeiaName, setNewColmeiaName] = useState('')
   const [savingColmeia, setSavingColmeia] = useState(false)
@@ -191,7 +191,7 @@ export function AdminPage() {
 
   useEffect(() => { load() }, [load])
 
-  // --- Colmeias ---
+  // --- Padarias ---
   async function handleCreateColmeia() {
     if (!newColmeiaName.trim()) return
     setSavingColmeia(true)
@@ -208,7 +208,7 @@ export function AdminPage() {
     }
   }
 
-  // --- Produtores ---
+  // --- Fornecedores ---
   function openCreateProducer() {
     setEditingProducer(null)
     setProducerForm(emptyProducerForm)
@@ -233,7 +233,7 @@ export function AdminPage() {
         const created = await producersApi.create({ ...producerForm, colmeiaId: colmeia.id }, colmeia.id)
         setProducerDialog(false)
         await load()
-        // Fluxo: após criar produtor, ir direto para adicionar oferta
+        // Fluxo: após criar fornecedor, ir direto para adicionar oferta
         navigate(`/ofertas?producerId=${created.id}`)
       }
     } finally {
@@ -247,7 +247,7 @@ export function AdminPage() {
     await load()
   }
 
-  // --- Editar membro ---
+  // --- Editar cliente ---
   function openEditMember(u: User) {
     setEditingUser(u)
     setEditForm({
@@ -303,7 +303,7 @@ export function AdminPage() {
     await load()
   }
 
-  // --- Novo membro ---
+  // --- Novo cliente ---
   function openCreateMember() {
     setMemberForm(emptyMemberForm)
     setMemberError('')
@@ -327,7 +327,7 @@ export function AdminPage() {
       await load()
       setMemberSuccess({ password: result.password ?? memberForm.password, contact: memberForm.contact })
     } catch (err) {
-      setMemberError(err instanceof Error ? err.message : 'Erro ao criar membro')
+      setMemberError(err instanceof Error ? err.message : 'Erro ao criar cliente')
     } finally {
       setSavingMember(false)
     }
@@ -405,15 +405,15 @@ export function AdminPage() {
   const acaoPrincipalDaAba =
     tab === 'usuarios' ? (
       <Button onClick={openCreateMember}>
-        <Plus className="mr-2 h-4 w-4" /> Novo Membro
+        <Plus className="mr-2 h-4 w-4" /> Novo Cliente
       </Button>
     ) : tab === 'produtores' ? (
       <Button onClick={openCreateProducer}>
-        <Plus className="mr-2 h-4 w-4" /> Novo Produtor
+        <Plus className="mr-2 h-4 w-4" /> Novo Fornecedor
       </Button>
     ) : tab === 'colmeias' ? (
       <Button onClick={() => { setNewColmeiaName(''); setColmeiaError(''); setColmeiaDialog(true) }}>
-        <Plus className="mr-2 h-4 w-4" /> Nova Colmeia
+        <Plus className="mr-2 h-4 w-4" /> Nova Padaria
       </Button>
     ) : null
 
@@ -431,11 +431,11 @@ export function AdminPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-          <TabsTrigger value="produtores">Produtores</TabsTrigger>
+          <TabsTrigger value="usuarios">Clientes</TabsTrigger>
+          <TabsTrigger value="produtores">Fornecedores</TabsTrigger>
           <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
           {user?.acesso === 'superadmin' && (
-            <TabsTrigger value="colmeias">Colmeias</TabsTrigger>
+            <TabsTrigger value="colmeias">Padarias</TabsTrigger>
           )}
         </TabsList>
 
@@ -496,7 +496,7 @@ export function AdminPage() {
                       <TableCell className="text-sm">{u.contact}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEditMember(u)} title="Editar membro">
+                          <Button variant="ghost" size="icon" onClick={() => openEditMember(u)} title="Editar cliente">
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)} title={u.disabled ? 'Habilitar' : 'Desabilitar'}>
@@ -585,7 +585,7 @@ export function AdminPage() {
                 {producers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                      Nenhum produtor cadastrado.
+                      Nenhum fornecedor cadastrado.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -616,7 +616,7 @@ export function AdminPage() {
             {producers.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  Nenhum produtor cadastrado.
+                  Nenhum fornecedor cadastrado.
                 </CardContent>
               </Card>
             ) : (
@@ -761,11 +761,11 @@ export function AdminPage() {
         )}
       </Tabs>
 
-      {/* Dialog: nova colmeia */}
+      {/* Dialog: nova padaria */}
       <Dialog open={colmeiaDialog} onOpenChange={setColmeiaDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova Colmeia</DialogTitle>
+            <DialogTitle>Nova Padaria</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
@@ -774,7 +774,7 @@ export function AdminPage() {
                 value={newColmeiaName}
                 onChange={(e) => setNewColmeiaName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateColmeia()}
-                placeholder="Ex: Colmeia Jardim"
+                placeholder="Ex: Fermentou Centro"
               />
             </div>
             {colmeiaError && <p className="text-sm text-destructive">{colmeiaError}</p>}
@@ -792,7 +792,7 @@ export function AdminPage() {
       <Dialog open={producerDialog} onOpenChange={setProducerDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingProducer ? 'Editar Produtor' : 'Novo Produtor'}</DialogTitle>
+            <DialogTitle>{editingProducer ? 'Editar Fornecedor' : 'Novo Fornecedor'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
@@ -817,16 +817,16 @@ export function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: novo membro */}
+      {/* Dialog: novo cliente */}
       <Dialog open={memberDialog} onOpenChange={(open) => { if (!open) { setMemberDialog(false); setMemberSuccess(null) } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Novo Membro</DialogTitle>
+            <DialogTitle>Novo Cliente</DialogTitle>
           </DialogHeader>
           {memberSuccess ? (
             <>
               <div className="py-4 space-y-2 text-sm">
-                <p className="font-medium text-green-700">Membro criado com sucesso!</p>
+                <p className="font-medium text-green-700">Cliente criado com sucesso!</p>
                 <p>Senha temporária: <span className="font-mono font-bold">{memberSuccess.password}</span></p>
                 {memberSuccess.contact
                   ? <p className="text-muted-foreground">WhatsApp enviado para {memberSuccess.contact}.</p>
@@ -875,9 +875,9 @@ export function AdminPage() {
                 <Select value={memberForm.acesso} onValueChange={(v) => setMember('acesso', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">Membro</SelectItem>
+                    <SelectItem value="user">Cliente</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="produtor">Produtor</SelectItem>
+                    <SelectItem value="produtor">Fornecedor</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -893,7 +893,7 @@ export function AdminPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Função na colmeia</Label>
+              <Label>Função</Label>
               <Select
                 value={memberForm.role ?? ''}
                 onValueChange={(v) => {
@@ -990,7 +990,7 @@ export function AdminPage() {
                 <Select value={memberForm.deliveryType} onValueChange={(v) => setMember('deliveryType', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="colmeia">Na colmeia</SelectItem>
+                    <SelectItem value="colmeia">Retirada na loja</SelectItem>
                     <SelectItem value="entrega">Entrega</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1004,7 +1004,7 @@ export function AdminPage() {
               onClick={handleSaveMember}
               disabled={savingMember || !memberForm.name || !memberForm.email}
             >
-              {savingMember ? 'Criando...' : 'Criar membro'}
+              {savingMember ? 'Criando...' : 'Criar cliente'}
             </Button>
           </DialogFooter>
           </>
@@ -1016,7 +1016,7 @@ export function AdminPage() {
       <Dialog open={csvDialog} onOpenChange={(open) => { if (!open) closeCsvDialog() }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Importar membros via CSV</DialogTitle>
+            <DialogTitle>Importar clientes via CSV</DialogTitle>
           </DialogHeader>
 
           {!csvResults && csvRows.length === 0 && (
@@ -1050,7 +1050,7 @@ export function AdminPage() {
                       <tr key={i} className="border-b last:border-0">
                         <td className="py-1 pr-3 font-medium">{r.name}</td>
                         <td className="py-1 pr-3 text-muted-foreground">{r.email}</td>
-                        <td className="py-1 pr-3 capitalize">{r.deliveryType === 'colmeia' ? 'Colmeia' : 'Entrega'}</td>
+                        <td className="py-1 pr-3 capitalize">{r.deliveryType === 'colmeia' ? 'Retirada' : 'Entrega'}</td>
                         <td className="py-1 capitalize">{r.frequency}</td>
                       </tr>
                     ))}
@@ -1060,7 +1060,7 @@ export function AdminPage() {
               <DialogFooter>
                 <Button variant="outline" onClick={() => setCsvRows([])}>Voltar</Button>
                 <Button onClick={handleCsvImport} disabled={csvImporting}>
-                  {csvImporting ? 'Criando...' : `Criar ${csvRows.length} membro${csvRows.length > 1 ? 's' : ''}`}
+                  {csvImporting ? 'Criando...' : `Criar ${csvRows.length} cliente${csvRows.length > 1 ? 's' : ''}`}
                 </Button>
               </DialogFooter>
             </>
@@ -1100,7 +1100,7 @@ export function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: editar membro */}
+      {/* Dialog: editar cliente */}
       <Dialog open={editDialog} onOpenChange={setEditDialog}>
         <DialogContent>
           <DialogHeader>
@@ -1129,9 +1129,9 @@ export function AdminPage() {
                 <Select value={editForm.acesso} onValueChange={(v) => setEdit('acesso', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">Membro</SelectItem>
+                    <SelectItem value="user">Cliente</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="produtor">Produtor</SelectItem>
+                    <SelectItem value="produtor">Fornecedor</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1250,7 +1250,7 @@ export function AdminPage() {
                 <Select value={editForm.deliveryType} onValueChange={(v) => setEdit('deliveryType', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="colmeia">Na colmeia</SelectItem>
+                    <SelectItem value="colmeia">Retirada na loja</SelectItem>
                     <SelectItem value="entrega">Entrega</SelectItem>
                   </SelectContent>
                 </Select>

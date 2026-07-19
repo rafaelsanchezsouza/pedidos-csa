@@ -47,7 +47,7 @@ export function ReportarProblema() {
         '',
         '---',
         `**Usuário:** ${user?.name ?? user?.email ?? 'desconhecido'}`,
-        `**Colmeia:** ${colmeia?.name ?? 'nenhuma'}`,
+        `**Padaria:** ${colmeia?.name ?? 'nenhuma'}`,
         `**Página:** ${location.pathname}`,
       ].join('\n')
 

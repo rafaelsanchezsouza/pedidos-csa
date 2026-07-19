@@ -1,6 +1,6 @@
 # Backlog
 
-Ordem de execução. Fases em `requirements.md`.
+Ordem de execução. Fases em `requirements.md`. O que depende do usuário está em `PENDENCIAS.md`.
 
 ## F1 — Operação web
 
@@ -9,7 +9,7 @@ Ordem de execução. Fases em `requirements.md`.
 | 1 | Firebase novo (projeto + Auth + Firestore + Storage) | bloqueia tudo; ação manual no console |
 | 2 | Primeiro admin + `POST /api/setup` | ver README |
 | 3 | Cadastrar catálogo real da padaria | define `type` fixo/extra de cada item |
-| 4 | Revisar textos de UI que ainda falam de CSA | "colmeia", "cesta", "coagricultor" |
+| 4 | ~~Revisar textos de UI que ainda falam de CSA~~ | ✅ feito — membro→cliente, produtor→fornecedor, colmeia→padaria |
 | 5 | Rodar `deploy.sh` para a VM (porta 3004, nginx) | reservar porta/domínio no `DEPLOY-PLAYBOOK.md` |
 
 ## F2 — WhatsApp

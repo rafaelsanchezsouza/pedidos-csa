@@ -9,7 +9,7 @@ export function Header() {
     <header className="h-14 border-b bg-background flex items-center justify-between px-4">
       <div className="flex items-center gap-2">
         <Leaf className="h-5 w-5 text-primary" />
-        <span className="font-semibold text-primary">Pedidos CSA</span>
+        <span className="font-semibold text-primary">Fermentou</span>
         {colmeia && (
           <span className="text-muted-foreground text-sm ml-2">/ {colmeia.name}</span>
         )}

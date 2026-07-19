@@ -140,10 +140,10 @@ export function CatalogoPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <Select value={filterProducer} onValueChange={setFilterProducer}>
           <SelectTrigger className="w-full sm:w-56">
-            <SelectValue placeholder="Todos os produtores" />
+            <SelectValue placeholder="Todos os fornecedores" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos os produtores</SelectItem>
+            <SelectItem value="todos">Todos os fornecedores</SelectItem>
             {producers.map((p) => (
               <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
             ))}
@@ -165,7 +165,7 @@ export function CatalogoPage() {
               <TableHead>Nome</TableHead>
               <TableHead>Unidade</TableHead>
               <TableHead>Preço</TableHead>
-              <TableHead>Produtor</TableHead>
+              <TableHead>Fornecedor</TableHead>
               <TableHead className="w-24"></TableHead>
             </TableRow>
           </TableHeader>
@@ -173,7 +173,7 @@ export function CatalogoPage() {
             {visibleProducts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                  {products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto para este produtor.'}
+                  {products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto para este fornecedor.'}
                 </TableCell>
               </TableRow>
             ) : (
@@ -213,7 +213,7 @@ export function CatalogoPage() {
         {visibleProducts.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              {products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto para este produtor.'}
+              {products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto para este fornecedor.'}
             </CardContent>
           </Card>
         ) : (
@@ -271,7 +271,7 @@ export function CatalogoPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Produtor</Label>
+              <Label>Fornecedor</Label>
               <Select value={form.producerId} onValueChange={(v) => setForm({ ...form, producerId: v })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione..." />

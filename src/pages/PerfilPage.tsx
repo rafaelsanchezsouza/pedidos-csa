@@ -95,7 +95,7 @@ export function PerfilPage() {
               <Select value={form.deliveryType} onValueChange={(v) => set('deliveryType', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="colmeia">Na colmeia</SelectItem>
+                  <SelectItem value="colmeia">Retirada na loja</SelectItem>
                   <SelectItem value="entrega">Entrega</SelectItem>
                 </SelectContent>
               </Select>

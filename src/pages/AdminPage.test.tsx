@@ -37,21 +37,21 @@ const botao = (nome: string) => screen.queryByRole('button', { name: new RegExp(
 beforeEach(() => vi.clearAllMocks())
 
 describe('AdminPage — ação principal por aba', () => {
-  it('aba usuários: Novo Membro e Importar CSV', async () => {
+  it('aba clientes: Novo Cliente e Importar CSV', async () => {
     montar('admin')
-    expect(await screen.findByRole('button', { name: /Novo Membro/i })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Novo Cliente/i })).toBeInTheDocument()
     expect(botao('Importar CSV')).toBeInTheDocument()
-    expect(botao('Novo Produtor')).not.toBeInTheDocument()
+    expect(botao('Novo Fornecedor')).not.toBeInTheDocument()
   })
 
-  it('aba produtores: troca para Novo Produtor e some o Importar CSV', async () => {
+  it('aba fornecedores: troca para Novo Fornecedor e some o Importar CSV', async () => {
     const user = userEvent.setup()
     montar('admin')
-    await user.click(await screen.findByRole('tab', { name: 'Produtores' }))
+    await user.click(await screen.findByRole('tab', { name: 'Fornecedores' }))
 
-    expect(botao('Novo Produtor')).toBeInTheDocument()
-    expect(botao('Novo Membro')).not.toBeInTheDocument()
-    // Importar CSV é ação da aba usuários — não pode vazar para as outras
+    expect(botao('Novo Fornecedor')).toBeInTheDocument()
+    expect(botao('Novo Cliente')).not.toBeInTheDocument()
+    // Importar CSV é ação da aba clientes — não pode vazar para as outras
     expect(botao('Importar CSV')).not.toBeInTheDocument()
   })
 
@@ -60,34 +60,34 @@ describe('AdminPage — ação principal por aba', () => {
     montar('admin')
     await user.click(await screen.findByRole('tab', { name: 'Configurações' }))
 
-    expect(botao('Novo Membro')).not.toBeInTheDocument()
-    expect(botao('Novo Produtor')).not.toBeInTheDocument()
+    expect(botao('Novo Cliente')).not.toBeInTheDocument()
+    expect(botao('Novo Fornecedor')).not.toBeInTheDocument()
     expect(botao('Importar CSV')).not.toBeInTheDocument()
-    expect(botao('Nova Colmeia')).not.toBeInTheDocument()
+    expect(botao('Nova Padaria')).not.toBeInTheDocument()
   })
 
-  it('superadmin: aba colmeias existe e mostra Nova Colmeia', async () => {
+  it('superadmin: aba padarias existe e mostra Nova Padaria', async () => {
     const user = userEvent.setup()
     montar('superadmin')
-    await user.click(await screen.findByRole('tab', { name: 'Colmeias' }))
+    await user.click(await screen.findByRole('tab', { name: 'Padarias' }))
 
-    expect(botao('Nova Colmeia')).toBeInTheDocument()
-    expect(botao('Novo Membro')).not.toBeInTheDocument()
+    expect(botao('Nova Padaria')).toBeInTheDocument()
+    expect(botao('Novo Cliente')).not.toBeInTheDocument()
   })
 
-  it('admin comum não vê a aba colmeias', async () => {
+  it('admin comum não vê a aba padarias', async () => {
     montar('admin')
-    expect(await screen.findByRole('tab', { name: 'Usuários' })).toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'Colmeias' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: 'Clientes' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Padarias' })).not.toBeInTheDocument()
   })
 
-  it('volta para Novo Membro ao retornar à aba usuários', async () => {
+  it('volta para Novo Cliente ao retornar à aba clientes', async () => {
     const user = userEvent.setup()
     montar('admin')
-    await user.click(await screen.findByRole('tab', { name: 'Produtores' }))
-    await user.click(screen.getByRole('tab', { name: 'Usuários' }))
+    await user.click(await screen.findByRole('tab', { name: 'Fornecedores' }))
+    await user.click(screen.getByRole('tab', { name: 'Clientes' }))
 
-    expect(botao('Novo Membro')).toBeInTheDocument()
-    expect(botao('Novo Produtor')).not.toBeInTheDocument()
+    expect(botao('Novo Cliente')).toBeInTheDocument()
+    expect(botao('Novo Fornecedor')).not.toBeInTheDocument()
   })
 })

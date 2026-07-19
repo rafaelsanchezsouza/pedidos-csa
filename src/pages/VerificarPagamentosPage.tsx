@@ -75,8 +75,8 @@ export function VerificarPagamentosPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-muted-foreground">
-                      <th className="text-left px-4 py-3">Membro</th>
-                      <th className="text-left px-4 py-3">Produtor</th>
+                      <th className="text-left px-4 py-3">Cliente</th>
+                      <th className="text-left px-4 py-3">Fornecedor</th>
                       <th className="text-right px-4 py-3">Valor</th>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Comprovante</th>

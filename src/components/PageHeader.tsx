@@ -5,7 +5,7 @@ interface PageHeaderProps {
   titleExtra?: ReactNode // ex: Badge de status ao lado do h1 (PedidosPage)
   subtitle?: ReactNode // texto abaixo do título (ex: "Entrega em 12/06")
   secondaryAction?: ReactNode // botão auxiliar (ex: "Relatório", "Importar CSV")
-  primaryAction?: ReactNode // botão principal da tela (ex: "Novo Membro")
+  primaryAction?: ReactNode // botão principal da tela (ex: "Novo Cliente")
   dateNav?: ReactNode // WeekNavigator / MonthNavigator
 }
 

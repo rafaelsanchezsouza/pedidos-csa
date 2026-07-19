@@ -83,7 +83,7 @@ export function OfertasPage() {
     }
   }
 
-  // Itens do catálogo ativo de um produtor, no formato do formulário de oferta
+  // Itens do catálogo ativo de um fornecedor, no formato do formulário de oferta
   const rascunhoDoCatalogo = useCallback((producerId: string): OfferingDraftItem[] =>
     products
       .filter((p) => p.producerId === producerId && p.ativo !== false)
@@ -95,7 +95,7 @@ export function OfertasPage() {
         matchedProductId: p.id,
       })), [products])
 
-  // Auto-abre dialog se producerId vier por URL (fluxo: Admin → Novo Produtor)
+  // Auto-abre dialog se producerId vier por URL (fluxo: Admin → Novo Fornecedor)
   useEffect(() => {
     const pid = searchParams.get('producerId')
     if (pid && producers.length > 0) {
@@ -126,7 +126,7 @@ export function OfertasPage() {
     setDialogOpen(true)
   }
 
-  // Troca de produtor no dialog de criação → recarrega o rascunho do catálogo dele
+  // Troca de fornecedor no dialog de criação → recarrega o rascunho do catálogo dele
   function handleProducerChange(producerId: string) {
     setSelectedProducerId(producerId)
     if (!editing) setItens(rascunhoDoCatalogo(producerId))
@@ -163,7 +163,7 @@ export function OfertasPage() {
       if (result.length === 0) {
         setFallbackMessage((prev) => ({
           ...prev,
-          [producerId]: 'Nenhum produto ativo no catálogo deste produtor.',
+          [producerId]: 'Nenhum produto ativo no catálogo deste fornecedor.',
         }))
       } else {
         await load()
@@ -252,7 +252,7 @@ export function OfertasPage() {
         <div className="py-8 text-center text-muted-foreground">Carregando...</div>
       ) : (
         <>
-          {/* Produtores sem oferta nesta semana */}
+          {/* Fornecedores sem oferta nesta semana */}
           {producers
             .filter((p) => !offerings.some((o) => o.producerId === p.id))
             .map((p) => (
@@ -328,10 +328,10 @@ export function OfertasPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Produtor</Label>
+              <Label>Fornecedor</Label>
               <Select value={selectedProducerId} onValueChange={handleProducerChange} disabled={!!editing}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione o produtor..." />
+                  <SelectValue placeholder="Selecione o fornecedor..." />
                 </SelectTrigger>
                 <SelectContent>
                   {producers.map((p) => (
@@ -351,7 +351,7 @@ export function OfertasPage() {
                 </div>
                 {itens.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    Nenhum produto ativo no catálogo deste produtor.
+                    Nenhum produto ativo no catálogo deste fornecedor.
                   </p>
                 )}
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">

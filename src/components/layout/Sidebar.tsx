@@ -27,7 +27,7 @@ export function Sidebar() {
     <aside className="w-56 border-r bg-background flex flex-col">
       {colmeia && (
         <div className="px-4 py-3 border-b">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Colmeia</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Padaria</p>
           {isSuperAdmin && colmeias.length > 1 ? (
             <Select value={colmeia.id} onValueChange={selectColmeia}>
               <SelectTrigger className="h-auto text-sm font-medium border-0 p-0 shadow-none focus:ring-0 w-full">
