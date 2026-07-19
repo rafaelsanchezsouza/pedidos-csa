@@ -3,22 +3,24 @@ import { listDocs, createDoc, getDoc, deleteDoc } from '../repositories/firestor
 
 const router = Router()
 
-const DEFAULTS = ['colmeia', 'coagricultor']
+// Sem funções padrão: campo livre, o admin cria as suas. Os defaults antigos
+// ('colmeia'/'coagricultor') eram vocabulário da CSA — ver PENDENCIAS.md B3.
+const DEFAULTS: string[] = []
 
 interface RoleDoc {
   name: string
-  colmeiaId: string
+  tenantId: string
 }
 
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string | undefined) || req.colmeiaId
-    if (!colmeiaId) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
-    const roles = await listDocs<RoleDoc>('roles', [['colmeiaId', '==', colmeiaId]])
+    const tenantId = (req.query.tenantId as string | undefined) || req.tenantId
+    if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
+    const roles = await listDocs<RoleDoc>('roles', [['tenantId', '==', tenantId]])
     const names = roles.map((r) => r.name)
     for (const name of DEFAULTS) {
       if (!names.includes(name)) {
-        const created = await createDoc<RoleDoc>('roles', { name, colmeiaId })
+        const created = await createDoc<RoleDoc>('roles', { name, tenantId })
         roles.unshift(created)
       }
     }
@@ -30,15 +32,15 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = req.colmeiaId
+    const tenantId = req.tenantId
     const { name } = req.body as { name?: string }
-    if (!colmeiaId || !name?.trim()) { res.status(400).json({ message: 'name obrigatório' }); return }
+    if (!tenantId || !name?.trim()) { res.status(400).json({ message: 'name obrigatório' }); return }
     const existing = await listDocs<RoleDoc>('roles', [
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
       ['name', '==', name.trim()],
     ])
     if (existing.length > 0) { res.status(409).json({ message: 'Função já existe' }); return }
-    const created = await createDoc<RoleDoc>('roles', { name: name.trim(), colmeiaId })
+    const created = await createDoc<RoleDoc>('roles', { name: name.trim(), tenantId })
     res.status(201).json(created)
   } catch (err) {
     res.status(500).json({ message: String(err) })

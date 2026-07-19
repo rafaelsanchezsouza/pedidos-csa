@@ -11,7 +11,7 @@ interface OrderItem {
 interface OrderDoc {
   userId: string
   userName: string
-  colmeiaId: string
+  tenantId: string
   weekId: string
   items: OrderItem[]
   status: 'rascunho' | 'enviado'
@@ -20,7 +20,7 @@ interface OrderDoc {
 interface PaymentDoc {
   userId: string
   userName: string
-  colmeiaId: string
+  tenantId: string
   month: string
   producerName: string
   amount: number
@@ -39,11 +39,11 @@ interface UserDoc {
   isentoCotas?: boolean
   disabled?: boolean
   deleted?: boolean
-  deliveryType?: 'colmeia' | 'entrega'
+  deliveryType?: 'retirada' | 'entrega'
   freteDelivery?: number
 }
 
-interface ColmeiaSettings {
+interface TenantSettings {
   quotaInteira?: number
   quotaMeia?: number
   freteDelivery?: number
@@ -100,15 +100,15 @@ function countDeliveryWeeks(
 export async function upsertPaymentsForOrder(
   userId: string,
   userName: string,
-  colmeiaId: string,
+  tenantId: string,
   month: string,
 ) {
-  const [orders, colmeiaDoc] = await Promise.all([
+  const [orders, tenantDoc] = await Promise.all([
     listDocs<OrderDoc>('orders', [
       ['userId', '==', userId],
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
     ]),
-    getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+    getDoc<TenantSettings>('tenants', tenantId),
   ])
   const monthOrders = orders.filter((o) => o.status === 'enviado' && o.weekId.startsWith(month))
 
@@ -123,7 +123,7 @@ export async function upsertPaymentsForOrder(
 
   const existing = await listDocs<PaymentDoc>('payments', [
     ['userId', '==', userId],
-    ['colmeiaId', '==', colmeiaId],
+    ['tenantId', '==', tenantId],
     ['month', '==', month],
   ])
   // Nunca tocar em 'Cota' nem 'Entrega' — faturas geradas separadamente, não vêm de pedido
@@ -132,7 +132,7 @@ export async function upsertPaymentsForOrder(
   )
 
   const now = new Date().toISOString()
-  const dueDay = colmeiaDoc?.dueDay ?? 10
+  const dueDay = tenantDoc?.dueDay ?? 10
   const dueDate = buildDueDate(month, 'extras', dueDay)
 
   // Upsert produtores com saldo > 0
@@ -145,7 +145,7 @@ export async function upsertPaymentsForOrder(
         await createDoc<PaymentDoc>('payments', {
           userId,
           userName,
-          colmeiaId,
+          tenantId,
           month,
           producerName,
           amount,
@@ -168,28 +168,28 @@ export async function upsertPaymentsForOrder(
 
 export async function generateQuotaForUser(
   uid: string,
-  colmeiaId: string,
+  tenantId: string,
   month: string,
 ): Promise<(PaymentDoc & { id: string }) | { skipped: true }> {
-  const [userDoc, colmeiaDoc] = await Promise.all([
+  const [userDoc, tenantDoc] = await Promise.all([
     getDoc<UserDoc>('users', uid),
-    getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+    getDoc<TenantSettings>('tenants', tenantId),
   ])
   if (!userDoc?.quota) throw new Error('Usuário sem cota definida')
   if (userDoc.isentoCotas) return { skipped: true }
 
   const weeklyRate = userDoc.quota === 'Meia cota'
-    ? (colmeiaDoc?.quotaMeia ?? 40)
-    : (colmeiaDoc?.quotaInteira ?? 65)
+    ? (tenantDoc?.quotaMeia ?? 40)
+    : (tenantDoc?.quotaInteira ?? 65)
 
   const weeks = countDeliveryWeeks(month, userDoc.frequency ?? 'semanal', userDoc.quinzenalParity)
   const amount = weeklyRate * weeks
-  const dueDay = colmeiaDoc?.dueDay ?? 10
+  const dueDay = tenantDoc?.dueDay ?? 10
   const dueDate = buildDueDate(month, 'cota', dueDay)
 
   const existing = await listDocs<PaymentDoc>('payments', [
     ['userId', '==', uid],
-    ['colmeiaId', '==', colmeiaId],
+    ['tenantId', '==', tenantId],
     ['month', '==', month],
     ['producerName', '==', 'Cota'],
   ])
@@ -204,7 +204,7 @@ export async function generateQuotaForUser(
   return createDoc<PaymentDoc>('payments', {
     userId: uid,
     userName: userDoc.name,
-    colmeiaId,
+    tenantId,
     month,
     producerName: 'Cota',
     amount,
@@ -215,28 +215,28 @@ export async function generateQuotaForUser(
   })
 }
 
-export async function generateQuotaForAll(colmeiaId: string, month: string): Promise<{ generated: number }> {
-  const [users, colmeiaDoc] = await Promise.all([
-    listDocs<UserDoc>('users', [['colmeiaId', '==', colmeiaId]]),
-    getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+export async function generateQuotaForAll(tenantId: string, month: string): Promise<{ generated: number }> {
+  const [users, tenantDoc] = await Promise.all([
+    listDocs<UserDoc>('users', [['tenantId', '==', tenantId]]),
+    getDoc<TenantSettings>('tenants', tenantId),
   ])
 
   const eligible = users.filter((u) => u.quota && !u.isentoCotas && !u.disabled && !u.deleted)
-  const dueDay = colmeiaDoc?.dueDay ?? 10
+  const dueDay = tenantDoc?.dueDay ?? 10
   const dueDate = buildDueDate(month, 'cota', dueDay)
   const now = new Date().toISOString()
   let generated = 0
 
   for (const u of eligible) {
     const weeklyRate = u.quota === 'Meia cota'
-      ? (colmeiaDoc?.quotaMeia ?? 40)
-      : (colmeiaDoc?.quotaInteira ?? 65)
+      ? (tenantDoc?.quotaMeia ?? 40)
+      : (tenantDoc?.quotaInteira ?? 65)
     const weeks = countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
     const amount = weeklyRate * weeks
 
     const existing = await listDocs<PaymentDoc>('payments', [
       ['userId', '==', u.id],
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
       ['month', '==', month],
       ['producerName', '==', 'Cota'],
     ])
@@ -247,7 +247,7 @@ export async function generateQuotaForAll(colmeiaId: string, month: string): Pro
       await createDoc<PaymentDoc>('payments', {
         userId: u.id,
         userName: u.name,
-        colmeiaId,
+        tenantId,
         month,
         producerName: 'Cota',
         amount,
@@ -267,26 +267,26 @@ export async function generateQuotaForAll(colmeiaId: string, month: string): Pro
 // Espelha a cota: valor = frete efetivo × nº de entregas do mês (respeita quinzenal).
 export async function generateFreteForUser(
   uid: string,
-  colmeiaId: string,
+  tenantId: string,
   month: string,
 ): Promise<(PaymentDoc & { id: string }) | { skipped: true }> {
-  const [userDoc, colmeiaDoc] = await Promise.all([
+  const [userDoc, tenantDoc] = await Promise.all([
     getDoc<UserDoc>('users', uid),
-    getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+    getDoc<TenantSettings>('tenants', tenantId),
   ])
   if (!userDoc) throw new Error('Usuário não encontrado')
-  const frete = resolveFrete(userDoc, colmeiaDoc)
+  const frete = resolveFrete(userDoc, tenantDoc)
   // Só gera para quem recebe por entrega e tem frete > 0.
   if (userDoc.deliveryType !== 'entrega' || frete <= 0) return { skipped: true }
 
   const entregas = countDeliveryWeeks(month, userDoc.frequency ?? 'semanal', userDoc.quinzenalParity)
   const amount = frete * entregas
-  const dueDay = colmeiaDoc?.dueDay ?? 10
+  const dueDay = tenantDoc?.dueDay ?? 10
   const dueDate = buildDueDate(month, 'frete', dueDay)
 
   const existing = await listDocs<PaymentDoc>('payments', [
     ['userId', '==', uid],
-    ['colmeiaId', '==', colmeiaId],
+    ['tenantId', '==', tenantId],
     ['month', '==', month],
     ['producerName', '==', 'Entrega'],
   ])
@@ -301,7 +301,7 @@ export async function generateFreteForUser(
   return createDoc<PaymentDoc>('payments', {
     userId: uid,
     userName: userDoc.name,
-    colmeiaId,
+    tenantId,
     month,
     producerName: 'Entrega',
     amount,
@@ -312,29 +312,29 @@ export async function generateFreteForUser(
   })
 }
 
-export async function generateFreteForAll(colmeiaId: string, month: string): Promise<{ generated: number }> {
-  const [users, colmeiaDoc] = await Promise.all([
-    listDocs<UserDoc>('users', [['colmeiaId', '==', colmeiaId]]),
-    getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+export async function generateFreteForAll(tenantId: string, month: string): Promise<{ generated: number }> {
+  const [users, tenantDoc] = await Promise.all([
+    listDocs<UserDoc>('users', [['tenantId', '==', tenantId]]),
+    getDoc<TenantSettings>('tenants', tenantId),
   ])
 
-  const dueDay = colmeiaDoc?.dueDay ?? 10
+  const dueDay = tenantDoc?.dueDay ?? 10
   const dueDate = buildDueDate(month, 'frete', dueDay)
   const now = new Date().toISOString()
   let generated = 0
 
   const eligible = users.filter(
-    (u) => u.deliveryType === 'entrega' && !u.disabled && !u.deleted && resolveFrete(u, colmeiaDoc) > 0,
+    (u) => u.deliveryType === 'entrega' && !u.disabled && !u.deleted && resolveFrete(u, tenantDoc) > 0,
   )
 
   for (const u of eligible) {
-    const frete = resolveFrete(u, colmeiaDoc)
+    const frete = resolveFrete(u, tenantDoc)
     const entregas = countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
     const amount = frete * entregas
 
     const existing = await listDocs<PaymentDoc>('payments', [
       ['userId', '==', u.id],
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
       ['month', '==', month],
       ['producerName', '==', 'Entrega'],
     ])
@@ -345,7 +345,7 @@ export async function generateFreteForAll(colmeiaId: string, month: string): Pro
       await createDoc<PaymentDoc>('payments', {
         userId: u.id,
         userName: u.name,
-        colmeiaId,
+        tenantId,
         month,
         producerName: 'Entrega',
         amount,

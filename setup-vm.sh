@@ -2,8 +2,8 @@
 # Rodar UMA VEZ na VM: bash setup-vm.sh
 set -euo pipefail
 
-APP_DIR="/opt/padaria-app"
-NGINX_CONF="/etc/nginx/sites-available/padaria-app"
+APP_DIR="/opt/pedidos-app"
+NGINX_CONF="/etc/nginx/sites-available/pedidos-app"
 
 # --- Perguntar sobre HTTPS ---
 read -rp "Configurar HTTPS com Let's Encrypt? (s/n): " HTTPS_RESP
@@ -43,7 +43,7 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     # Frontend (SPA)
-    root /opt/padaria-app/dist;
+    root /opt/pedidos-app/dist;
     index index.html;
     location / {
         try_files \$uri \$uri/ /index.html;
@@ -61,7 +61,7 @@ server {
 EOF
 
 sudo rm -f /etc/nginx/sites-enabled/default
-sudo ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/padaria-app
+sudo ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/pedidos-app
 sudo nginx -t
 sudo systemctl enable nginx
 sudo systemctl reload nginx

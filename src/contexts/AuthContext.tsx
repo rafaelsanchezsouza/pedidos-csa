@@ -6,63 +6,63 @@ import {
   signOut,
 } from 'firebase/auth'
 import { auth } from '@/services/firebase'
-import { colmeiasApi, usersApi } from '@/services/api'
-import type { User, Colmeia } from '@/types'
+import { tenantsApi, usersApi } from '@/services/api'
+import type { User, Tenant } from '@/types'
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null
   user: User | null
-  colmeia: Colmeia | null
-  colmeias: Colmeia[]
+  tenant: Tenant | null
+  tenants: Tenant[]
   loading: boolean
   authError: string
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  selectColmeia: (colmeiaId: string) => void
+  selectTenant: (tenantId: string) => void
   refreshUser: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextType>({
   firebaseUser: null,
   user: null,
-  colmeia: null,
-  colmeias: [],
+  tenant: null,
+  tenants: [],
   loading: true,
   authError: '',
   login: async () => {},
   logout: async () => {},
-  selectColmeia: () => {},
+  selectTenant: () => {},
   refreshUser: async () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [user, setUser] = useState<User | null>(null)
-  const [colmeia, setColmeia] = useState<Colmeia | null>(null)
-  const [colmeias, setColmeias] = useState<Colmeia[]>([])
+  const [tenant, setTenant] = useState<Tenant | null>(null)
+  const [tenants, setTenants] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState('')
 
   async function loadUserData(fbUser: FirebaseUser) {
     setAuthError('')
     try {
-      const [me, allColmeias] = await Promise.all([
+      const [me, allTenants] = await Promise.all([
         usersApi.getMe(),
-        colmeiasApi.list(),
+        tenantsApi.list(),
       ])
       setUser(me)
-      setColmeias(allColmeias)
-      if (allColmeias.length === 1) {
-        setColmeia(allColmeias[0])
+      setTenants(allTenants)
+      if (allTenants.length === 1) {
+        setTenant(allTenants[0])
       } else {
-        const saved = localStorage.getItem(`colmeia_${fbUser.uid}`)
-        const savedFound = saved ? allColmeias.find((c) => c.id === saved) : null
-        const ownColmeia = me.colmeiaId ? allColmeias.find((c) => c.id === me.colmeiaId) : null
-        setColmeia(savedFound ?? ownColmeia ?? allColmeias[0] ?? null)
+        const saved = localStorage.getItem(`tenant_${fbUser.uid}`)
+        const savedFound = saved ? allTenants.find((c) => c.id === saved) : null
+        const ownTenant = me.tenantId ? allTenants.find((c) => c.id === me.tenantId) : null
+        setTenant(savedFound ?? ownTenant ?? allTenants[0] ?? null)
       }
     } catch (err) {
       setUser(null)
-      setColmeias([])
+      setTenants([])
       setAuthError(err instanceof Error ? err.message : 'Erro ao carregar dados do usuário')
     }
   }
@@ -74,8 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await loadUserData(fbUser)
       } else {
         setUser(null)
-        setColmeia(null)
-        setColmeias([])
+        setTenant(null)
+        setTenants([])
       }
       setLoading(false)
     })
@@ -88,17 +88,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function logout() {
     await signOut(auth)
-    setColmeia(null)
-    setColmeias([])
+    setTenant(null)
+    setTenants([])
     setUser(null)
   }
 
-  function selectColmeia(colmeiaId: string) {
-    const found = colmeias.find((c) => c.id === colmeiaId)
+  function selectTenant(tenantId: string) {
+    const found = tenants.find((c) => c.id === tenantId)
     if (found) {
-      setColmeia(found)
+      setTenant(found)
       if (firebaseUser) {
-        localStorage.setItem(`colmeia_${firebaseUser.uid}`, colmeiaId)
+        localStorage.setItem(`tenant_${firebaseUser.uid}`, tenantId)
       }
     }
   }
@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ firebaseUser, user, colmeia, colmeias, loading, authError, login, logout, selectColmeia, refreshUser }}
+      value={{ firebaseUser, user, tenant, tenants, loading, authError, login, logout, selectTenant, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

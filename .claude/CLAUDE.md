@@ -32,9 +32,10 @@
 
 ## Fork do pedidos-csa
 Este repo é fork de `~/repos/pedidos-csa` (cliente diferente, CSA segue viva). O tenant
-continua se chamando `colmeia` no código **de propósito** — renomear quebra o `cherry-pick`
-de correções entre os dois repos, e o cálculo de data/fuso é duplicado nos dois. Na UI,
-sempre "padaria".
+foi renomeado de `colmeia` para `tenant` no código, junto com o resto do vocabulário
+CSA — a intenção é **remesclar o backend** com o `pedidos-csa`, e a reconciliação sai no
+merge, não via `cherry-pick` (que deixa de funcionar). Na UI o tenant aparece pelo **nome**
+(`tenant.name`); a marca do produto vem de `APP_NAME` (`src/lib/brand.ts`).
 
 ## Arquitetura
 DIP + Ports & Adapters: domínio define interfaces (portas), tecnologias externas são adaptadores plugáveis. Rotas dependem de abstrações, nunca de implementações concretas.

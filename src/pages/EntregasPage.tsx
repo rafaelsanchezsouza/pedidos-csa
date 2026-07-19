@@ -28,7 +28,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 
 export function EntregasPage() {
-  const { colmeia } = useAuth()
+  const { tenant } = useAuth()
   const [weekId, setWeekId] = useState(getWeekStart())
   const [orders, setOrders] = useState<Order[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -44,19 +44,19 @@ export function EntregasPage() {
   const [savingAddress, setSavingAddress] = useState(false)
 
   const load = useCallback(async () => {
-    if (!colmeia) return
+    if (!tenant) return
     setLoading(true)
     try {
       const [ords, us] = await Promise.all([
-        ordersApi.getConsolidated(weekId, colmeia.id),
-        usersApi.list(colmeia.id),
+        ordersApi.getConsolidated(weekId, tenant.id),
+        usersApi.list(tenant.id),
       ])
       setOrders(ords)
       setUsers(us)
     } finally {
       setLoading(false)
     }
-  }, [colmeia, weekId])
+  }, [tenant, weekId])
 
   useEffect(() => { load() }, [load])
 
@@ -89,7 +89,7 @@ export function EntregasPage() {
 
   async function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e
-    if (!over || active.id === over.id || !colmeia) return
+    if (!over || active.id === over.id || !tenant) return
     const ids = porEntrega.map((u) => u.id)
     const from = ids.indexOf(String(active.id))
     const to = ids.indexOf(String(over.id))
@@ -103,7 +103,7 @@ export function EntregasPage() {
       prev.map((u) => (posicao.has(u.id) ? { ...u, deliveryOrder: posicao.get(u.id) } : u)),
     )
     try {
-      await usersApi.reorderDelivery(ordemCompleta, colmeia.id)
+      await usersApi.reorderDelivery(ordemCompleta, tenant.id)
     } catch {
       await load() // desfaz o otimista recarregando a verdade do servidor
     }
@@ -147,17 +147,17 @@ export function EntregasPage() {
   }
 
   async function saveNote() {
-    if (!colmeia || !editingNote) return
+    if (!tenant || !editingNote) return
     setSavingNote(true)
     try {
       const { userId, userName, order } = editingNote
       if (order) {
-        await ordersApi.update(order.id, { weeklyNote: noteText }, colmeia.id)
+        await ordersApi.update(order.id, { weeklyNote: noteText }, tenant.id)
         setOrders((prev) => prev.map((o) => o.userId === userId ? { ...o, weeklyNote: noteText } : o))
       } else {
         const created = await ordersApi.create({
-          userId, userName, colmeiaId: colmeia.id, weekId, items: [], status: 'rascunho', weeklyNote: noteText,
-        }, colmeia.id)
+          userId, userName, tenantId: tenant.id, weekId, items: [], status: 'rascunho', weeklyNote: noteText,
+        }, tenant.id)
         setOrders((prev) => [...prev, created])
       }
       setEditingNote(null)
@@ -174,17 +174,17 @@ export function EntregasPage() {
   }
 
   async function saveAddress() {
-    if (!colmeia || !editingAddress) return
+    if (!tenant || !editingAddress) return
     setSavingAddress(true)
     try {
       const { userId, userName, order } = editingAddress
       if (order) {
-        await ordersApi.update(order.id, { weeklyAddress: addressText }, colmeia.id)
+        await ordersApi.update(order.id, { weeklyAddress: addressText }, tenant.id)
         setOrders((prev) => prev.map((o) => o.userId === userId ? { ...o, weeklyAddress: addressText } : o))
       } else {
         const created = await ordersApi.create({
-          userId, userName, colmeiaId: colmeia.id, weekId, items: [], status: 'rascunho', weeklyAddress: addressText,
-        }, colmeia.id)
+          userId, userName, tenantId: tenant.id, weekId, items: [], status: 'rascunho', weeklyAddress: addressText,
+        }, tenant.id)
         setOrders((prev) => [...prev, created])
       }
       setEditingAddress(null)
@@ -195,18 +195,18 @@ export function EntregasPage() {
   }
 
   async function handleSuspend(u: User) {
-    if (!colmeia) return
+    if (!tenant) return
     setTogglingSuspend(u.id)
     try {
       const order = orderByUser.get(u.id)
       if (order) {
         const novoValor = !order.suspensa
-        await ordersApi.update(order.id, { suspensa: novoValor }, colmeia.id)
+        await ordersApi.update(order.id, { suspensa: novoValor }, tenant.id)
         setOrders((prev) => prev.map((o) => o.userId === u.id ? { ...o, suspensa: novoValor } : o))
       } else {
         const created = await ordersApi.create({
-          userId: u.id, userName: u.name, colmeiaId: colmeia.id, weekId, items: [], status: 'rascunho', suspensa: true,
-        }, colmeia.id)
+          userId: u.id, userName: u.name, tenantId: tenant.id, weekId, items: [], status: 'rascunho', suspensa: true,
+        }, tenant.id)
         setOrders((prev) => [...prev, created])
       }
     } finally {

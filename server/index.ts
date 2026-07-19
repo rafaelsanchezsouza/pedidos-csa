@@ -2,8 +2,8 @@ import './env.js'
 import express from 'express'
 import cors from 'cors'
 import { authMiddleware } from './middleware/auth.js'
-import { colmeiaMiddleware } from './middleware/colmeia.js'
-import colmeiasRouter from './routes/colmeias.js'
+import { tenantMiddleware } from './middleware/tenant.js'
+import tenantsRouter from './routes/tenants.js'
 import productsRouter from './routes/products.js'
 import producersRouter from './routes/producers.js'
 import offeringsRouter from './routes/offerings.js'
@@ -20,7 +20,7 @@ import { startSendOrdersJob } from './jobs/sendOrdersJob.js'
 declare module 'express' {
   interface Request {
     user?: { uid: string; email: string }
-    colmeiaId?: string
+    tenantId?: string
   }
 }
 
@@ -32,17 +32,17 @@ const HOST = process.env.HOST || '127.0.0.1'
 app.use(cors())
 app.use(express.json())
 
-// One-time setup endpoint (no auth) — creates "Flor de Quilombo" colmeia
+// One-time setup endpoint (no auth) — creates "Flor de Quilombo" tenant
 // POST /api/setup  { adminEmail: string, adminUid: string }
 app.post('/api/setup', async (req, res) => {
   try {
-    const existing = await db.collection('colmeias').where('name', '==', 'Flor de Quilombo').get()
+    const existing = await db.collection('tenants').where('name', '==', 'Flor de Quilombo').get()
     if (!existing.empty) {
-      res.status(400).json({ message: 'Colmeia já existe' })
+      res.status(400).json({ message: 'Tenant já existe' })
       return
     }
     const { adminUid } = req.body as { adminUid: string }
-    const ref = await db.collection('colmeias').add({
+    const ref = await db.collection('tenants').add({
       name: 'Flor de Quilombo',
       adminId: adminUid,
       dateCreated: new Date().toISOString(),
@@ -57,9 +57,9 @@ app.post('/api/setup', async (req, res) => {
 app.use('/api/auth/whatsapp', whatsappAuthRouter)
 
 app.use('/api', authMiddleware)
-app.use('/api', colmeiaMiddleware)
+app.use('/api', tenantMiddleware)
 
-app.use('/api/colmeias', colmeiasRouter)
+app.use('/api/tenants', tenantsRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/producers', producersRouter)
 app.use('/api/offerings', offeringsRouter)

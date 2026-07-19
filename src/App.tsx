@@ -15,10 +15,10 @@ import { DefinirSenhaPage } from '@/pages/DefinirSenhaPage'
 import { ReactNode } from 'react'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
-  const { firebaseUser, user, colmeia, loading } = useAuth()
+  const { firebaseUser, user, tenant, loading } = useAuth()
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>
-  if (!firebaseUser || !colmeia) return <Navigate to="/login" replace />
+  if (!firebaseUser || !tenant) return <Navigate to="/login" replace />
   if (user?.mustChangePassword) return <Navigate to="/definir-senha" replace />
   if (adminOnly && user?.acesso !== 'admin' && user?.acesso !== 'superadmin') {
     return <Navigate to="/pedidos" replace />
@@ -27,7 +27,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; 
 }
 
 function AppRoutes() {
-  const { firebaseUser, colmeia, loading } = useAuth()
+  const { firebaseUser, tenant, loading } = useAuth()
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>
 
@@ -36,7 +36,7 @@ function AppRoutes() {
       <Route
         path="/"
         element={
-          firebaseUser && colmeia ? <Navigate to="/pedidos" replace /> : <Navigate to="/login" replace />
+          firebaseUser && tenant ? <Navigate to="/pedidos" replace /> : <Navigate to="/login" replace />
         }
       />
       <Route path="/login" element={<LoginPage />} />

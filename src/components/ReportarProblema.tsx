@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 
 export function ReportarProblema() {
-  const { user, colmeia } = useAuth()
+  const { user, tenant } = useAuth()
   const location = useLocation()
 
   const [open, setOpen] = useState(false)
@@ -47,7 +47,7 @@ export function ReportarProblema() {
         '',
         '---',
         `**Usuário:** ${user?.name ?? user?.email ?? 'desconhecido'}`,
-        `**Padaria:** ${colmeia?.name ?? 'nenhuma'}`,
+        `**Organização:** ${tenant?.name ?? 'nenhuma'}`,
         `**Página:** ${location.pathname}`,
       ].join('\n')
 

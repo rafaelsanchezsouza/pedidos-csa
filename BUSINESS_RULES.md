@@ -1,16 +1,16 @@
-# Regras de Negócio — padaria-app
+# Regras de Negócio — pedidos-app
 
-## Padaria (Multi-tenancy)
+## Organização (Multi-tenancy)
 
-> O tenant se chama `colmeia` no código (coleção `colmeias`, `colmeiaId`, header
-> `x-colmeia-id`) — herança do fork da CSA, mantida de propósito para não quebrar o
-> `cherry-pick` de correções entre os dois repositórios. Na UI é sempre "padaria".
+> O tenant é a **organização**: coleção `tenants`, campo `tenantId`, header `x-tenant-id`.
+> Na UI aparece pelo **nome** (`tenant.name`) — "padaria", "colmeia", etc. são exemplos de
+> organização, não termos fixos no código.
 
-- Todos os dados (usuários, produtos, pedidos, produtores) pertencem a uma padaria via `colmeiaId`
-- Superadmin acessa todas as padarias; admin e usuário comum só acessam a própria
-- Seleção de padaria ativa salva no `localStorage` do navegador
-- Setup inicial cria a primeira padaria via `POST /api/setup` (sem autenticação)
-- Um usuário pode pertencer a apenas uma padaria
+- Todos os dados (usuários, produtos, pedidos, produtores) pertencem a uma organização via `tenantId`
+- Superadmin acessa todas as organizações; admin e usuário comum só acessam a própria
+- Seleção de organização ativa salva no `localStorage` do navegador
+- Setup inicial cria a primeira organização via `POST /api/setup` (sem autenticação)
+- Um usuário pode pertencer a apenas uma organização
 
 ## Usuários
 
@@ -20,12 +20,12 @@
 |---|---|
 | `user` | Faz pedidos, envia comprovante, vê próprio histórico |
 | `admin` | Tudo de user + gerencia catálogo, publica a oferta da semana, consolida pedidos, verifica pagamentos |
-| `superadmin` | Acessa todas as colmeias |
+| `superadmin` | Acessa todas as organizações |
 | `produtor` | Acessa verificação de pagamentos dos próprios produtos |
 
 ### Função no coletivo (`role`)
-- Campo livre (`string`) que descreve a função do membro dentro do coletivo (ex: "colmeia", "coagricultor", "tesoureiro")
-- Gerenciado via coleção Firestore `roles` (por colmeia), com dois valores padrão não deletáveis: **"colmeia"** e **"coagricultor"**
+- Campo livre (`string`) que descreve a função do membro dentro do coletivo (ex: "tesoureiro", "coordenador")
+- Gerenciado via coleção Firestore `roles` (por organização); sem valores padrão — o admin cria os seus (os defaults "colmeia"/"coagricultor" eram da CSA, removidos)
 - Admin pode criar/deletar funções customizadas diretamente no formulário de edição de usuário
 - Não afeta permissões de sistema — apenas informativo
 
@@ -35,7 +35,7 @@
 - `disabled: boolean` — quando `true`, usuário inativo; excluído da geração de cotas
 - `deleted: boolean` — quando `true`, usuário removido; excluído da geração de cotas
 - `acolhidaExpiry: string (ISO date)` — data de encerramento do período de acolhida; ausente ou vazio = sem acolhida
-- Usuário informa: nome, endereço, contato, frequência (semanal/quinzenal), tipo de retirada (na colmeia ou por entrega)
+- Usuário informa: nome, endereço, contato, frequência (semanal/quinzenal), tipo de retirada (na loja ou por entrega)
 
 ## Período de Acolhida
 
@@ -49,7 +49,7 @@
 
 ## Catálogo de Produtos
 
-- Produto possui: nome, unidade, preço, produtor, padaria, tipo, situação
+- Produto possui: nome, unidade, preço, fornecedor, organização, tipo, situação
 - **Tipo** (`type`): `fixo` = item do cardápio recorrente, cobrado via cota e **não pedido avulso**; `extra` = pedido avulso pelo cliente. Ausente = `extra`
 - **Situação** (`ativo`): `false` = fora de linha — não entra em oferta nova, mas o histórico de pedidos e faturas é preservado. Ausente = ativo
 - Preço editado na oferta → atualiza o preço no catálogo ao salvar
@@ -57,7 +57,7 @@
 - Produto pode ser editado ou removido pelo admin
 
 ### Produtores
-- A padaria é um produtor. Parcerias com outras produções entram como produtores adicionais
+- A organização é um fornecedor. Parcerias com outras produções entram como produtores adicionais
 - A oferta da semana é publicada **por produtor**; o consolidado e as faturas também são por produtor
 
 ## Ofertas Semanais
@@ -89,7 +89,7 @@
 - Membros não-admin não podem criar nem editar pedidos em semana bloqueada (HTTP 403)
 - Administradores podem criar e editar pedidos mesmo após o bloqueio
 - O bloqueio ocorre tanto pelo envio manual (admin) quanto pelo **scheduler automático de terça-feira às 6h**
-- Scheduler: envia para todos os produtores de todas as colmeias que têm pedidos na semana; semanas sem pedidos não são bloqueadas
+- Scheduler: envia para todos os fornecedores de todas as organizações que têm pedidos na semana; semanas sem pedidos não são bloqueadas
 
 ### Doação de cota
 
@@ -101,16 +101,16 @@
 ### Ordem da lista de entrega
 
 - A lista de entrega (membros `deliveryType: 'entrega'`) pode ser reordenada manualmente pelo admin, arrastando — para sair na ordem que os motoboys usam
-- A ordem é salva em `deliveryOrder` (número) por membro; **persiste entre semanas** e é **por colmeia** (o membro pertence a uma)
+- A ordem é salva em `deliveryOrder` (número) por membro; **persiste entre semanas** e é **por organização** (o membro pertence a uma)
 - Membro sem `deliveryOrder` (recém-cadastrado) aparece **no fim, em ordem alfabética**, até ser posicionado
 - Reordenar numa semana em que um quinzenal não aparece **não altera** a posição relativa dele (o merge preserva os ocultos)
 - O **texto de WhatsApp** dos motoboys segue essa mesma ordem
-- Só vale para a lista de entrega; a lista de retirada na colmeia não é ordenável
+- Só vale para a lista de entrega; a lista de retirada na loja não é ordenável
 - A lista de membros na **Administração** é sempre alfabética (não usa `deliveryOrder`)
 
 ### Consolidado Geral
 
-- Tela administrativa que mostra **todos** os membros ativos da semana (tanto `entrega` quanto `colmeia`)
+- Tela administrativa que mostra **todos** os membros ativos da semana (tanto `entrega` quanto `retirada`)
 - Respeita paridade quinzenal: membros que não recebem na semana não aparecem
 - Colunas adicionais em relação à tela de Entregas:
   - **Doação**: marcado automaticamente se `order.doacao === true`
@@ -119,7 +119,7 @@
 
 ### Texto WhatsApp (Consolidado Extras)
 
-- Cabeçalho: `*Nome da Padaria — Semana de YYYY-MM-DD*` (nome vem de `colmeia.name`)
+- Cabeçalho: `*Nome da Organização — Semana de YYYY-MM-DD*` (nome vem de `tenant.name`)
 - Nome do produtor e total de membros **não** são incluídos no texto gerado
 
 ## Frequência Quinzenal
@@ -138,7 +138,7 @@
 
 ## Pagamentos
 
-- Uma fatura (`PaymentDoc`) por usuário **por produtor** por mês — chave única: `(userId, colmeiaId, month, producerName)`
+- Uma fatura (`PaymentDoc`) por usuário **por produtor** por mês — chave única: `(userId, tenantId, month, producerName)`
 - Mês representado como string `"YYYY-MM"`
 - Usuário envia comprovante por fatura → URL em `proofUrl`; admin verifica → `verified: true`
 
@@ -157,17 +157,17 @@
   - Usuário `semanal`: conta todas as quartas-feiras do mês
   - Usuário `quinzenal`: conta apenas as semanas do ciclo do membro
 - Vencimento: dia `dueDay` do **mês anterior** (pagamento pré-consumo)
-- `dueDay` configurável pelo admin (padrão: 10); salvo em `colmeia.dueDay`
+- `dueDay` configurável pelo admin (padrão: 10); salvo em `tenant.dueDay`
 - **Elegibilidade para geração de cota:** `quota` definido + `!isentoCotas` + `!disabled` + `!deleted`
   - Usuário sem campo `quota` → **não** tem cota gerada (campo obrigatório, definido pelo admin no cadastro)
   - Usuário com `isentoCotas: true` → não tem cota gerada; não aparece na lista de verificação
-- **Geração automática:** cron job executa às 08h do dia 1 de cada mês (`server/jobs/quotaJob.ts`), gerando cotas para todos os elegíveis de todas as colmeias
+- **Geração automática:** cron job executa às 08h do dia 1 de cada mês (`server/jobs/quotaJob.ts`), gerando cotas para todos os elegíveis de todas as organizações
 - `POST /payments/quota/all` permanece disponível para reprocessamento manual via API
 
 ### Frete da Entrega
 - Fatura mensal (`producerName === 'Entrega'`) para membros que recebem por entrega (`deliveryType === 'entrega'`)
 - Valor **por entrega**, não fixo mensal: `frete × countDeliveryWeeks(month, frequency, quinzenalParity)` — mesma contagem da cota, respeita quinzenal
-- Frete efetivo = **override do membro** (`user.freteDelivery`) **ou** o **padrão da colmeia** (`colmeia.freteDelivery`); `0` explícito é entrega grátis e vence o padrão (resolvido por `resolveFrete` em `server/services/freteMath.ts`)
+- Frete efetivo = **override do membro** (`user.freteDelivery`) **ou** o **padrão da organização** (`tenant.freteDelivery`); `0` explícito é entrega grátis e vence o padrão (resolvido por `resolveFrete` em `server/services/freteMath.ts`)
 - **Elegibilidade:** `deliveryType === 'entrega'` + `!disabled` + `!deleted` + frete efetivo `> 0` (frete 0 não gera fatura)
 - Membro anexa comprovante e admin verifica — mesmo fluxo das outras faturas (reusa Firebase Storage via `useUploadProof`)
 - Vencimento: dia `dueDay` do **mês seguinte** (pós-consumo, como extras)
@@ -178,7 +178,7 @@
 
 ## Herança da CSA ainda não decidida
 
-Regras que vieram do fork e continuam ativas no código sem decisão de produto para a padaria:
+Regras que vieram do fork e continuam ativas no código sem decisão de produto para o novo cliente:
 
 - **Período de acolhida** (`acolhidaExpiry`): 30 dias para membro novo, apenas informativo
 - **Frequência quinzenal** (`quinzenal` + `quinzenalParity`): cliente recebe a cada duas semanas

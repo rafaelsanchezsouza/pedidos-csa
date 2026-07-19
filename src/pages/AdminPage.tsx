@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Pencil, Trash2, Ban, CheckCircle, Upload } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { usersApi, producersApi, colmeiasApi, rolesApi } from '@/services/api'
+import { usersApi, producersApi, tenantsApi, rolesApi } from '@/services/api'
 import type { BatchResult } from '@/services/api'
-import type { User, Producer, ColmeiaRole } from '@/types'
+import type { User, Producer, TenantRole } from '@/types'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/PageHeader'
 import { Input } from '@/components/ui/input'
@@ -46,7 +46,7 @@ interface MemberForm {
 }
 const emptyMemberForm: MemberForm = {
   name: '', email: '', password: '', address: '', neighborhood: '', contact: '',
-  frequency: 'semanal', deliveryType: 'colmeia', acesso: 'user', quota: 'Cota inteira',
+  frequency: 'semanal', deliveryType: 'retirada', acesso: 'user', quota: 'Cota inteira',
 }
 
 
@@ -56,7 +56,7 @@ interface ParsedRow {
   contact: string
   address: string
   neighborhood: string
-  deliveryType: 'colmeia' | 'entrega'
+  deliveryType: 'retirada' | 'entrega'
   frequency: 'semanal' | 'quinzenal'
   quota: 'Cota inteira' | 'Meia cota'
   acesso: 'user'
@@ -104,7 +104,7 @@ function parseGoogleFormCsv(text: string): ParsedRow[] {
       contact: (c[3]?.trim() ?? '').replace(/\D/g, ''),
       address: addressParts.join(', '),
       neighborhood: c[6]?.trim() ?? '',
-      deliveryType: (retirada.includes('colmeia') ? 'colmeia' : 'entrega') as 'colmeia' | 'entrega',
+      deliveryType: (retirada.includes('entrega') ? 'entrega' : 'retirada') as 'retirada' | 'entrega',
       frequency: (freq.includes('quinzenal') ? 'quinzenal' : 'semanal') as 'semanal' | 'quinzenal',
       quota: (cota.includes('meia') ? 'Meia cota' : 'Cota inteira') as 'Cota inteira' | 'Meia cota',
       acesso: 'user' as const,
@@ -113,32 +113,32 @@ function parseGoogleFormCsv(text: string): ParsedRow[] {
 }
 
 export function AdminPage() {
-  const { colmeia, colmeias, user, refreshUser } = useAuth()
+  const { tenant, tenants, user, refreshUser } = useAuth()
   const [tab, setTab] = useState('usuarios')
   const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
   const [producers, setProducers] = useState<Producer[]>([])
-  const [roles, setRoles] = useState<ColmeiaRole[]>([])
+  const [roles, setRoles] = useState<TenantRole[]>([])
   const [newRoleName, setNewRoleName] = useState('')
   const [showNewRoleInput, setShowNewRoleInput] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Configurações de cota e agendamento
-  const [quotaInteira, setQuotaInteira] = useState(String(colmeia?.quotaInteira ?? 65))
-  const [quotaMeia, setQuotaMeia] = useState(String(colmeia?.quotaMeia ?? 40))
-  const [freteDelivery, setFreteDelivery] = useState(String(colmeia?.freteDelivery ?? 0))
-  const [dueDay, setDueDay] = useState(String(colmeia?.dueDay ?? 10))
-  const [orderSendDay, setOrderSendDay] = useState(String(colmeia?.orderSendDay ?? 2))
-  const [orderSendHour, setOrderSendHour] = useState(String(colmeia?.orderSendHour ?? 6))
-  const [weekChangeDay, setWeekChangeDay] = useState(String(colmeia?.weekChangeDay ?? 0))
+  const [quotaInteira, setQuotaInteira] = useState(String(tenant?.quotaInteira ?? 65))
+  const [quotaMeia, setQuotaMeia] = useState(String(tenant?.quotaMeia ?? 40))
+  const [freteDelivery, setFreteDelivery] = useState(String(tenant?.freteDelivery ?? 0))
+  const [dueDay, setDueDay] = useState(String(tenant?.dueDay ?? 10))
+  const [orderSendDay, setOrderSendDay] = useState(String(tenant?.orderSendDay ?? 2))
+  const [orderSendHour, setOrderSendHour] = useState(String(tenant?.orderSendHour ?? 6))
+  const [weekChangeDay, setWeekChangeDay] = useState(String(tenant?.weekChangeDay ?? 0))
   const [savingQuota, setSavingQuota] = useState(false)
   const [quotaMessage, setQuotaMessage] = useState('')
 
-  // Padaria dialog
-  const [colmeiaDialog, setColmeiaDialog] = useState(false)
-  const [newColmeiaName, setNewColmeiaName] = useState('')
-  const [savingColmeia, setSavingColmeia] = useState(false)
-  const [colmeiaError, setColmeiaError] = useState('')
+  // Organização dialog
+  const [tenantDialog, setTenantDialog] = useState(false)
+  const [newTenantName, setNewTenantName] = useState('')
+  const [savingTenant, setSavingTenant] = useState(false)
+  const [tenantError, setTenantError] = useState('')
 
   // Producer dialog
   const [producerDialog, setProducerDialog] = useState(false)
@@ -173,13 +173,13 @@ export function AdminPage() {
   const [csvResults, setCsvResults] = useState<BatchResult[] | null>(null)
 
   const load = useCallback(async () => {
-    if (!colmeia) return
+    if (!tenant) return
     setLoading(true)
     try {
       const [us, prods, rols] = await Promise.all([
-        usersApi.list(colmeia.id),
-        producersApi.list(colmeia.id),
-        rolesApi.list(colmeia.id),
+        usersApi.list(tenant.id),
+        producersApi.list(tenant.id),
+        rolesApi.list(tenant.id),
       ])
       setUsers(us)
       setProducers(prods)
@@ -187,24 +187,24 @@ export function AdminPage() {
     } finally {
       setLoading(false)
     }
-  }, [colmeia])
+  }, [tenant])
 
   useEffect(() => { load() }, [load])
 
-  // --- Padarias ---
-  async function handleCreateColmeia() {
-    if (!newColmeiaName.trim()) return
-    setSavingColmeia(true)
-    setColmeiaError('')
+  // --- Organizações ---
+  async function handleCreateTenant() {
+    if (!newTenantName.trim()) return
+    setSavingTenant(true)
+    setTenantError('')
     try {
-      await colmeiasApi.create({ name: newColmeiaName.trim() })
+      await tenantsApi.create({ name: newTenantName.trim() })
       await refreshUser()
-      setColmeiaDialog(false)
-      setNewColmeiaName('')
+      setTenantDialog(false)
+      setNewTenantName('')
     } catch (err) {
-      setColmeiaError(String(err))
+      setTenantError(String(err))
     } finally {
-      setSavingColmeia(false)
+      setSavingTenant(false)
     }
   }
 
@@ -222,15 +222,15 @@ export function AdminPage() {
   }
 
   async function handleSaveProducer() {
-    if (!colmeia) return
+    if (!tenant) return
     setSavingProducer(true)
     try {
       if (editingProducer) {
-        await producersApi.update(editingProducer.id, producerForm, colmeia.id)
+        await producersApi.update(editingProducer.id, producerForm, tenant.id)
         setProducerDialog(false)
         await load()
       } else {
-        const created = await producersApi.create({ ...producerForm, colmeiaId: colmeia.id }, colmeia.id)
+        const created = await producersApi.create({ ...producerForm, tenantId: tenant.id }, tenant.id)
         setProducerDialog(false)
         await load()
         // Fluxo: após criar fornecedor, ir direto para adicionar oferta
@@ -242,8 +242,8 @@ export function AdminPage() {
   }
 
   async function handleDeleteProducer(id: string) {
-    if (!colmeia || !confirm('Excluir este produtor?')) return
-    await producersApi.delete(id, colmeia.id)
+    if (!tenant || !confirm('Excluir este produtor?')) return
+    await producersApi.delete(id, tenant.id)
     await load()
   }
 
@@ -270,10 +270,10 @@ export function AdminPage() {
   }
 
   async function handleSaveEdit() {
-    if (!editingUser || !colmeia) return
+    if (!editingUser || !tenant) return
     setSavingEdit(true)
     try {
-      await usersApi.update(editingUser.id, editForm, colmeia.id)
+      await usersApi.update(editingUser.id, editForm, tenant.id)
       setEditDialog(false)
       await load()
       await refreshUser()
@@ -288,18 +288,18 @@ export function AdminPage() {
 
   // --- Disable / Delete usuário ---
   async function handleToggleDisable(u: User) {
-    if (!colmeia) return
+    if (!tenant) return
     if (u.disabled) {
-      await usersApi.enable(u.id, colmeia.id)
+      await usersApi.enable(u.id, tenant.id)
     } else {
-      await usersApi.disable(u.id, colmeia.id)
+      await usersApi.disable(u.id, tenant.id)
     }
     await load()
   }
 
   async function handleDeleteUser(u: User) {
-    if (!colmeia || !confirm(`Excluir permanentemente "${u.name}"? O histórico de pedidos será preservado.`)) return
-    await usersApi.delete(u.id, colmeia.id)
+    if (!tenant || !confirm(`Excluir permanentemente "${u.name}"? O histórico de pedidos será preservado.`)) return
+    await usersApi.delete(u.id, tenant.id)
     await load()
   }
 
@@ -313,7 +313,7 @@ export function AdminPage() {
   }
 
   async function handleSaveMember() {
-    if (!colmeia) return
+    if (!tenant) return
     setSavingMember(true)
     setMemberError('')
     try {
@@ -321,8 +321,8 @@ export function AdminPage() {
         ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         : undefined
       const result = await usersApi.createMember(
-        { ...memberForm, colmeiaId: colmeia.id, ...(acolhidaExpiry ? { acolhidaExpiry } : {}) },
-        colmeia.id
+        { ...memberForm, tenantId: tenant.id, ...(acolhidaExpiry ? { acolhidaExpiry } : {}) },
+        tenant.id
       )
       await load()
       setMemberSuccess({ password: result.password ?? memberForm.password, contact: memberForm.contact })
@@ -345,11 +345,11 @@ export function AdminPage() {
   }
 
   async function handleCsvImport() {
-    if (!colmeia || csvRows.length === 0) return
+    if (!tenant || csvRows.length === 0) return
     setCsvImporting(true)
     try {
-      const members = csvRows.map(r => ({ ...r, colmeiaId: colmeia.id }))
-      const { results } = await usersApi.createMemberBatch(members, colmeia.id)
+      const members = csvRows.map(r => ({ ...r, tenantId: tenant.id }))
+      const { results } = await usersApi.createMemberBatch(members, tenant.id)
       setCsvResults(results)
       await load()
     } finally {
@@ -368,11 +368,11 @@ export function AdminPage() {
   }
 
   async function handleSaveQuota() {
-    if (!colmeia) return
+    if (!tenant) return
     setSavingQuota(true)
     setQuotaMessage('')
     try {
-      await colmeiasApi.update(colmeia.id, {
+      await tenantsApi.update(tenant.id, {
         quotaInteira: parseFloat(quotaInteira) || 0,
         quotaMeia: parseFloat(quotaMeia) || 0,
         freteDelivery: parseFloat(freteDelivery) || 0,
@@ -398,9 +398,9 @@ export function AdminPage() {
     .filter((u) => !filterName.trim() || u.name.toLowerCase().includes(filterName.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) // admin sempre em ordem alfabética (#46)
 
-  // Ação principal de cada aba. Não repete a checagem de superadmin da aba `colmeias`:
+  // Ação principal de cada aba. Não repete a checagem de superadmin da aba `tenants`:
   // o trigger e o TabsContent dela já são guardados e setTab só é chamado pelo próprio
-  // Tabs, então `tab === 'colmeias'` é inalcançável para os demais. Guarda redundante aqui
+  // Tabs, então `tab === 'tenants'` é inalcançável para os demais. Guarda redundante aqui
   // sugeriria que o portão é este, e não é.
   const acaoPrincipalDaAba =
     tab === 'usuarios' ? (
@@ -411,9 +411,9 @@ export function AdminPage() {
       <Button onClick={openCreateProducer}>
         <Plus className="mr-2 h-4 w-4" /> Novo Fornecedor
       </Button>
-    ) : tab === 'colmeias' ? (
-      <Button onClick={() => { setNewColmeiaName(''); setColmeiaError(''); setColmeiaDialog(true) }}>
-        <Plus className="mr-2 h-4 w-4" /> Nova Padaria
+    ) : tab === 'tenants' ? (
+      <Button onClick={() => { setNewTenantName(''); setTenantError(''); setTenantDialog(true) }}>
+        <Plus className="mr-2 h-4 w-4" /> Nova Organização
       </Button>
     ) : null
 
@@ -435,7 +435,7 @@ export function AdminPage() {
           <TabsTrigger value="produtores">Fornecedores</TabsTrigger>
           <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
           {user?.acesso === 'superadmin' && (
-            <TabsTrigger value="colmeias">Padarias</TabsTrigger>
+            <TabsTrigger value="tenants">Organizações</TabsTrigger>
           )}
         </TabsList>
 
@@ -736,7 +736,7 @@ export function AdminPage() {
         </TabsContent>
 
         {user?.acesso === 'superadmin' && (
-          <TabsContent value="colmeias">
+          <TabsContent value="tenants">
             <Card>
               <CardContent className="p-0">
                 <Table>
@@ -747,7 +747,7 @@ export function AdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {colmeias.map(c => (
+                    {tenants.map(c => (
                       <TableRow key={c.id}>
                         <TableCell className="font-medium">{c.name}</TableCell>
                         <TableCell>{new Date(c.dateCreated).toLocaleDateString('pt-BR')}</TableCell>
@@ -761,28 +761,28 @@ export function AdminPage() {
         )}
       </Tabs>
 
-      {/* Dialog: nova padaria */}
-      <Dialog open={colmeiaDialog} onOpenChange={setColmeiaDialog}>
+      {/* Dialog: nova organização */}
+      <Dialog open={tenantDialog} onOpenChange={setTenantDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova Padaria</DialogTitle>
+            <DialogTitle>Nova Organização</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
               <Label>Nome</Label>
               <Input
-                value={newColmeiaName}
-                onChange={(e) => setNewColmeiaName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateColmeia()}
-                placeholder="Ex: Fermentou Centro"
+                value={newTenantName}
+                onChange={(e) => setNewTenantName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateTenant()}
+                placeholder="Ex: Padaria Central"
               />
             </div>
-            {colmeiaError && <p className="text-sm text-destructive">{colmeiaError}</p>}
+            {tenantError && <p className="text-sm text-destructive">{tenantError}</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setColmeiaDialog(false)}>Cancelar</Button>
-            <Button onClick={handleCreateColmeia} disabled={savingColmeia || !newColmeiaName.trim()}>
-              {savingColmeia ? 'Criando...' : 'Criar'}
+            <Button variant="outline" onClick={() => setTenantDialog(false)}>Cancelar</Button>
+            <Button onClick={handleCreateTenant} disabled={savingTenant || !newTenantName.trim()}>
+              {savingTenant ? 'Criando...' : 'Criar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -912,8 +912,8 @@ export function AdminPage() {
                           className="text-muted-foreground hover:text-destructive"
                           onClick={async (e) => {
                             e.stopPropagation()
-                            if (!colmeia) return
-                            await rolesApi.delete(r.id, colmeia.id)
+                            if (!tenant) return
+                            await rolesApi.delete(r.id, tenant.id)
                             await load()
                           }}
                         >
@@ -937,8 +937,8 @@ export function AdminPage() {
                     type="button"
                     size="sm"
                     onClick={async () => {
-                      if (!newRoleName.trim() || !colmeia) return
-                      const created = await rolesApi.create(newRoleName.trim(), colmeia.id)
+                      if (!newRoleName.trim() || !tenant) return
+                      const created = await rolesApi.create(newRoleName.trim(), tenant.id)
                       await load()
                       setMemberForm((p) => ({ ...p, role: created.name }))
                       setNewRoleName('')
@@ -990,7 +990,7 @@ export function AdminPage() {
                 <Select value={memberForm.deliveryType} onValueChange={(v) => setMember('deliveryType', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="colmeia">Retirada na loja</SelectItem>
+                    <SelectItem value="retirada">Retirada na loja</SelectItem>
                     <SelectItem value="entrega">Entrega</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1050,7 +1050,7 @@ export function AdminPage() {
                       <tr key={i} className="border-b last:border-0">
                         <td className="py-1 pr-3 font-medium">{r.name}</td>
                         <td className="py-1 pr-3 text-muted-foreground">{r.email}</td>
-                        <td className="py-1 pr-3 capitalize">{r.deliveryType === 'colmeia' ? 'Retirada' : 'Entrega'}</td>
+                        <td className="py-1 pr-3 capitalize">{r.deliveryType === 'retirada' ? 'Retirada' : 'Entrega'}</td>
                         <td className="py-1 capitalize">{r.frequency}</td>
                       </tr>
                     ))}
@@ -1147,7 +1147,7 @@ export function AdminPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Função na colmeia</Label>
+              <Label>Função</Label>
               <Select
                 value={editForm.role ?? ''}
                 onValueChange={(v) => {
@@ -1166,8 +1166,8 @@ export function AdminPage() {
                           className="text-muted-foreground hover:text-destructive"
                           onClick={async (e) => {
                             e.stopPropagation()
-                            if (!colmeia) return
-                            await rolesApi.delete(r.id, colmeia.id)
+                            if (!tenant) return
+                            await rolesApi.delete(r.id, tenant.id)
                             await load()
                           }}
                         >
@@ -1191,8 +1191,8 @@ export function AdminPage() {
                     type="button"
                     size="sm"
                     onClick={async () => {
-                      if (!newRoleName.trim() || !colmeia) return
-                      const created = await rolesApi.create(newRoleName.trim(), colmeia.id)
+                      if (!newRoleName.trim() || !tenant) return
+                      const created = await rolesApi.create(newRoleName.trim(), tenant.id)
                       await load()
                       setEditForm((p) => ({ ...p, role: created.name }))
                       setNewRoleName('')
@@ -1250,7 +1250,7 @@ export function AdminPage() {
                 <Select value={editForm.deliveryType} onValueChange={(v) => setEdit('deliveryType', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="colmeia">Retirada na loja</SelectItem>
+                    <SelectItem value="retirada">Retirada na loja</SelectItem>
                     <SelectItem value="entrega">Entrega</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1263,7 +1263,7 @@ export function AdminPage() {
                   type="number"
                   step="0.01"
                   min="0"
-                  placeholder={`Padrão da colmeia: R$ ${(colmeia?.freteDelivery ?? 0).toFixed(2)}`}
+                  placeholder={`Padrão da tenant: R$ ${(tenant?.freteDelivery ?? 0).toFixed(2)}`}
                   value={editForm.freteDelivery ?? ''}
                   onChange={(e) =>
                     setEditForm((prev) => ({
@@ -1272,7 +1272,7 @@ export function AdminPage() {
                     }))
                   }
                 />
-                <p className="text-xs text-muted-foreground">Vazio = usa o padrão da colmeia.</p>
+                <p className="text-xs text-muted-foreground">Vazio = usa o padrão da tenant.</p>
               </div>
             )}
             {editForm.frequency === 'quinzenal' && (
@@ -1295,11 +1295,11 @@ export function AdminPage() {
               size="sm"
               disabled={resettingPassword}
               onClick={async () => {
-                if (!editingUser || !colmeia) return
+                if (!editingUser || !tenant) return
                 setResettingPassword(true)
                 setResetLink(null)
                 try {
-                  const { link, whatsappSent } = await usersApi.resetPassword(editingUser.id, colmeia.id)
+                  const { link, whatsappSent } = await usersApi.resetPassword(editingUser.id, tenant.id)
                   setResetLink(whatsappSent ? `__whatsapp__${link}` : link)
                 } catch {
                   setResetLink('Erro ao gerar link.')

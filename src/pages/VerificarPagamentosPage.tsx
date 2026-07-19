@@ -16,8 +16,8 @@ function currentMonth(): string {
 }
 
 export function VerificarPagamentosPage() {
-  const { user, colmeia } = useAuth()
-  const colmeiaId = colmeia?.id ?? ''
+  const { user, tenant } = useAuth()
+  const tenantId = tenant?.id ?? ''
   const [month, setMonth] = useState(currentMonth())
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,7 +31,7 @@ export function VerificarPagamentosPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const all = await paymentsApi.list(month, colmeiaId)
+      const all = await paymentsApi.list(month, tenantId)
       const filtered = isProdutor ? all.filter((p) => p.producerName === user?.name) : all
       filtered.sort((a, b) =>
   a.userName.localeCompare(b.userName, 'pt-BR') ||
@@ -41,14 +41,14 @@ export function VerificarPagamentosPage() {
     } finally {
       setLoading(false)
     }
-  }, [month, colmeiaId, isProdutor, user?.name])
+  }, [month, tenantId, isProdutor, user?.name])
 
   useEffect(() => { load() }, [load])
 
   async function handleVerify(p: Payment) {
     setVerifying(p.id)
     try {
-      await paymentsApi.update(p.id, { verified: true }, colmeiaId)
+      await paymentsApi.update(p.id, { verified: true }, tenantId)
       await load()
     } finally {
       setVerifying(null)

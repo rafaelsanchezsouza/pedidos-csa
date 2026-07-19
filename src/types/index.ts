@@ -1,11 +1,11 @@
-export interface Colmeia {
+export interface Tenant {
   id: string
   name: string
   adminId: string
   dateCreated: string
   quotaInteira?: number
   quotaMeia?: number
-  freteDelivery?: number  // frete padrão da colmeia (por entrega); membro pode ter override
+  freteDelivery?: number  // frete padrão da tenant (por entrega); membro pode ter override
   dueDay?: number
   orderSendDay?: number   // 0-6 (0=Dom, 2=Ter), default 2
   orderSendHour?: number  // 0-23, default 6
@@ -21,8 +21,8 @@ export interface User {
   neighborhood?: string
   contact: string
   frequency: 'semanal' | 'quinzenal'
-  deliveryType: 'colmeia' | 'entrega'
-  colmeiaId: string
+  deliveryType: 'retirada' | 'entrega'
+  tenantId: string
   acesso: 'admin' | 'user' | 'superadmin' | 'produtor'
   role?: string
   isentoCotas?: boolean
@@ -33,20 +33,20 @@ export interface User {
   quota?: 'Cota inteira' | 'Meia cota'
   acolhidaExpiry?: string
   deliveryOrder?: number // posição manual na lista de entrega (só deliveryType 'entrega'); ausente = não ordenado
-  freteDelivery?: number // override do frete deste membro; ausente = usa o padrão da colmeia
+  freteDelivery?: number // override do frete deste membro; ausente = usa o padrão da tenant
 }
 
-export interface ColmeiaRole {
+export interface TenantRole {
   id: string
   name: string
-  colmeiaId: string
+  tenantId: string
 }
 
 export interface Producer {
   id: string
   name: string
   contact: string
-  colmeiaId: string
+  tenantId: string
   pixKey?: string
 }
 
@@ -56,7 +56,7 @@ export interface Product {
   unit: string
   price: number
   producerId: string
-  colmeiaId: string
+  tenantId: string
   dateUpdated: string
   /** Item do cardápio fixo (cobrado via cota) ou extra pedido avulso. Ausente = extra. */
   type?: 'fixo' | 'extra'
@@ -76,7 +76,7 @@ export interface WeeklyOffering {
   id: string
   producerId: string
   producerName: string
-  colmeiaId: string
+  tenantId: string
   items: OfferingItem[]
   weekStart: string
   dateCreated: string
@@ -96,7 +96,7 @@ export interface Order {
   id: string
   userId: string
   userName: string
-  colmeiaId: string
+  tenantId: string
   weekId: string
   items: OrderItem[]
   status: 'rascunho' | 'enviado'
@@ -113,7 +113,7 @@ export interface Payment {
   id: string
   userId: string
   userName: string
-  colmeiaId: string
+  tenantId: string
   month: string
   producerName: string
   proofUrl?: string

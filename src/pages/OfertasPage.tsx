@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, X, History, Pencil, Lock, Unlock, ListPlus } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { offeringsApi, producersApi, productsApi, colmeiasApi } from '@/services/api'
+import { offeringsApi, producersApi, productsApi, tenantsApi } from '@/services/api'
 import { formatDeliveryDate, getPresentWeekId } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@/components/PageHeader'
@@ -28,7 +28,7 @@ import {
 
 
 export function OfertasPage() {
-  const { colmeia } = useAuth()
+  const { tenant } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [offerings, setOfferings] = useState<WeeklyOffering[]>([])
   const [producers, setProducers] = useState<Producer[]>([])
@@ -49,34 +49,34 @@ export function OfertasPage() {
   const [weekId, setWeekId] = useState(getPresentWeekId())
 
   const load = useCallback(async () => {
-    if (!colmeia) return
+    if (!tenant) return
     setLoading(true)
     try {
-      const [offs, prods, prdsrs, freshColmeia] = await Promise.all([
-        offeringsApi.list(weekId, colmeia.id),
-        producersApi.list(colmeia.id),
-        productsApi.list(colmeia.id),
-        colmeiasApi.get(colmeia.id),
+      const [offs, prods, prdsrs, freshTenant] = await Promise.all([
+        offeringsApi.list(weekId, tenant.id),
+        producersApi.list(tenant.id),
+        productsApi.list(tenant.id),
+        tenantsApi.get(tenant.id),
       ])
       setOfferings(offs)
       setProducers(prods)
       setProducts(prdsrs)
-      setExtrasAberto(freshColmeia.extrasAberto ?? true)
+      setExtrasAberto(freshTenant.extrasAberto ?? true)
     } catch {
       // silencioso — erros de carregamento não são exibidos ao usuário aqui
     } finally {
       setLoading(false)
     }
-  }, [colmeia, weekId])
+  }, [tenant, weekId])
 
   useEffect(() => { load() }, [load])
 
   async function handleToggleExtras() {
-    if (!colmeia) return
+    if (!tenant) return
     setTogglingExtras(true)
     try {
       const novo = !extrasAberto
-      await colmeiasApi.update(colmeia.id, { extrasAberto: novo })
+      await tenantsApi.update(tenant.id, { extrasAberto: novo })
       setExtrasAberto(novo)
     } finally {
       setTogglingExtras(false)
@@ -133,11 +133,11 @@ export function OfertasPage() {
   }
 
   async function handleFallback(producerId: string) {
-    if (!colmeia) return
+    if (!tenant) return
     setFallingBack(producerId)
     setFallbackMessage((prev) => ({ ...prev, [producerId]: '' }))
     try {
-      const result = await offeringsApi.fallback(weekId, colmeia.id, producerId)
+      const result = await offeringsApi.fallback(weekId, tenant.id, producerId)
       if (result.length === 0) {
         setFallbackMessage((prev) => ({ ...prev, [producerId]: 'Nenhuma oferta anterior encontrada.' }))
       } else {
@@ -155,11 +155,11 @@ export function OfertasPage() {
 
   // Publica a oferta da semana direto do catálogo, sem passar pelo formulário
   async function handleGerarDoCatalogo(producerId: string) {
-    if (!colmeia) return
+    if (!tenant) return
     setGerando(producerId)
     setFallbackMessage((prev) => ({ ...prev, [producerId]: '' }))
     try {
-      const result = await offeringsApi.fromCatalog(weekId, colmeia.id, producerId)
+      const result = await offeringsApi.fromCatalog(weekId, tenant.id, producerId)
       if (result.length === 0) {
         setFallbackMessage((prev) => ({
           ...prev,
@@ -195,7 +195,7 @@ export function OfertasPage() {
   }
 
   async function handleSave() {
-    if (!colmeia || !selectedProducerId || !itens) return
+    if (!tenant || !selectedProducerId || !itens) return
     setError(null)
     setSaving(true)
     try {
@@ -208,15 +208,15 @@ export function OfertasPage() {
         type: p.type,
       }))
       if (editing) {
-        await offeringsApi.update(editing.id, { items }, colmeia.id)
+        await offeringsApi.update(editing.id, { items }, tenant.id)
       } else {
         await offeringsApi.create({
           producerId: selectedProducerId,
           producerName: producer?.name ?? '',
-          colmeiaId: colmeia.id,
+          tenantId: tenant.id,
           items,
           weekStart: weekId,
-        }, colmeia.id)
+        }, tenant.id)
       }
       setDialogOpen(false)
       await load()

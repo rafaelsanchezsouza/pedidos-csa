@@ -5,6 +5,7 @@ import { signInWithCustomToken } from 'firebase/auth'
 import { useAuth } from '@/hooks/useAuth'
 import { auth } from '@/services/firebase'
 import { whatsappApi } from '@/services/api'
+import { APP_NAME } from '@/lib/brand'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,7 +30,7 @@ function isPhoneInput(value: string): boolean {
 }
 
 export function LoginPage() {
-  const { firebaseUser, colmeia, colmeias, loading, authError, login, selectColmeia } = useAuth()
+  const { firebaseUser, tenant, tenants, loading, authError, login, selectTenant } = useAuth()
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -43,7 +44,7 @@ export function LoginPage() {
   const isPhone = isPhoneInput(identifier) && identifier.length > 0
   const displayError = error || authError
 
-  if (!loading && firebaseUser && colmeia) {
+  if (!loading && firebaseUser && tenant) {
     return <Navigate to="/pedidos" replace />
   }
 
@@ -99,7 +100,7 @@ export function LoginPage() {
     }
   }
 
-  if (firebaseUser && colmeias.length > 1 && !colmeia) {
+  if (firebaseUser && tenants.length > 1 && !tenant) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <Card className="w-full max-w-sm">
@@ -107,16 +108,16 @@ export function LoginPage() {
             <div className="flex justify-center mb-2">
               <Leaf className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle>Selecionar Padaria</CardTitle>
-            <CardDescription>Você pertence a mais de uma padaria</CardDescription>
+            <CardTitle>Selecionar Organização</CardTitle>
+            <CardDescription>Você pertence a mais de uma organização</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Select onValueChange={selectColmeia}>
+            <Select onValueChange={selectTenant}>
               <SelectTrigger>
-                <SelectValue placeholder="Escolha uma colmeia..." />
+                <SelectValue placeholder="Escolha uma organização..." />
               </SelectTrigger>
               <SelectContent>
-                {colmeias.map((c) => (
+                {tenants.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
                   </SelectItem>
@@ -136,8 +137,8 @@ export function LoginPage() {
           <div className="flex justify-center mb-2">
             <Leaf className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Fermentou</CardTitle>
-          <CardDescription>Comunidade que Sustenta a Agricultura</CardDescription>
+          <CardTitle className="text-2xl">{APP_NAME}</CardTitle>
+          <CardDescription>Gestão de pedidos e entregas</CardDescription>
         </CardHeader>
         <CardContent>
           {otpSent ? (

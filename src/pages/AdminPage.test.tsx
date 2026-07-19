@@ -15,17 +15,17 @@ vi.mock('@/services/api', () => ({
   usersApi: { list: vi.fn().mockResolvedValue([]) },
   producersApi: { list: vi.fn().mockResolvedValue([]) },
   rolesApi: { list: vi.fn().mockResolvedValue([]) },
-  colmeiasApi: { create: vi.fn() },
+  tenantsApi: { create: vi.fn() },
 }))
 
 import { AdminPage } from './AdminPage'
 
-const colmeia = { id: 'c1', name: 'Flor de Quilombo' }
+const tenant = { id: 'c1', name: 'Flor de Quilombo' }
 
 function montar(acesso: User['acesso']) {
   mockUseAuth.mockReturnValue({
-    colmeia,
-    colmeias: [colmeia],
+    tenant,
+    tenants: [tenant],
     user: { id: 'u1', name: 'Admin', acesso },
     refreshUser: vi.fn(),
   })
@@ -63,22 +63,22 @@ describe('AdminPage — ação principal por aba', () => {
     expect(botao('Novo Cliente')).not.toBeInTheDocument()
     expect(botao('Novo Fornecedor')).not.toBeInTheDocument()
     expect(botao('Importar CSV')).not.toBeInTheDocument()
-    expect(botao('Nova Padaria')).not.toBeInTheDocument()
+    expect(botao('Nova Organização')).not.toBeInTheDocument()
   })
 
-  it('superadmin: aba padarias existe e mostra Nova Padaria', async () => {
+  it('superadmin: aba organizações existe e mostra Nova Organização', async () => {
     const user = userEvent.setup()
     montar('superadmin')
-    await user.click(await screen.findByRole('tab', { name: 'Padarias' }))
+    await user.click(await screen.findByRole('tab', { name: 'Organizações' }))
 
-    expect(botao('Nova Padaria')).toBeInTheDocument()
+    expect(botao('Nova Organização')).toBeInTheDocument()
     expect(botao('Novo Cliente')).not.toBeInTheDocument()
   })
 
   it('admin comum não vê a aba padarias', async () => {
     montar('admin')
     expect(await screen.findByRole('tab', { name: 'Clientes' })).toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'Padarias' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Organizações' })).not.toBeInTheDocument()
   })
 
   it('volta para Novo Cliente ao retornar à aba clientes', async () => {

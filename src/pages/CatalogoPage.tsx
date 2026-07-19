@@ -36,7 +36,7 @@ interface ProductForm {
 const emptyForm: ProductForm = { name: '', unit: 'unid', price: '', producerId: '', type: 'extra', ativo: true }
 
 export function CatalogoPage() {
-  const { colmeia } = useAuth()
+  const { tenant } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
   const [producers, setProducers] = useState<Producer[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,19 +48,19 @@ export function CatalogoPage() {
   const [filterName, setFilterName] = useState('')
 
   const load = useCallback(async () => {
-    if (!colmeia) return
+    if (!tenant) return
     setLoading(true)
     try {
       const [prods, prodsrs] = await Promise.all([
-        productsApi.list(colmeia.id),
-        producersApi.list(colmeia.id),
+        productsApi.list(tenant.id),
+        producersApi.list(tenant.id),
       ])
       setProducts(prods)
       setProducers(prodsrs)
     } finally {
       setLoading(false)
     }
-  }, [colmeia])
+  }, [tenant])
 
   useEffect(() => { load() }, [load])
 
@@ -84,7 +84,7 @@ export function CatalogoPage() {
   }
 
   async function handleSave() {
-    if (!colmeia) return
+    if (!tenant) return
     setSaving(true)
     try {
       const data = {
@@ -92,14 +92,14 @@ export function CatalogoPage() {
         unit: form.unit.trim(),
         price: parseFloat(form.price),
         producerId: form.producerId,
-        colmeiaId: colmeia.id,
+        tenantId: tenant.id,
         type: form.type,
         ativo: form.ativo,
       }
       if (editing) {
-        await productsApi.update(editing.id, data, colmeia.id)
+        await productsApi.update(editing.id, data, tenant.id)
       } else {
-        await productsApi.create(data, colmeia.id)
+        await productsApi.create(data, tenant.id)
       }
       setDialogOpen(false)
       await load()
@@ -109,8 +109,8 @@ export function CatalogoPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!colmeia || !confirm('Excluir este produto?')) return
-    await productsApi.delete(id, colmeia.id)
+    if (!tenant || !confirm('Excluir este produto?')) return
+    await productsApi.delete(id, tenant.id)
     setProducts((prev) => prev.filter((p) => p.id !== id))
   }
 

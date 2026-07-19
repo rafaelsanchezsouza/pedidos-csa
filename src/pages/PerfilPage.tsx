@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 
 export function PerfilPage() {
-  const { user, colmeia, refreshUser } = useAuth()
+  const { user, tenant, refreshUser } = useAuth()
   const [form, setForm] = useState<Partial<User>>({})
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -42,7 +42,7 @@ export function PerfilPage() {
     setSaving(true)
     setMessage('')
     try {
-      await usersApi.updateMe(form, colmeia?.id)
+      await usersApi.updateMe(form, tenant?.id)
       await refreshUser()
       setMessage('Perfil atualizado!')
     } catch (err) {
@@ -95,7 +95,7 @@ export function PerfilPage() {
               <Select value={form.deliveryType} onValueChange={(v) => set('deliveryType', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="colmeia">Retirada na loja</SelectItem>
+                  <SelectItem value="retirada">Retirada na loja</SelectItem>
                   <SelectItem value="entrega">Entrega</SelectItem>
                 </SelectContent>
               </Select>

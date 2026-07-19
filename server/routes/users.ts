@@ -13,8 +13,8 @@ interface UserDoc {
   address: string
   contact: string
   frequency: 'semanal' | 'quinzenal'
-  deliveryType: 'colmeia' | 'entrega'
-  colmeiaId: string
+  deliveryType: 'retirada' | 'entrega'
+  tenantId: string
   acesso: 'admin' | 'user' | 'superadmin' | 'produtor'
   role?: string
   isentoCotas?: boolean
@@ -30,8 +30,8 @@ function gerarSenha() {
   return crypto.randomBytes(5).toString('hex') + 'Csa1!'
 }
 
-async function enviarBoasVindas(contact: string, name: string, email: string, password: string, colmeiaName: string) {
-  const msg = `Olá, ${name}! Bem-vinde à ${colmeiaName} 🌿\n\nSeu acesso ao app de pedidos foi criado:\nE-mail: ${email}\nSenha: ${password}\n\nAcesse: http://csaparahyba.com.br/\n\nNa primeira entrada, defina uma nova senha.`
+async function enviarBoasVindas(contact: string, name: string, email: string, password: string, tenantName: string) {
+  const msg = `Olá, ${name}! Bem-vinde à ${tenantName} 🌿\n\nSeu acesso ao app de pedidos foi criado:\nE-mail: ${email}\nSenha: ${password}\n\nAcesse: http://csaparahyba.com.br/\n\nNa primeira entrada, defina uma nova senha.`
   await sendWhatsAppMessage(normalizePhone(contact), msg)
 }
 
@@ -58,9 +58,9 @@ router.put('/me', async (req: Request, res: Response) => {
 
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
-    if (!colmeiaId) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
-    const users = await listDocs<UserDoc>('users', [['colmeiaId', '==', colmeiaId]])
+    const tenantId = (req.query.tenantId as string) || req.tenantId
+    if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
+    const users = await listDocs<UserDoc>('users', [['tenantId', '==', tenantId]])
     res.json(users)
   } catch (err) {
     res.status(500).json({ message: String(err) })
@@ -89,9 +89,9 @@ router.post('/create-member', async (req: Request, res: Response) => {
     const data: UserDoc = { email, ...profile, mustChangePassword: true } as UserDoc & { mustChangePassword: boolean }
     await db.collection('users').doc(authUser.uid).set(data)
     if (profile.contact) {
-      const colmeiaSnap = await db.collection('colmeias').doc(profile.colmeiaId).get()
-      const colmeiaName = (colmeiaSnap.data()?.name as string | undefined) ?? 'CSA'
-      enviarBoasVindas(profile.contact, profile.name, email, password, colmeiaName).catch(() => {/* não bloquear */})
+      const tenantSnap = await db.collection('tenants').doc(profile.tenantId).get()
+      const tenantName = (tenantSnap.data()?.name as string | undefined) ?? 'CSA'
+      enviarBoasVindas(profile.contact, profile.name, email, password, tenantName).catch(() => {/* não bloquear */})
     }
     res.status(201).json({ id: authUser.uid, ...data, password })
   } catch (err) {
@@ -106,9 +106,9 @@ router.post('/create-member-batch', async (req: Request, res: Response) => {
     if (!Array.isArray(members) || members.length === 0) {
       res.status(400).json({ message: 'members deve ser array não-vazio' }); return
     }
-    const colmeiaId = members[0].colmeiaId
-    const colmeiaSnap = await db.collection('colmeias').doc(colmeiaId).get()
-    const colmeiaName = (colmeiaSnap.data()?.name as string | undefined) ?? 'CSA'
+    const tenantId = members[0].tenantId
+    const tenantSnap = await db.collection('tenants').doc(tenantId).get()
+    const tenantName = (tenantSnap.data()?.name as string | undefined) ?? 'CSA'
     const results: Array<{ name: string; email: string; success: boolean; error?: string; password?: string }> = []
     for (const { password: rawPassword, email, ...profile } of members) {
       if (!email) { results.push({ name: profile.name, email: '', success: false, error: 'e-mail ausente' }); continue }
@@ -118,7 +118,7 @@ router.post('/create-member-batch', async (req: Request, res: Response) => {
         const data = { email, ...profile, mustChangePassword: true }
         await db.collection('users').doc(authUser.uid).set(data)
         if (profile.contact) {
-          try { await enviarBoasVindas(profile.contact, profile.name, email, password, colmeiaName) } catch { /* não bloquear */ }
+          try { await enviarBoasVindas(profile.contact, profile.name, email, password, tenantName) } catch { /* não bloquear */ }
         }
         results.push({ name: profile.name, email, success: true, password })
       } catch (err) {
@@ -136,17 +136,17 @@ router.post('/create-member-batch', async (req: Request, res: Response) => {
 // grava deliveryOrder = posição. Registrada antes de /:uid, senão /:uid captura a rota.
 router.put('/reorder-delivery', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = req.colmeiaId
-    if (!colmeiaId) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
+    const tenantId = req.tenantId
+    if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
     const { orderedIds } = req.body as { orderedIds: string[] }
     if (!Array.isArray(orderedIds)) { res.status(400).json({ message: 'orderedIds deve ser um array' }); return }
 
-    // Cada id tem que ser um usuário desta colmeia — não deixar reordenar de fora.
-    const membros = await listDocs<UserDoc>('users', [['colmeiaId', '==', colmeiaId]])
-    const idsDaColmeia = new Set(membros.map((u) => u.id))
-    const invalidos = orderedIds.filter((id) => !idsDaColmeia.has(id))
+    // Cada id tem que ser um usuário desta tenant — não deixar reordenar de fora.
+    const membros = await listDocs<UserDoc>('users', [['tenantId', '==', tenantId]])
+    const idsDaTenant = new Set(membros.map((u) => u.id))
+    const invalidos = orderedIds.filter((id) => !idsDaTenant.has(id))
     if (invalidos.length > 0) {
-      res.status(400).json({ message: `ids fora da colmeia: ${invalidos.join(', ')}` }); return
+      res.status(400).json({ message: `ids fora da tenant: ${invalidos.join(', ')}` }); return
     }
 
     const batch = db.batch()

@@ -6,15 +6,15 @@ const router = Router()
 interface ProducerDoc {
   name: string
   contact: string
-  colmeiaId: string
+  tenantId: string
   pixKey?: string
 }
 
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string | undefined) || req.colmeiaId
-    if (!colmeiaId) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
-    const producers = await listDocs<ProducerDoc>('producers', [['colmeiaId', '==', colmeiaId]])
+    const tenantId = (req.query.tenantId as string | undefined) || req.tenantId
+    if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
+    const producers = await listDocs<ProducerDoc>('producers', [['tenantId', '==', tenantId]])
     res.json(producers)
   } catch (err) {
     res.status(500).json({ message: String(err) })

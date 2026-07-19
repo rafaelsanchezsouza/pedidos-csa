@@ -7,7 +7,7 @@ Atualizado em 2026-07-19. Nada aqui eu consigo resolver sozinho.
 | # | Pendência | Nota |
 |---|---|---|
 | A1 | `npx -y firebase-tools login` | login interativo na sua conta Google; sem isso a CLI não faz nada |
-| A2 | Criar projetos `fermentou-dev` e `fermentou` | **project ID é permanente e global no Google** — se o nome estiver tomado, escolher outro antes de criar |
+| A2 | Criar projetos Firebase (dev + prod) | **project ID é permanente e global no Google.** Decidir o nome: genérico (`pedidos-app-dev`/`pedidos-app`, coerente com o motor multi-tenant) ou pelo 1º cliente (`fermentou-dev`/`fermentou`). Se o escolhido estiver tomado, decidir antes de criar |
 | A3 | Console → Authentication → habilitar **email/senha** | a CLI não cobre |
 | A4 | Console → Firestore → criar banco em `southamerica-east1` | região errada não se corrige depois |
 | A5 | Console → Storage → criar bucket | usado pelos comprovantes (`useUploadProof`) |
@@ -39,8 +39,9 @@ Depois de A1 e A2 eu consigo registrar o app web e escrever as chaves `VITE_FIRE
 
 | # | Escolha | Reversível? |
 |---|---|---|
-| D1 | Repo/infra continuam `padaria-app`; só o produto é "Fermentou" (mesmo padrão do `note-app` × "Notas de Cuidado") | sim, barato |
-| D2 | Tenant continua `colmeiaId` no código; UI fala "padaria" | sim, mas quebra o `cherry-pick` com a CSA |
-| D3 | "Produtor" virou **Fornecedor** na UI (o valor gravado segue `'produtor'`) | sim, é só rótulo |
-| D4 | "Membro" virou **Cliente** na UI | sim, é só rótulo |
+| D1 | Repo/infra renomeados para `pedidos-app` (genérico, coerente com o merge futuro) | sim, barato |
+| D2 | `colmeia`→`tenant` no código e UI; marca via `APP_NAME` | escolha alinhada ao merge; quebra o `cherry-pick` com a CSA |
+| D3 | "Produtor"→**Fornecedor**, "Membro"→**Cliente**, "Colmeia/Padaria"→**Organização** na UI | sim, é só rótulo |
+| D4 | Marca do produto = "Pedidos" (`APP_NAME`), nome do tenant vem do dado | sim, uma linha |
 | D5 | Portas 3004/8092 reservadas no `DEPLOY-PLAYBOOK.md` | sim, ainda não implantado |
+| D6 | Funções padrão do campo `role` removidas (eram CSA); campo agora 100% livre | sim |

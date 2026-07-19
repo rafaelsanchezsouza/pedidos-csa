@@ -19,7 +19,7 @@ interface OrderItem {
 interface OrderDoc {
   userId: string
   userName: string
-  colmeiaId: string
+  tenantId: string
   weekId: string
   items: OrderItem[]
   status: 'rascunho' | 'enviado'
@@ -34,12 +34,12 @@ interface OrderDoc {
 
 router.get('/my', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.query.tenantId as string) || req.tenantId
     const weekId = req.query.weekId as string
-    if (!colmeiaId || !weekId) { res.status(400).json({ message: 'colmeiaId e weekId obrigatórios' }); return }
+    if (!tenantId || !weekId) { res.status(400).json({ message: 'tenantId e weekId obrigatórios' }); return }
     const orders = await listDocs<OrderDoc>('orders', [
       ['userId', '==', req.user!.uid],
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
       ['weekId', '==', weekId],
     ])
     res.json(orders[0] ?? null)
@@ -50,11 +50,11 @@ router.get('/my', async (req: Request, res: Response) => {
 
 router.get('/consolidated', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.query.tenantId as string) || req.tenantId
     const weekId = req.query.weekId as string
-    if (!colmeiaId || !weekId) { res.status(400).json({ message: 'colmeiaId e weekId obrigatórios' }); return }
+    if (!tenantId || !weekId) { res.status(400).json({ message: 'tenantId e weekId obrigatórios' }); return }
     const orders = await listDocs<OrderDoc>('orders', [
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
       ['weekId', '==', weekId],
     ])
     res.json(orders)
@@ -63,29 +63,29 @@ router.get('/consolidated', async (req: Request, res: Response) => {
   }
 })
 
-// GET /api/orders/consolidated-text?weekId=&colmeiaId=&producerId=
+// GET /api/orders/consolidated-text?weekId=&tenantId=&producerId=
 router.get('/consolidated-text', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.query.tenantId as string) || req.tenantId
     const weekId = req.query.weekId as string
     const producerId = req.query.producerId as string
-    if (!colmeiaId || !weekId || !producerId) {
-      res.status(400).json({ message: 'colmeiaId, weekId e producerId obrigatórios' }); return
+    if (!tenantId || !weekId || !producerId) {
+      res.status(400).json({ message: 'tenantId, weekId e producerId obrigatórios' }); return
     }
-    const text = await buildConsolidatedText(colmeiaId, weekId, producerId)
+    const text = await buildConsolidatedText(tenantId, weekId, producerId)
     res.json({ text })
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
 })
 
-// GET /api/orders/week-lock?weekId=&colmeiaId=
+// GET /api/orders/week-lock?weekId=&tenantId=
 router.get('/week-lock', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.query.tenantId as string) || req.tenantId
     const weekId = req.query.weekId as string
-    if (!colmeiaId || !weekId) { res.status(400).json({ message: 'colmeiaId e weekId obrigatórios' }); return }
-    const snap = await db.collection('week_locks').doc(`${colmeiaId}_${weekId}`).get()
+    if (!tenantId || !weekId) { res.status(400).json({ message: 'tenantId e weekId obrigatórios' }); return }
+    const snap = await db.collection('week_locks').doc(`${tenantId}_${weekId}`).get()
     res.json({ locked: snap.exists })
   } catch (err) {
     res.status(500).json({ message: String(err) })
@@ -95,30 +95,30 @@ router.get('/week-lock', async (req: Request, res: Response) => {
 // POST /api/orders/send-consolidated-whatsapp
 router.post('/send-consolidated-whatsapp', async (req: Request, res: Response) => {
   try {
-    const { colmeiaId: bodyColmeiaId, weekId, producerId } = req.body as { colmeiaId?: string; weekId: string; producerId: string }
-    const colmeiaId = bodyColmeiaId || req.colmeiaId
-    if (!colmeiaId || !weekId || !producerId) {
-      res.status(400).json({ message: 'colmeiaId, weekId e producerId obrigatórios' }); return
+    const { tenantId: bodyTenantId, weekId, producerId } = req.body as { tenantId?: string; weekId: string; producerId: string }
+    const tenantId = bodyTenantId || req.tenantId
+    if (!tenantId || !weekId || !producerId) {
+      res.status(400).json({ message: 'tenantId, weekId e producerId obrigatórios' }); return
     }
 
     const producers = await listDocs<{ name: string; contact: string }>('producers', [
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
     ])
     const producer = producers.find((p) => p.id === producerId)
     if (!producer?.contact) {
       res.status(400).json({ message: 'Produtor sem número de contato cadastrado' }); return
     }
 
-    const text = await buildConsolidatedText(colmeiaId, weekId, producerId)
+    const text = await buildConsolidatedText(tenantId, weekId, producerId)
     if (!text) { res.status(400).json({ message: 'Nenhum pedido enviado para este produtor na semana' }); return }
     await sendWhatsAppMessage(normalizePhone(producer.contact), text)
 
-    const lockId = `${colmeiaId}_${weekId}`
+    const lockId = `${tenantId}_${weekId}`
     const lockedAt = new Date().toISOString()
     // week_lock e extrasAberto são independentes — falha em um não cancela o outro
-    await db.collection('week_locks').doc(lockId).set({ colmeiaId, weekId, lockedAt })
+    await db.collection('week_locks').doc(lockId).set({ tenantId, weekId, lockedAt })
       .catch((err) => console.error('[send-consolidated] week_lock falhou:', err))
-    await db.collection('colmeias').doc(colmeiaId).update({ extrasAberto: false })
+    await db.collection('tenants').doc(tenantId).update({ extrasAberto: false })
       .catch((err) => console.error('[send-consolidated] extrasAberto falhou:', err))
 
     res.json({ success: true })
@@ -130,16 +130,16 @@ router.post('/send-consolidated-whatsapp', async (req: Request, res: Response) =
 // PATCH /api/orders/recebido — admin marca recebido para um membro na semana
 router.patch('/recebido', async (req: Request, res: Response) => {
   try {
-    const { userId, userName, weekId, colmeiaId: bodyColmeiaId, recebido } = req.body as {
-      userId: string; userName: string; weekId: string; colmeiaId: string; recebido: boolean
+    const { userId, userName, weekId, tenantId: bodyTenantId, recebido } = req.body as {
+      userId: string; userName: string; weekId: string; tenantId: string; recebido: boolean
     }
-    const colmeiaId = bodyColmeiaId || req.colmeiaId
-    if (!userId || !weekId || !colmeiaId) {
-      res.status(400).json({ message: 'userId, weekId e colmeiaId obrigatórios' }); return
+    const tenantId = bodyTenantId || req.tenantId
+    if (!userId || !weekId || !tenantId) {
+      res.status(400).json({ message: 'userId, weekId e tenantId obrigatórios' }); return
     }
     const existing = await listDocs<OrderDoc>('orders', [
       ['userId', '==', userId],
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
       ['weekId', '==', weekId],
     ])
     const now = new Date().toISOString()
@@ -148,7 +148,7 @@ router.patch('/recebido', async (req: Request, res: Response) => {
       res.json({ id: existing[0].id, recebido })
     } else {
       const created = await createDoc<OrderDoc>('orders', {
-        userId, userName: userName ?? '', colmeiaId, weekId,
+        userId, userName: userName ?? '', tenantId, weekId,
         items: [], status: 'rascunho', recebido, dateCreated: now, dateUpdated: now,
       })
       res.json(created)
@@ -158,15 +158,15 @@ router.patch('/recebido', async (req: Request, res: Response) => {
   }
 })
 
-// GET /api/orders/history?colmeiaId=&userId= (userId opcional, apenas admin)
+// GET /api/orders/history?tenantId=&userId= (userId opcional, apenas admin)
 router.get('/history', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
-    if (!colmeiaId) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
+    const tenantId = (req.query.tenantId as string) || req.tenantId
+    if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
     const userId = (req.query.userId as string) || req.user!.uid
     const orders = await listDocs<OrderDoc>('orders', [
       ['userId', '==', userId],
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
     ])
     orders.sort((a, b) => b.weekId.localeCompare(a.weekId))
     res.json(orders)
@@ -175,15 +175,15 @@ router.get('/history', async (req: Request, res: Response) => {
   }
 })
 
-// GET /api/orders/monthly?month=YYYY-MM&colmeiaId= (pedidos enviados do mês do usuário autenticado)
+// GET /api/orders/monthly?month=YYYY-MM&tenantId= (pedidos enviados do mês do usuário autenticado)
 router.get('/monthly', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.query.tenantId as string) || req.tenantId
     const month = req.query.month as string
-    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
+    if (!tenantId || !month) { res.status(400).json({ message: 'tenantId e month obrigatórios' }); return }
     const orders = await listDocs<OrderDoc>('orders', [
       ['userId', '==', req.user!.uid],
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
     ])
     const result = orders
       .filter((o) => o.status === 'enviado' && o.weekId.startsWith(month))
@@ -197,20 +197,20 @@ router.get('/monthly', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data = req.body as Omit<OrderDoc, 'dateCreated' | 'dateUpdated'>
-    const [userSnap, colmeiaSnap] = await Promise.all([
+    const [userSnap, tenantSnap] = await Promise.all([
       db.collection('users').doc(req.user!.uid).get(),
-      db.collection('colmeias').doc(data.colmeiaId).get(),
+      db.collection('tenants').doc(data.tenantId).get(),
     ])
     const acesso = (userSnap.data() as { acesso?: string } | undefined)?.acesso
     const isAdmin = acesso === 'admin' || acesso === 'superadmin'
-    const extrasAberto = (colmeiaSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
+    const extrasAberto = (tenantSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
     if (!extrasAberto && !isAdmin) {
       res.status(403).json({ message: 'Pedidos de extras estão encerrados no momento' }); return
     }
     const now = new Date().toISOString()
     const order = await createDoc<OrderDoc>('orders', { ...data, dateCreated: now, dateUpdated: now })
     if (order.status === 'enviado') {
-      await upsertPaymentsForOrder(order.userId, order.userName, order.colmeiaId, order.weekId.slice(0, 7))
+      await upsertPaymentsForOrder(order.userId, order.userName, order.tenantId, order.weekId.slice(0, 7))
     }
     res.status(201).json(order)
   } catch (err) {
@@ -222,13 +222,13 @@ router.put('/:id', async (req: Request, res: Response) => {
   try {
     const existing = await getDoc<OrderDoc>('orders', req.params['id'] as string)
     if (existing) {
-      const [userSnap, colmeiaSnap] = await Promise.all([
+      const [userSnap, tenantSnap] = await Promise.all([
         db.collection('users').doc(req.user!.uid).get(),
-        db.collection('colmeias').doc(existing.colmeiaId).get(),
+        db.collection('tenants').doc(existing.tenantId).get(),
       ])
       const userData = userSnap.data() as { acesso?: string } | undefined
       const isAdmin = userData?.acesso === 'admin' || userData?.acesso === 'superadmin'
-      const extrasAberto = (colmeiaSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
+      const extrasAberto = (tenantSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
       if (!extrasAberto && !isAdmin) {
         res.status(403).json({ message: 'Pedidos de extras estão encerrados no momento' }); return
       }
@@ -237,7 +237,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     await updateDoc<OrderDoc>('orders', req.params['id'] as string, updates)
     const updatedStatus = (req.body as Partial<OrderDoc>).status
     if ((updatedStatus === 'enviado' || updatedStatus === 'rascunho') && existing) {
-      await upsertPaymentsForOrder(existing.userId, existing.userName, existing.colmeiaId, existing.weekId.slice(0, 7))
+      await upsertPaymentsForOrder(existing.userId, existing.userName, existing.tenantId, existing.weekId.slice(0, 7))
     }
     res.json({ id: req.params['id'], ...updates })
   } catch (err) {

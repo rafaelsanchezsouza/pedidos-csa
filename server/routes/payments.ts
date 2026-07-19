@@ -9,7 +9,7 @@ const router = Router()
 interface PaymentDoc {
   userId: string
   userName: string
-  colmeiaId: string
+  tenantId: string
   month: string
   producerName: string
   amount: number
@@ -23,11 +23,11 @@ interface PaymentDoc {
 // POST /api/payments/quota — cria/atualiza pagamento de cota do mês
 router.post('/quota', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.body.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.body.tenantId as string) || req.tenantId
     const month = req.body.month as string
     const uid = req.user!.uid
-    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
-    const result = await generateQuotaForUser(uid, colmeiaId, month)
+    if (!tenantId || !month) { res.status(400).json({ message: 'tenantId e month obrigatórios' }); return }
+    const result = await generateQuotaForUser(uid, tenantId, month)
     res.json(result)
   } catch (err) {
     const msg = String(err)
@@ -39,10 +39,10 @@ router.post('/quota', async (req: Request, res: Response) => {
 // POST /api/payments/quota/all — garante doc de cota para todos os membros elegíveis (admin)
 router.post('/quota/all', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.body.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.body.tenantId as string) || req.tenantId
     const month = req.body.month as string
-    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
-    const result = await generateQuotaForAll(colmeiaId, month)
+    if (!tenantId || !month) { res.status(400).json({ message: 'tenantId e month obrigatórios' }); return }
+    const result = await generateQuotaForAll(tenantId, month)
     res.json(result)
   } catch (err) {
     res.status(500).json({ message: String(err) })
@@ -52,11 +52,11 @@ router.post('/quota/all', async (req: Request, res: Response) => {
 // POST /api/payments/frete — cria/atualiza a fatura de frete do mês do próprio usuário
 router.post('/frete', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.body.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.body.tenantId as string) || req.tenantId
     const month = req.body.month as string
     const uid = req.user!.uid
-    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
-    const result = await generateFreteForUser(uid, colmeiaId, month)
+    if (!tenantId || !month) { res.status(400).json({ message: 'tenantId e month obrigatórios' }); return }
+    const result = await generateFreteForUser(uid, tenantId, month)
     res.json(result)
   } catch (err) {
     res.status(500).json({ message: String(err) })
@@ -66,25 +66,25 @@ router.post('/frete', async (req: Request, res: Response) => {
 // POST /api/payments/frete/all — gera fatura de frete para todos os membros de entrega (admin)
 router.post('/frete/all', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.body.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.body.tenantId as string) || req.tenantId
     const month = req.body.month as string
-    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
-    const result = await generateFreteForAll(colmeiaId, month)
+    if (!tenantId || !month) { res.status(400).json({ message: 'tenantId e month obrigatórios' }); return }
+    const result = await generateFreteForAll(tenantId, month)
     res.json(result)
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
 })
 
-// GET /api/payments/my?month=YYYY-MM&colmeiaId=
+// GET /api/payments/my?month=YYYY-MM&tenantId=
 router.get('/my', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.query.tenantId as string) || req.tenantId
     const month = req.query.month as string
-    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
+    if (!tenantId || !month) { res.status(400).json({ message: 'tenantId e month obrigatórios' }); return }
     const payments = await listDocs<PaymentDoc>('payments', [
       ['userId', '==', req.user!.uid],
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
       ['month', '==', month],
     ])
     res.json(payments)
@@ -93,14 +93,14 @@ router.get('/my', async (req: Request, res: Response) => {
   }
 })
 
-// GET /api/payments?month=YYYY-MM&colmeiaId= (admin)
+// GET /api/payments?month=YYYY-MM&tenantId= (admin)
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.query.tenantId as string) || req.tenantId
     const month = req.query.month as string
-    if (!colmeiaId || !month) { res.status(400).json({ message: 'colmeiaId e month obrigatórios' }); return }
+    if (!tenantId || !month) { res.status(400).json({ message: 'tenantId e month obrigatórios' }); return }
     const payments = await listDocs<PaymentDoc>('payments', [
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
       ['month', '==', month],
     ])
     res.json(payments)

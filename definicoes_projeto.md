@@ -1,10 +1,10 @@
-# Definições do Projeto — padaria-app
+# Definições do Projeto — pedidos-app
 
 ## Visão Geral
 
-App de gestão de pedidos e entregas de padaria. O catálogo é próprio e estável → admin gera a oferta da semana a partir dele → clientes pedem extras → admin gera o consolidado e a lista de entrega.
+Motor multi-tenant de gestão de pedidos e entregas. Cada organização (tenant) tem catálogo próprio e estável → admin gera a oferta da semana a partir dele → clientes pedem extras → admin gera o consolidado e a lista de entrega.
 
-Fork de `pedidos-csa`; o tenant continua se chamando `colmeia` no código (ver `requirements.md`, "Herança da CSA").
+Fork de `pedidos-csa`, com nomes generalizados (`colmeia`→`tenant`) visando remesclar o backend (ver `requirements.md`, "Herança da CSA"). Primeiro cliente: uma padaria.
 
 ## Stack
 
@@ -59,7 +59,7 @@ src/
 │   ├── ReportarProblema.tsx
 │   └── ui/                    # Componentes shadcn/ui
 ├── contexts/
-│   └── AuthContext.tsx        # Auth state + seleção de colmeia
+│   └── AuthContext.tsx        # Auth state + seleção de tenant
 ├── hooks/
 │   └── useAuth.ts
 ├── lib/
@@ -89,9 +89,9 @@ server/
 ├── index.ts                   # Setup Express + rotas
 ├── middleware/
 │   ├── auth.ts                # Verifica Firebase ID token
-│   └── colmeia.ts             # Injeta req.colmeiaId
+│   └── tenant.ts              # Injeta req.tenantId
 ├── routes/
-│   ├── colmeias.ts
+│   ├── tenants.ts
 │   ├── users.ts
 │   ├── products.ts
 │   ├── producers.ts
@@ -108,7 +108,7 @@ server/
 ## Modelos de Dados
 
 ```typescript
-interface Colmeia {
+interface Tenant {
   id: string
   name: string
   adminId: string          // uid Firebase do admin
@@ -122,8 +122,8 @@ interface User {
   address: string
   contact: string
   frequency: 'semanal' | 'quinzenal'
-  deliveryType: 'colmeia' | 'entrega'
-  colmeiaId: string
+  deliveryType: 'retirada' | 'entrega'
+  tenantId: string
   role: 'admin' | 'user' | 'superadmin' | 'produtor'
 }
 
@@ -131,7 +131,7 @@ interface Producer {
   id: string
   name: string
   contact: string
-  colmeiaId: string
+  tenantId: string
 }
 
 interface Product {
@@ -140,7 +140,7 @@ interface Product {
   unit: string
   price: number
   producerId: string
-  colmeiaId: string
+  tenantId: string
   dateUpdated: string
   type?: 'fixo' | 'extra'   // ausente = extra
   ativo?: boolean           // ausente = ativo; false = fora de linha
@@ -158,7 +158,7 @@ interface WeeklyOffering {
   id: string
   producerId: string
   producerName: string
-  colmeiaId: string
+  tenantId: string
   items: OfferingItem[]
   weekStart: string        // ISO 8601, início da semana (segunda)
   dateCreated: string
@@ -176,7 +176,7 @@ interface Order {
   id: string
   userId: string
   userName: string
-  colmeiaId: string
+  tenantId: string
   weekId: string           // ID da WeeklyOffering
   items: OrderItem[]
   status: 'rascunho' | 'enviado'
@@ -188,7 +188,7 @@ interface Payment {
   id: string
   userId: string
   userName: string
-  colmeiaId: string
+  tenantId: string
   month: string            // "YYYY-MM"
   proofUrl?: string        // URL do comprovante no Firebase Storage
   verified: boolean
@@ -208,12 +208,12 @@ interface OfferingDraftItem {
 
 | Coleção | ID do Doc | Campos principais |
 |---|---|---|
-| `colmeias` | auto | name, adminId, dateCreated |
-| `users` | uid Firebase | name, email, role, colmeiaId, frequency, deliveryType |
-| `products` | auto | name, unit, price, producerId, colmeiaId, dateUpdated, type, ativo |
-| `producers` | auto | name, contact, colmeiaId |
-| `weekly_offerings` | auto | producerId, colmeiaId, items[], weekStart |
-| `orders` | auto | userId, colmeiaId, weekId, items[], status |
+| `tenants` | auto | name, adminId, dateCreated |
+| `users` | uid Firebase | name, email, role, tenantId, frequency, deliveryType |
+| `products` | auto | name, unit, price, producerId, tenantId, dateUpdated, type, ativo |
+| `producers` | auto | name, contact, tenantId |
+| `weekly_offerings` | auto | producerId, tenantId, items[], weekStart |
+| `orders` | auto | userId, tenantId, weekId, items[], status |
 
 ## Endpoints da API
 
@@ -224,21 +224,21 @@ Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
 ### Setup
 | Método | Rota | Descrição |
 |---|---|---|
-| POST | `/api/setup` | Cria colmeia inicial (sem auth) |
+| POST | `/api/setup` | Cria organização inicial (sem auth) |
 
-### Colmeias
+### Tenants (Organizações)
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/colmeias` | Lista (filtrado por role) |
-| GET | `/api/colmeias/:id` | Detalhes |
-| POST | `/api/colmeias` | Cria nova |
+| GET | `/api/tenants` | Lista (filtrado por role) |
+| GET | `/api/tenants/:id` | Detalhes |
+| POST | `/api/tenants` | Cria nova |
 
 ### Usuários
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/users/me` | Perfil do usuário atual |
 | PUT | `/api/users/me` | Atualiza perfil |
-| GET | `/api/users?colmeiaId=` | Lista usuários da colmeia (admin) |
+| GET | `/api/users?tenantId=` | Lista usuários da organização (admin) |
 | POST | `/api/users` | Cria usuário |
 | PUT | `/api/users/reorder-delivery` | Persiste a ordem da lista de entrega (lista completa de ids → `deliveryOrder`). Registrada antes de `/:uid`. |
 | PUT | `/api/users/:uid` | Atualiza usuário (admin) |
@@ -246,7 +246,7 @@ Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
 ### Produtos
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/products?colmeiaId=` | Lista catálogo |
+| GET | `/api/products?tenantId=` | Lista catálogo |
 | POST | `/api/products` | Cria produto |
 | PUT | `/api/products/:id` | Atualiza produto |
 | DELETE | `/api/products/:id` | Remove produto |
@@ -254,7 +254,7 @@ Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
 ### Produtores
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/producers?colmeiaId=` | Lista produtores |
+| GET | `/api/producers?tenantId=` | Lista produtores |
 | POST | `/api/producers` | Cria produtor |
 | PUT | `/api/producers/:id` | Atualiza produtor |
 | DELETE | `/api/producers/:id` | Remove produtor |
@@ -262,7 +262,7 @@ Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
 ### Ofertas Semanais
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/offerings?weekId=&colmeiaId=` | Lista ofertas da semana |
+| GET | `/api/offerings?weekId=&tenantId=` | Lista ofertas da semana |
 | POST | `/api/offerings` | Cria oferta |
 | PUT | `/api/offerings/:id` | Atualiza oferta |
 | POST | `/api/offerings/from-catalog` | Gera/republica a oferta da semana a partir do catálogo ativo |
@@ -271,21 +271,21 @@ Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
 ### Pedidos
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/orders/my?weekId=&colmeiaId=` | Pedido do usuário atual para a semana |
+| GET | `/api/orders/my?weekId=&tenantId=` | Pedido do usuário atual para a semana |
 | POST | `/api/orders` | Cria pedido |
 | PUT | `/api/orders/:id` | Atualiza pedido |
-| GET | `/api/orders/consolidated?weekId=&colmeiaId=` | Pedidos consolidados (admin) |
+| GET | `/api/orders/consolidated?weekId=&tenantId=` | Pedidos consolidados (admin) |
 
 ## Auth Flow
 
 1. Login via `signInWithEmailAndPassword(auth, email, password)`
 2. Firebase retorna `user` com `getIdToken()` disponível
-3. `AuthContext` carrega perfil via `/api/users/me` e lista de colmeias
-4. Seleção de colmeia salva em `localStorage` com chave `colmeia_{uid}`
+3. `AuthContext` carrega perfil via `/api/users/me` e lista de tenants
+4. Seleção de tenant salva em `localStorage` com chave `tenant_{uid}`
 5. Todas as chamadas à API incluem `Authorization: Bearer {idToken}`
-6. Header `x-colmeia-id` transmite contexto de colmeia para o backend
+6. Header `x-tenant-id` transmite contexto de tenant para o backend
 7. Middleware `auth.ts` verifica token via Firebase Admin SDK
-8. Middleware `colmeia.ts` injeta `req.colmeiaId`
+8. Middleware `tenant.ts` injeta `req.tenantId`
 
 ## Datas e fusos
 
@@ -311,7 +311,7 @@ em UTC (o container de produção) e Kiritimati (UTC+14) para travar independên
 
 ## Padrões de Design
 
-**Multi-tenancy**: Todo dado tem `colmeiaId`. Queries sempre filtram por colmeia. Superadmin vê todas; admin e user veem apenas a própria.
+**Multi-tenancy**: Todo dado tem `tenantId`. Queries sempre filtram por tenant. Superadmin vê todas; admin e user veem apenas a própria.
 
 **Cabeçalho de tela via `PageHeader`**: toda tela com header monta o topo pelo `PageHeader`, nunca com JSX solto. Os slots são nomeados (`title`, `titleExtra`, `subtitle`, `secondaryAction`, `primaryAction`, `dateNav`) e a ordem à direita é fixa: `secondaryAction → primaryAction → dateNav`. Quem usa preenche o slot certo e não escolhe a ordem, então as telas não divergem entre si por construção. A ordem é travada por `PageHeader.test.tsx` — mexer nela quebra o teste. Ordem vertical abaixo do header: `PageHeader → Abas (só AdminPage) → Filtragem → Conteúdo`.
 
@@ -319,15 +319,15 @@ Layout responsivo do `PageHeader`: no **desktop** é uma linha horizontal (títu
 
 **`EstadoLista` para carregando/vazio**: `loading` vence `vazio` (anunciar "nenhum resultado" antes dos dados chegarem é mentira). **Só serve para empty-state em `Card`** — telas cujo vazio vive em `<TableRow>` (CatalogoPage, AdminPage) mantêm a guarda `if (loading) return` manual e não usam o componente.
 
-**Oferta a partir do catálogo**: a padaria é a produtora, então não há mensagem para
+**Oferta a partir do catálogo**: a própria organização é a fornecedora, então não há mensagem para
 interpretar. `POST /api/offerings/from-catalog` monta a oferta com os produtos `ativo !== false`
 de cada produtor e faz upsert via `upsertOffering` — a mesma função do `POST /`, então
 publicar do catálogo e publicar do formulário têm exatamente a mesma semântica (substitui a
 oferta da semana, remove dos pedidos os itens que saíram, reabre os extras). O admin pode
 ajustar os itens no dialog antes de salvar.
 
-**Produtores continuam múltiplos**: a oferta é publicada por produtor. A padaria é um
-produtor; parcerias com outras produções entram como produtores adicionais.
+**Fornecedores continuam múltiplos**: a oferta é publicada por fornecedor. A organização é um
+fornecedor; parcerias com outras produções entram como fornecedores adicionais.
 
 **Lógica testável fora do IO**: cálculo puro não fica em módulo que importa Firestore, senão
 não dá para testar sem subir o firebase-admin. Ex.: `server/services/weekMath.ts` foi extraído

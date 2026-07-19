@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { offeringsApi, ordersApi, colmeiasApi } from '@/services/api'
+import { offeringsApi, ordersApi, tenantsApi } from '@/services/api'
 import type { WeeklyOffering, Order, OrderItem } from '@/types'
 import { Minus, Plus, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { EstadoLista } from '@/components/EstadoLista'
 
 export function PedidosPage() {
-  const { user, colmeia } = useAuth()
+  const { user, tenant } = useAuth()
   const [offerings, setOfferings] = useState<WeeklyOffering[]>([])
   const [order, setOrder] = useState<Order | null>(null)
   const [quantities, setQuantities] = useState<Record<string, number>>({})
@@ -20,25 +20,25 @@ export function PedidosPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
-  const [weekId, setWeekId] = useState(() => getPresentWeekId(colmeia?.weekChangeDay ?? 0))
+  const [weekId, setWeekId] = useState(() => getPresentWeekId(tenant?.weekChangeDay ?? 0))
   const [extrasAberto, setExtrasAberto] = useState(true)
   const showFixo = user ? isUserDeliveryWeek(user, weekId) : true
   const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
   const pedidosBloqueados = !extrasAberto && !isAdmin
 
   const load = useCallback(async () => {
-    if (!colmeia) return
+    if (!tenant) return
     setLoading(true)
     setQuantities({})
     try {
-      const [offs, myOrder, freshColmeia] = await Promise.all([
-        offeringsApi.list(weekId, colmeia.id),
-        ordersApi.getMy(weekId, colmeia.id),
-        colmeiasApi.get(colmeia.id),
+      const [offs, myOrder, freshTenant] = await Promise.all([
+        offeringsApi.list(weekId, tenant.id),
+        ordersApi.getMy(weekId, tenant.id),
+        tenantsApi.get(tenant.id),
       ])
       setOfferings(offs)
       setOrder(myOrder)
-      setExtrasAberto(freshColmeia.extrasAberto ?? true)
+      setExtrasAberto(freshTenant.extrasAberto ?? true)
       if (myOrder) {
         const q: Record<string, number> = {}
         offs.forEach((off) => {
@@ -52,7 +52,7 @@ export function PedidosPage() {
     } finally {
       setLoading(false)
     }
-  }, [colmeia, weekId])
+  }, [tenant, weekId])
 
   useEffect(() => { load() }, [load])
 
@@ -65,22 +65,22 @@ export function PedidosPage() {
   }
 
   async function handleDoacao(doacao: boolean) {
-    if (!user || !colmeia) return
+    if (!user || !tenant) return
     setSaving(true)
     setMessage('')
     try {
       if (order) {
-        await ordersApi.update(order.id, { doacao }, colmeia.id)
+        await ordersApi.update(order.id, { doacao }, tenant.id)
       } else {
         await ordersApi.create({
           userId: user.id,
           userName: user.name,
-          colmeiaId: colmeia.id,
+          tenantId: tenant.id,
           weekId,
           items: [],
           status: 'rascunho',
           doacao,
-        }, colmeia.id)
+        }, tenant.id)
       }
       await load()
     } catch (err) {
@@ -91,7 +91,7 @@ export function PedidosPage() {
   }
 
   async function handleSave() {
-    if (!user || !colmeia) return
+    if (!user || !tenant) return
     setSaving(true)
     setMessage('')
     try {
@@ -114,16 +114,16 @@ export function PedidosPage() {
       })
 
       if (order) {
-        await ordersApi.update(order.id, { items, status: 'enviado' }, colmeia.id)
+        await ordersApi.update(order.id, { items, status: 'enviado' }, tenant.id)
       } else {
         await ordersApi.create({
           userId: user.id,
           userName: user.name,
-          colmeiaId: colmeia.id,
+          tenantId: tenant.id,
           weekId,
           items,
           status: 'enviado',
-        }, colmeia.id)
+        }, tenant.id)
       }
       setMessage('Pedido salvo com sucesso!')
       await load()

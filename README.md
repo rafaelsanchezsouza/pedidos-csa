@@ -1,6 +1,6 @@
-# Fermentou (`padaria-app`)
+# pedidos-app
 
-Gestão de pedidos e entregas da padaria Fermentou — catálogo, rota de entrega e faturas.
+Motor multi-tenant de gestão de pedidos e entregas — catálogo, rota de entrega e faturas. Primeiro cliente: uma padaria.
 
 ## Pré-requisitos
 
@@ -50,7 +50,7 @@ PORT=3004
 
 No [Firebase Console](https://console.firebase.google.com), acesse **Authentication > Users** e crie o primeiro usuário manualmente. Anote o UID gerado.
 
-### 4. Criar a primeira padaria
+### 4. Criar a primeira organização
 
 Com os servidores rodando (passo 5), execute uma vez:
 
@@ -112,7 +112,7 @@ npm run lint   # Verificar erros de lint
 ### Estrutura na VM
 
 ```
-/opt/padaria-app/
+/opt/pedidos-app/
 ├── dist/            ← frontend buildado (servido pelo nginx)
 ├── dist-server/     ← backend buildado (Node.js)
 ├── node_modules/
@@ -128,7 +128,7 @@ Conecte na VM via SSH, clone o repositório e execute:
 bash setup-vm.sh
 ```
 
-O script instala Node.js 22, nginx e pm2, cria `/opt/padaria-app`, configura o nginx como reverse proxy e habilita o pm2 para iniciar no boot.
+O script instala Node.js 22, nginx e pm2, cria `/opt/pedidos-app`, configura o nginx como reverse proxy e habilita o pm2 para iniciar no boot.
 
 Depois, abra a porta 80 no console Oracle Cloud:
 **VCN → Security Lists → Add Ingress Rule → TCP 0.0.0.0/0 porta 80**
@@ -155,7 +155,7 @@ O script faz o build, copia os artefatos e o `.env.production` para a VM, instal
 
 ### HTTPS (quando tiver domínio)
 
-Na VM, atualize `server_name _` para `server_name seu-dominio.com` em `/etc/nginx/sites-available/padaria-app`, depois:
+Na VM, atualize `server_name _` para `server_name seu-dominio.com` em `/etc/nginx/sites-available/pedidos-app`, depois:
 
 ```bash
 sudo apt install certbot python3-certbot-nginx

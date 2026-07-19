@@ -11,7 +11,7 @@ import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@/components/PageHeader'
 
 export function ConsolidadoGeralPage() {
-  const { colmeia } = useAuth()
+  const { tenant } = useAuth()
   const [weekId, setWeekId] = useState(getWeekStart())
   const [orders, setOrders] = useState<Order[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -35,14 +35,14 @@ export function ConsolidadoGeralPage() {
   const [sendError, setSendError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    if (!colmeia) return
+    if (!tenant) return
     setLoading(true)
     setTexts({})
     try {
       const [ords, us, offs] = await Promise.all([
-        ordersApi.getConsolidated(weekId, colmeia.id),
-        usersApi.list(colmeia.id),
-        offeringsApi.list(weekId, colmeia.id),
+        ordersApi.getConsolidated(weekId, tenant.id),
+        usersApi.list(tenant.id),
+        offeringsApi.list(weekId, tenant.id),
       ])
       setOrders(ords)
       setUsers(us)
@@ -50,7 +50,7 @@ export function ConsolidadoGeralPage() {
     } finally {
       setLoading(false)
     }
-  }, [colmeia, weekId])
+  }, [tenant, weekId])
 
   useEffect(() => { load() }, [load])
 
@@ -67,18 +67,18 @@ export function ConsolidadoGeralPage() {
   })
 
   async function handleDoacao(u: User, doacao: boolean) {
-    if (!colmeia) return
+    if (!tenant) return
     setTogglingDoacao(u.id)
     try {
       const order = orderByUser.get(u.id)
       if (order) {
-        await ordersApi.update(order.id, { doacao }, colmeia.id)
+        await ordersApi.update(order.id, { doacao }, tenant.id)
         setOrders((prev) => prev.map((o) => o.userId === u.id ? { ...o, doacao } : o))
       } else {
         const created = await ordersApi.create({
-          userId: u.id, userName: u.name, colmeiaId: colmeia.id,
+          userId: u.id, userName: u.name, tenantId: tenant.id,
           weekId, items: [], status: 'rascunho', doacao,
-        }, colmeia.id)
+        }, tenant.id)
         setOrders((prev) => [...prev, created])
       }
     } finally {
@@ -87,16 +87,16 @@ export function ConsolidadoGeralPage() {
   }
 
   async function handleRecebido(u: User, recebido: boolean) {
-    if (!colmeia) return
+    if (!tenant) return
     setToggling(u.id)
     try {
-      const updated = await ordersApi.toggleRecebido(u.id, u.name, weekId, colmeia.id, recebido)
+      const updated = await ordersApi.toggleRecebido(u.id, u.name, weekId, tenant.id, recebido)
       setOrders((prev) => {
         const existing = prev.find((o) => o.userId === u.id)
         if (existing) {
           return prev.map((o) => o.userId === u.id ? { ...o, recebido: updated.recebido } : o)
         }
-        return [...prev, { id: updated.id, userId: u.id, userName: u.name, colmeiaId: colmeia.id, weekId, items: [], status: 'rascunho', recebido: updated.recebido, dateCreated: '', dateUpdated: '' }]
+        return [...prev, { id: updated.id, userId: u.id, userName: u.name, tenantId: tenant.id, weekId, items: [], status: 'rascunho', recebido: updated.recebido, dateCreated: '', dateUpdated: '' }]
       })
     } finally {
       setToggling(null)
@@ -111,12 +111,12 @@ export function ConsolidadoGeralPage() {
   }
 
   async function saveOrderEdits() {
-    if (!colmeia || !editingOrder) return
+    if (!tenant || !editingOrder) return
     setSavingOrder(true)
     try {
       const { order } = editingOrder
       const updatedItems = order.items.map((i) => ({ ...i, qty: editedQtys[i.productId] ?? i.qty }))
-      await ordersApi.update(order.id, { items: updatedItems }, colmeia.id)
+      await ordersApi.update(order.id, { items: updatedItems }, tenant.id)
       setEditingOrder(null)
       setEditedQtys({})
       await load()
@@ -132,17 +132,17 @@ export function ConsolidadoGeralPage() {
   }
 
   async function saveNote() {
-    if (!colmeia || !editingNote) return
+    if (!tenant || !editingNote) return
     setSavingNote(true)
     try {
       const { userId, userName, order } = editingNote
       if (order) {
-        await ordersApi.update(order.id, { weeklyNote: noteText }, colmeia.id)
+        await ordersApi.update(order.id, { weeklyNote: noteText }, tenant.id)
         setOrders((prev) => prev.map((o) => o.userId === userId ? { ...o, weeklyNote: noteText } : o))
       } else {
         const created = await ordersApi.create({
-          userId, userName, colmeiaId: colmeia.id, weekId, items: [], status: 'rascunho', weeklyNote: noteText,
-        }, colmeia.id)
+          userId, userName, tenantId: tenant.id, weekId, items: [], status: 'rascunho', weeklyNote: noteText,
+        }, tenant.id)
         setOrders((prev) => [...prev, created])
       }
       setEditingNote(null)
@@ -153,10 +153,10 @@ export function ConsolidadoGeralPage() {
   }
 
   async function handleGenerate(producerId: string) {
-    if (!colmeia) return
+    if (!tenant) return
     setGenerating(producerId)
     try {
-      const { text } = await ordersApi.getConsolidatedText(weekId, colmeia.id, producerId)
+      const { text } = await ordersApi.getConsolidatedText(weekId, tenant.id, producerId)
       setTexts((prev) => ({ ...prev, [producerId]: text }))
     } finally {
       setGenerating(null)
@@ -170,11 +170,11 @@ export function ConsolidadoGeralPage() {
   }
 
   async function handleSendWhatsApp(producerId: string) {
-    if (!colmeia) return
+    if (!tenant) return
     setSending(producerId)
     setSendError(null)
     try {
-      await ordersApi.sendConsolidatedWhatsApp(weekId, colmeia.id, producerId)
+      await ordersApi.sendConsolidatedWhatsApp(weekId, tenant.id, producerId)
       setSent(producerId)
       setTimeout(() => setSent(null), 2000)
     } catch (err) {
@@ -357,7 +357,7 @@ export function ConsolidadoGeralPage() {
                             )}
                             {u.quota && <div className="text-xs text-muted-foreground">{u.quota}</div>}
                             {u.contact && <div className="text-xs text-muted-foreground">{u.contact}</div>}
-                            {u.deliveryType === 'colmeia' && (
+                            {u.deliveryType === 'retirada' && (
                               <div className="text-xs text-blue-600">retira na loja</div>
                             )}
                             {u.frequency === 'quinzenal' && (

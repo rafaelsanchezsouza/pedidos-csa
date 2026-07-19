@@ -3,7 +3,7 @@ import { listDocs, createDoc, getDoc, updateDoc, db } from '../repositories/fire
 
 const router = Router()
 
-interface ColmeiaDoc {
+interface TenantDoc {
   name: string
   adminId: string
   dateCreated: string
@@ -20,14 +20,14 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const uid = req.user!.uid
     const userSnap = await import('../repositories/firestore.js').then(m => m.db.collection('users').doc(uid).get())
-    const userData = userSnap.data() as { colmeiaId?: string; acesso?: string; role?: string } | undefined
+    const userData = userSnap.data() as { tenantId?: string; acesso?: string; role?: string } | undefined
 
     if (userData?.acesso === 'superadmin' || userData?.role === 'superadmin') {
-      const colmeias = await listDocs<ColmeiaDoc>('colmeias')
-      res.json(colmeias)
-    } else if (userData?.colmeiaId) {
-      const colmeia = await getDoc<ColmeiaDoc>('colmeias', userData.colmeiaId)
-      res.json(colmeia ? [colmeia] : [])
+      const tenants = await listDocs<TenantDoc>('tenants')
+      res.json(tenants)
+    } else if (userData?.tenantId) {
+      const tenant = await getDoc<TenantDoc>('tenants', userData.tenantId)
+      res.json(tenant ? [tenant] : [])
     } else {
       res.json([])
     }
@@ -38,9 +38,9 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const colmeia = await getDoc<ColmeiaDoc>('colmeias', req.params['id'] as string)
-    if (!colmeia) { res.status(404).json({ message: 'Não encontrado' }); return }
-    res.json(colmeia)
+    const tenant = await getDoc<TenantDoc>('tenants', req.params['id'] as string)
+    if (!tenant) { res.status(404).json({ message: 'Não encontrado' }); return }
+    res.json(tenant)
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
@@ -49,7 +49,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { name } = req.body as { name: string }
-    const colmeia = await createDoc<ColmeiaDoc>('colmeias', {
+    const tenant = await createDoc<TenantDoc>('tenants', {
       name,
       adminId: req.user!.uid,
       dateCreated: new Date().toISOString(),
@@ -57,7 +57,7 @@ router.post('/', async (req: Request, res: Response) => {
       quotaMeia: 40,
       dueDay: 10,
     })
-    res.status(201).json(colmeia)
+    res.status(201).json(tenant)
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
@@ -66,10 +66,10 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const userSnap = await db.collection('users').doc(req.user!.uid).get()
-    const userData = userSnap.data() as { acesso?: string; colmeiaId?: string } | undefined
+    const userData = userSnap.data() as { acesso?: string; tenantId?: string } | undefined
     const isSuperAdmin = userData?.acesso === 'superadmin'
-    const isColmeiaAdmin = userData?.acesso === 'admin' && userData?.colmeiaId === req.params['id']
-    if (!isSuperAdmin && !isColmeiaAdmin) {
+    const isTenantAdmin = userData?.acesso === 'admin' && userData?.tenantId === req.params['id']
+    if (!isSuperAdmin && !isTenantAdmin) {
       res.status(403).json({ message: 'Sem permissão' }); return
     }
     const { quotaInteira, quotaMeia, dueDay, orderSendDay, orderSendHour, weekChangeDay, extrasAberto } = req.body as {
@@ -77,7 +77,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       orderSendDay?: number; orderSendHour?: number; weekChangeDay?: number
       extrasAberto?: boolean
     }
-    const updates: Partial<ColmeiaDoc> = {}
+    const updates: Partial<TenantDoc> = {}
     if (quotaInteira !== undefined) updates.quotaInteira = quotaInteira
     if (quotaMeia !== undefined) updates.quotaMeia = quotaMeia
     if (dueDay !== undefined) updates.dueDay = dueDay
@@ -85,9 +85,9 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (orderSendHour !== undefined) updates.orderSendHour = orderSendHour
     if (weekChangeDay !== undefined) updates.weekChangeDay = weekChangeDay
     if (extrasAberto !== undefined) updates.extrasAberto = extrasAberto
-    await updateDoc<ColmeiaDoc>('colmeias', req.params['id'] as string, updates)
-    const colmeia = await getDoc<ColmeiaDoc>('colmeias', req.params['id'] as string)
-    res.json(colmeia)
+    await updateDoc<TenantDoc>('tenants', req.params['id'] as string, updates)
+    const tenant = await getDoc<TenantDoc>('tenants', req.params['id'] as string)
+    res.json(tenant)
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }

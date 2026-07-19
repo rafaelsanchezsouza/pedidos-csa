@@ -18,29 +18,28 @@ const navItems = [
 ]
 
 export function Sidebar() {
-  const { user, colmeia, colmeias, selectColmeia } = useAuth()
+  const { user, tenant, tenants, selectTenant } = useAuth()
   const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
   const isProdutor = user?.acesso === 'produtor'
   const isSuperAdmin = user?.acesso === 'superadmin'
 
   return (
     <aside className="w-56 border-r bg-background flex flex-col">
-      {colmeia && (
+      {tenant && (
         <div className="px-4 py-3 border-b">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Padaria</p>
-          {isSuperAdmin && colmeias.length > 1 ? (
-            <Select value={colmeia.id} onValueChange={selectColmeia}>
+          {isSuperAdmin && tenants.length > 1 ? (
+            <Select value={tenant.id} onValueChange={selectTenant}>
               <SelectTrigger className="h-auto text-sm font-medium border-0 p-0 shadow-none focus:ring-0 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {colmeias.map(c => (
+                {tenants.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           ) : (
-            <p className="font-medium text-sm truncate">{colmeia.name}</p>
+            <p className="font-medium text-sm truncate">{tenant.name}</p>
           )}
         </div>
       )}

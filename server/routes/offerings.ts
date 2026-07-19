@@ -14,7 +14,7 @@ interface OfferingItem {
 interface OfferingDoc {
   producerId: string
   producerName: string
-  colmeiaId: string
+  tenantId: string
   items: OfferingItem[]
   weekStart: string
   dateCreated: string
@@ -25,7 +25,7 @@ interface ProductDoc {
   unit: string
   price: number
   producerId: string
-  colmeiaId: string
+  tenantId: string
   dateUpdated: string
   type?: 'fixo' | 'extra'
   ativo?: boolean
@@ -34,7 +34,7 @@ interface ProductDoc {
 interface OrderDoc {
   userId: string
   userName: string
-  colmeiaId: string
+  tenantId: string
   weekId: string
   items: Array<{ productId: string; offeringId: string; [key: string]: unknown }>
   dateUpdated: string
@@ -42,11 +42,11 @@ interface OrderDoc {
 
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const colmeiaId = (req.query.colmeiaId as string) || req.colmeiaId
+    const tenantId = (req.query.tenantId as string) || req.tenantId
     const weekId = req.query.weekId as string
-    if (!colmeiaId) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
+    if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
     const filters: Array<[string, FirebaseFirestore.WhereFilterOp, unknown]> = [
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
     ]
     if (weekId) filters.push(['weekStart', '==', weekId])
     const offerings = await listDocs<OfferingDoc>('weekly_offerings', filters)
@@ -59,31 +59,31 @@ router.get('/', async (req: Request, res: Response) => {
 // POST /api/offerings/fallback — copia última oferta de produtores sem oferta na semana
 router.post('/fallback', async (req: Request, res: Response) => {
   try {
-    const { weekStart, colmeiaId: bodyColmeiaId, producerId } = req.body as {
-      weekStart: string; colmeiaId: string; producerId?: string
+    const { weekStart, tenantId: bodyTenantId, producerId } = req.body as {
+      weekStart: string; tenantId: string; producerId?: string
     }
-    const colmeiaId = bodyColmeiaId || req.colmeiaId
-    if (!colmeiaId || !weekStart) {
-      res.status(400).json({ message: 'weekStart e colmeiaId obrigatórios' }); return
+    const tenantId = bodyTenantId || req.tenantId
+    if (!tenantId || !weekStart) {
+      res.status(400).json({ message: 'weekStart e tenantId obrigatórios' }); return
     }
 
     // Produtores a processar
     const producerFilter: Array<[string, FirebaseFirestore.WhereFilterOp, unknown]> = [
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
     ]
     if (producerId) producerFilter.push(['id', '==', producerId])
 
     // Ofertas já existentes nesta semana
     const thisWeek = await listDocs<OfferingDoc>('weekly_offerings', [
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
       ['weekStart', '==', weekStart],
       ...(producerId ? [['producerId', '==', producerId] as [string, FirebaseFirestore.WhereFilterOp, unknown]] : []),
     ])
     const alreadyHas = new Set(thisWeek.map((o) => o.producerId))
 
-    // Todas as ofertas anteriores da colmeia
+    // Todas as ofertas anteriores da tenant
     const allOfferings = await listDocs<OfferingDoc>('weekly_offerings', [
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
     ])
 
     // Para cada produtor sem oferta esta semana, buscar a mais recente
@@ -117,7 +117,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
 // substitui a oferta anterior da mesma semana e reabre os extras se fechados.
 async function upsertOffering(data: Omit<OfferingDoc, 'dateCreated'>) {
   const existingProducts = await listDocs<ProductDoc>('products', [
-    ['colmeiaId', '==', data.colmeiaId],
+    ['tenantId', '==', data.tenantId],
     ['producerId', '==', data.producerId],
   ])
   const catalogMap = new Map(existingProducts.map((p) => [p.id, { name: p.name }]))
@@ -136,7 +136,7 @@ async function upsertOffering(data: Omit<OfferingDoc, 'dateCreated'>) {
         unit: item.unit,
         price: item.price,
         producerId: data.producerId,
-        colmeiaId: data.colmeiaId,
+        tenantId: data.tenantId,
         dateUpdated,
       })
       return { ...item, productId: created.id }
@@ -153,7 +153,7 @@ async function upsertOffering(data: Omit<OfferingDoc, 'dateCreated'>) {
 
   // Substitui se já existir oferta do mesmo produtor na mesma semana
   const existing = await listDocs<OfferingDoc>('weekly_offerings', [
-    ['colmeiaId', '==', data.colmeiaId],
+    ['tenantId', '==', data.tenantId],
     ['producerId', '==', data.producerId],
     ['weekStart', '==', data.weekStart],
   ])
@@ -170,7 +170,7 @@ async function upsertOffering(data: Omit<OfferingDoc, 'dateCreated'>) {
     const removidos = [...prevIds].filter((id) => !newIds.has(id))
     if (removidos.length > 0) {
       const orders = await listDocs<OrderDoc>('orders', [
-        ['colmeiaId', '==', data.colmeiaId],
+        ['tenantId', '==', data.tenantId],
         ['weekId', '==', data.weekStart],
       ])
       const affected = orders.filter((o) =>
@@ -195,10 +195,10 @@ async function upsertOffering(data: Omit<OfferingDoc, 'dateCreated'>) {
   }
 
   // Auto-desbloqueio: nova oferta publicada → reabrir pedidos se estiverem fechados
-  const colmeiaSnap = await db.collection('colmeias').doc(data.colmeiaId).get()
-  const extrasAtual = (colmeiaSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
+  const tenantSnap = await db.collection('tenants').doc(data.tenantId).get()
+  const extrasAtual = (tenantSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
   if (!extrasAtual) {
-    await db.collection('colmeias').doc(data.colmeiaId).update({ extrasAberto: true })
+    await db.collection('tenants').doc(data.tenantId).update({ extrasAberto: true })
       .catch((err) => console.error('[offerings] auto-unlock falhou:', err))
   }
 
@@ -219,16 +219,16 @@ router.post('/', async (req: Request, res: Response) => {
 // oferta é o próprio catálogo do produtor, opcionalmente ajustado depois pelo admin.
 router.post('/from-catalog', async (req: Request, res: Response) => {
   try {
-    const { weekStart, colmeiaId: bodyColmeiaId, producerId } = req.body as {
-      weekStart: string; colmeiaId?: string; producerId?: string
+    const { weekStart, tenantId: bodyTenantId, producerId } = req.body as {
+      weekStart: string; tenantId?: string; producerId?: string
     }
-    const colmeiaId = bodyColmeiaId || req.colmeiaId
-    if (!colmeiaId || !weekStart) {
-      res.status(400).json({ message: 'weekStart e colmeiaId obrigatórios' }); return
+    const tenantId = bodyTenantId || req.tenantId
+    if (!tenantId || !weekStart) {
+      res.status(400).json({ message: 'weekStart e tenantId obrigatórios' }); return
     }
 
     const productFilters: Array<[string, FirebaseFirestore.WhereFilterOp, unknown]> = [
-      ['colmeiaId', '==', colmeiaId],
+      ['tenantId', '==', tenantId],
     ]
     if (producerId) productFilters.push(['producerId', '==', producerId])
     const produtos = (await listDocs<ProductDoc>('products', productFilters))
@@ -238,7 +238,7 @@ router.post('/from-catalog', async (req: Request, res: Response) => {
       res.status(201).json([]); return
     }
 
-    const producers = await listDocs<{ name: string }>('producers', [['colmeiaId', '==', colmeiaId]])
+    const producers = await listDocs<{ name: string }>('producers', [['tenantId', '==', tenantId]])
     const producerNames = new Map(producers.map((p) => [p.id, p.name]))
 
     // Um produto pertence a um produtor; a oferta é publicada por produtor
@@ -254,7 +254,7 @@ router.post('/from-catalog', async (req: Request, res: Response) => {
       const offering = await upsertOffering({
         producerId: pid,
         producerName: producerNames.get(pid) ?? '',
-        colmeiaId,
+        tenantId,
         weekStart,
         items: lista.map((p) => ({
           productId: p.id,
