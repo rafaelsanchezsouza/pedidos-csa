@@ -1,15 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Wand2, Check, X, History, Pencil, Lock, Unlock } from 'lucide-react'
+import { Plus, X, History, Pencil, Lock, Unlock, ListPlus } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi, colmeiasApi } from '@/services/api'
 import { formatDeliveryDate, getPresentWeekId } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@/components/PageHeader'
-import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
+import type { WeeklyOffering, Producer, Product, OfferingDraftItem, OfferingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import {
@@ -37,9 +36,8 @@ export function OfertasPage() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedProducerId, setSelectedProducerId] = useState('')
-  const [rawMessage, setRawMessage] = useState('')
-  const [parsing, setParsing] = useState(false)
-  const [parsed, setParsed] = useState<ParsedProduct[] | null>(null)
+  const [itens, setItens] = useState<OfferingDraftItem[] | null>(null)
+  const [gerando, setGerando] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fallingBack, setFallingBack] = useState<string | null>(null)
@@ -85,31 +83,40 @@ export function OfertasPage() {
     }
   }
 
+  // Itens do catálogo ativo de um produtor, no formato do formulário de oferta
+  const rascunhoDoCatalogo = useCallback((producerId: string): OfferingDraftItem[] =>
+    products
+      .filter((p) => p.producerId === producerId && p.ativo !== false)
+      .map((p) => ({
+        name: p.name,
+        unit: p.unit,
+        price: p.price,
+        type: p.type ?? 'extra',
+        matchedProductId: p.id,
+      })), [products])
+
   // Auto-abre dialog se producerId vier por URL (fluxo: Admin → Novo Produtor)
   useEffect(() => {
     const pid = searchParams.get('producerId')
     if (pid && producers.length > 0) {
       setSelectedProducerId(pid)
-      setRawMessage('')
-      setParsed(null)
+      setItens(rascunhoDoCatalogo(pid))
       setDialogOpen(true)
       setSearchParams({}, { replace: true })
     }
-  }, [producers, searchParams, setSearchParams])
+  }, [producers, searchParams, setSearchParams, rascunhoDoCatalogo])
 
   function openDialog(producerId = '') {
     setEditing(null)
     setSelectedProducerId(producerId)
-    setRawMessage('')
-    setParsed(null)
+    setItens(producerId ? rascunhoDoCatalogo(producerId) : [])
     setDialogOpen(true)
   }
 
   function openEdit(off: WeeklyOffering) {
     setEditing(off)
     setSelectedProducerId(off.producerId)
-    setRawMessage(off.rawMessage ?? '')
-    setParsed(off.items.map((i) => ({
+    setItens(off.items.map((i) => ({
       name: i.productName,
       unit: i.unit,
       price: i.price,
@@ -117,6 +124,12 @@ export function OfertasPage() {
       matchedProductId: i.productId,
     })))
     setDialogOpen(true)
+  }
+
+  // Troca de produtor no dialog de criação → recarrega o rascunho do catálogo dele
+  function handleProducerChange(producerId: string) {
+    setSelectedProducerId(producerId)
+    if (!editing) setItens(rascunhoDoCatalogo(producerId))
   }
 
   async function handleFallback(producerId: string) {
@@ -140,39 +153,54 @@ export function OfertasPage() {
     }
   }
 
-  async function handleParse() {
-    if (!colmeia || !rawMessage.trim()) return
-    setError(null)
-    setParsing(true)
+  // Publica a oferta da semana direto do catálogo, sem passar pelo formulário
+  async function handleGerarDoCatalogo(producerId: string) {
+    if (!colmeia) return
+    setGerando(producerId)
+    setFallbackMessage((prev) => ({ ...prev, [producerId]: '' }))
     try {
-      const result = await offeringsApi.parse(rawMessage, colmeia.id, selectedProducerId)
-      setParsed(result)
+      const result = await offeringsApi.fromCatalog(weekId, colmeia.id, producerId)
+      if (result.length === 0) {
+        setFallbackMessage((prev) => ({
+          ...prev,
+          [producerId]: 'Nenhum produto ativo no catálogo deste produtor.',
+        }))
+      } else {
+        await load()
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao interpretar mensagem')
+      setFallbackMessage((prev) => ({
+        ...prev,
+        [producerId]: err instanceof Error ? err.message : 'Erro ao gerar oferta.',
+      }))
     } finally {
-      setParsing(false)
+      setGerando(null)
     }
   }
 
-  function updateParsed(idx: number, field: keyof ParsedProduct, value: string | number) {
-    if (!parsed) return
-    const updated = [...parsed]
+  function updateItem(idx: number, field: keyof OfferingDraftItem, value: string | number) {
+    if (!itens) return
+    const updated = [...itens]
     updated[idx] = { ...updated[idx], [field]: value }
-    setParsed(updated)
+    setItens(updated)
   }
 
-  function removeParsed(idx: number) {
-    if (!parsed) return
-    setParsed(parsed.filter((_, i) => i !== idx))
+  function removeItem(idx: number) {
+    if (!itens) return
+    setItens(itens.filter((_, i) => i !== idx))
+  }
+
+  function addItem() {
+    setItens([...(itens ?? []), { name: '', unit: 'unid', price: 0, type: 'extra' }])
   }
 
   async function handleSave() {
-    if (!colmeia || !selectedProducerId || !parsed) return
+    if (!colmeia || !selectedProducerId || !itens) return
     setError(null)
     setSaving(true)
     try {
       const producer = producers.find((p) => p.id === selectedProducerId)
-      const items: OfferingItem[] = parsed.map((p) => ({
+      const items: OfferingItem[] = itens.map((p) => ({
         productId: p.matchedProductId || crypto.randomUUID(),
         productName: p.name,
         unit: p.unit,
@@ -180,7 +208,7 @@ export function OfertasPage() {
         type: p.type,
       }))
       if (editing) {
-        await offeringsApi.update(editing.id, { items, rawMessage }, colmeia.id)
+        await offeringsApi.update(editing.id, { items }, colmeia.id)
       } else {
         await offeringsApi.create({
           producerId: selectedProducerId,
@@ -188,7 +216,6 @@ export function OfertasPage() {
           colmeiaId: colmeia.id,
           items,
           weekStart: weekId,
-          rawMessage,
         }, colmeia.id)
       }
       setDialogOpen(false)
@@ -234,16 +261,20 @@ export function OfertasPage() {
                   <CardTitle className="text-lg text-muted-foreground">{p.name}</CardTitle>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => handleFallback(p.id)}
                       disabled={fallingBack === p.id}
                     >
                       <History className="mr-2 h-4 w-4" />
-                      {fallingBack === p.id ? 'Copiando...' : 'Usar semana anterior'}
+                      {fallingBack === p.id ? 'Copiando...' : 'Semana anterior'}
                     </Button>
-                    <Button size="sm" onClick={() => openDialog(p.id)}>
-                      <Plus className="mr-2 h-4 w-4" /> Nova Oferta
+                    <Button variant="outline" size="sm" onClick={() => openDialog(p.id)}>
+                      <Plus className="mr-2 h-4 w-4" /> Ajustar
+                    </Button>
+                    <Button size="sm" onClick={() => handleGerarDoCatalogo(p.id)} disabled={gerando === p.id}>
+                      <ListPlus className="mr-2 h-4 w-4" />
+                      {gerando === p.id ? 'Gerando...' : 'Gerar do catálogo'}
                     </Button>
                   </div>
                 </CardHeader>
@@ -298,7 +329,7 @@ export function OfertasPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Produtor</Label>
-              <Select value={selectedProducerId} onValueChange={setSelectedProducerId} disabled={!!editing}>
+              <Select value={selectedProducerId} onValueChange={handleProducerChange} disabled={!!editing}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o produtor..." />
                 </SelectTrigger>
@@ -310,78 +341,59 @@ export function OfertasPage() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Mensagem do WhatsApp</Label>
-              <Textarea
-                autoFocus
-                value={rawMessage}
-                onChange={(e) => setRawMessage(e.target.value)}
-                placeholder="Cole aqui a mensagem do produtor..."
-                className="min-h-[120px]"
-              />
-              <Button
-                variant="outline"
-                onClick={handleParse}
-                disabled={parsing || !rawMessage.trim()}
-                className="w-full"
-              >
-                <Wand2 className="mr-2" />
-                {parsing ? 'Gerando...' : 'Gerar Oferta'}
-              </Button>
-            </div>
-
-            {parsed && (
+            {itens && (
               <div className="space-y-2">
-                <Label>Produtos identificados ({parsed.length})</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Itens da oferta ({itens.length})</Label>
+                  <Button variant="ghost" size="sm" onClick={addItem}>
+                    <Plus className="mr-1 h-3 w-3" /> Adicionar item
+                  </Button>
+                </div>
+                {itens.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum produto ativo no catálogo deste produtor.
+                  </p>
+                )}
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {parsed.map((item, idx) => {
-                    const match = products.find((p) => p.id === item.matchedProductId)
-                    return (
-                      <div key={idx} className="border rounded-md p-3 space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 grid grid-cols-4 gap-2">
-                            <div className="col-span-2 space-y-1">
-                              <Label className="text-xs">Nome</Label>
-                              <Input
-                                value={item.name}
-                                onChange={(e) => updateParsed(idx, 'name', e.target.value)}
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Unid</Label>
-                              <Input
-                                value={item.unit}
-                                onChange={(e) => updateParsed(idx, 'unit', e.target.value)}
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Preço</Label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={item.price}
-                                onChange={(e) => updateParsed(idx, 'price', parseFloat(e.target.value))}
-                                className="h-8 text-sm"
-                              />
-                            </div>
+                  {itens.map((item, idx) => (
+                    <div key={idx} className="border rounded-md p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 grid grid-cols-4 gap-2">
+                          <div className="col-span-2 space-y-1">
+                            <Label className="text-xs">Nome</Label>
+                            <Input
+                              value={item.name}
+                              onChange={(e) => updateItem(idx, 'name', e.target.value)}
+                              className="h-8 text-sm"
+                            />
                           </div>
-                          <div className="flex items-center gap-1 pt-5">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeParsed(idx)}>
-                              <X className="h-3 w-3" />
-                            </Button>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Unid</Label>
+                            <Input
+                              value={item.unit}
+                              onChange={(e) => updateItem(idx, 'unit', e.target.value)}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Preço</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.price}
+                              onChange={(e) => updateItem(idx, 'price', parseFloat(e.target.value) || 0)}
+                              className="h-8 text-sm"
+                            />
                           </div>
                         </div>
-                        {match && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Check className="h-3 w-3 text-primary" />
-                            Corresponde ao catálogo: {match.name}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-1 pt-5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
-                    )
-                  })}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -393,7 +405,7 @@ export function OfertasPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button
               onClick={handleSave}
-              disabled={saving || !selectedProducerId || !parsed || parsed.length === 0}
+              disabled={saving || !selectedProducerId || !itens || itens.length === 0}
             >
               {saving ? 'Salvando...' : 'Salvar Oferta'}
             </Button>

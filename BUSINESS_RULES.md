@@ -1,12 +1,16 @@
-# Regras de Negócio — pedidos-csa
+# Regras de Negócio — padaria-app
 
-## Colmeia (Multi-tenancy)
+## Padaria (Multi-tenancy)
 
-- Todos os dados (usuários, produtos, pedidos, produtores) pertencem a uma colmeia via `colmeiaId`
-- Superadmin acessa todas as colmeias; admin e usuário comum só acessam a própria
-- Seleção de colmeia ativa salva no `localStorage` do navegador
-- Setup inicial cria a primeira colmeia via `POST /api/setup` (sem autenticação)
-- Um usuário pode pertencer a apenas uma colmeia
+> O tenant se chama `colmeia` no código (coleção `colmeias`, `colmeiaId`, header
+> `x-colmeia-id`) — herança do fork da CSA, mantida de propósito para não quebrar o
+> `cherry-pick` de correções entre os dois repositórios. Na UI é sempre "padaria".
+
+- Todos os dados (usuários, produtos, pedidos, produtores) pertencem a uma padaria via `colmeiaId`
+- Superadmin acessa todas as padarias; admin e usuário comum só acessam a própria
+- Seleção de padaria ativa salva no `localStorage` do navegador
+- Setup inicial cria a primeira padaria via `POST /api/setup` (sem autenticação)
+- Um usuário pode pertencer a apenas uma padaria
 
 ## Usuários
 
@@ -15,7 +19,7 @@
 | Valor | Permissões |
 |---|---|
 | `user` | Faz pedidos, envia comprovante, vê próprio histórico |
-| `admin` | Tudo de user + gerencia catálogo, parsing de ofertas, consolida pedidos, verifica pagamentos |
+| `admin` | Tudo de user + gerencia catálogo, publica a oferta da semana, consolida pedidos, verifica pagamentos |
 | `superadmin` | Acessa todas as colmeias |
 | `produtor` | Acessa verificação de pagamentos dos próprios produtos |
 
@@ -45,46 +49,30 @@
 
 ## Catálogo de Produtos
 
-- Produto possui: nome, unidade, preço, produtor, colmeia
-- Matching com catálogo: **inferência fuzzy local** (distância de Levenshtein), não OpenAI (OpenAI disponível mas inativo)
-- Preço ausente na mensagem + produto matched → preencher com preço do catálogo
-- Preço discriminado na oferta → atualizar preço no catálogo ao salvar oferta
-- Produto não existente no catálogo ao salvar oferta → criar automaticamente (nome, unidade, preço, produtor)
+- Produto possui: nome, unidade, preço, produtor, padaria, tipo, situação
+- **Tipo** (`type`): `fixo` = item do cardápio recorrente, cobrado via cota e **não pedido avulso**; `extra` = pedido avulso pelo cliente. Ausente = `extra`
+- **Situação** (`ativo`): `false` = fora de linha — não entra em oferta nova, mas o histórico de pedidos e faturas é preservado. Ausente = ativo
+- Preço editado na oferta → atualiza o preço no catálogo ao salvar
+- Item adicionado à mão na oferta e inexistente no catálogo → criado automaticamente
 - Produto pode ser editado ou removido pelo admin
 
-## Parsing de Mensagens de Produtores
-
-### Geraldo
-- Mensagem contém **somente extras** com preço
-- Formato livre, exemplos de variação: `"Alface crespa (unid) R$3.50"`, `"Cebolinha  2.5"`, `"Mamão (kg)5.00"`
-- Todos os itens são classificados como `type: 'extra'`
-- Indicador: mensagem começa com "Boa tarde Extra" ou similar
-
-### Edilson Jucy
-- Mensagem contém **dois blocos**:
-  1. "Os alimentos disponível" → cota fixa semanal (`type: 'fixo'`), **sem preço informado**
-  2. "Os alimentos estra" (sic) → extras (`type: 'extra'`), **sem preço informado**
-- Como não há preço na mensagem de Edilson Jucy, usar preço do catálogo existente
-- Indicador: mensagem começa com "Bom dia" e contém "alimentos disponível"
-
-### Regras gerais de parsing
-- `type: 'fixo'` → keywords: "alimentos disponível", "cota", "fixo"
-- `type: 'extra'` → keywords: "extra", "estra", "disponível extra"
-- Preço ausente → default `0` (a ser preenchido manualmente ou buscado no catálogo)
-- Unidade ausente → default `"unid"`
-- Matching com catálogo: fuzzy local (Levenshtein); OpenAI disponível como alternativa via `server/services/parseMessage/index.ts`
-- Se `matchedProductId` retornado → item vinculado ao produto existente no catálogo
-
-### Fallback semana anterior
-- Se não houver oferta de um produtor até o momento de geração das ofertas semanais → usar itens da semana anterior para esse produtor
+### Produtores
+- A padaria é um produtor. Parcerias com outras produções entram como produtores adicionais
+- A oferta da semana é publicada **por produtor**; o consolidado e as faturas também são por produtor
 
 ## Ofertas Semanais
 
-- Admin faz parsing da mensagem → revisa resultado → salva como `WeeklyOffering`
+- A oferta da semana é **gerada a partir do catálogo ativo** do produtor (`POST /api/offerings/from-catalog`), não de mensagem de produtor
+- Admin pode ajustar os itens no formulário antes de salvar; itens fora do catálogo são criados nele
 - Uma `WeeklyOffering` por produtor por semana (identificada por `weekStart` + `producerId`)
 - Criar nova oferta para produtor+semana que já existe → **substitui** a existente (upsert), nunca duplica
+- Item removido da oferta → descartado dos pedidos já feitos naquela semana
+- Publicar uma oferta **reabre os extras** se estiverem encerrados
+
+### Fallback semana anterior
+- Produtor sem oferta na semana → copiar os itens da oferta anterior dele (`POST /api/offerings/fallback`)
 - `weekStart`: data da segunda-feira da semana (ISO 8601)
-- Campos preservados: `rawMessage` (original), `items[]` (parseados), `producerName` (denormalizado)
+- Campos preservados: `items[]`, `producerName` (denormalizado)
 
 ## Pedidos
 
@@ -97,7 +85,7 @@
 
 ### Bloqueio de semana
 
-- Após o envio do consolidado ao produtor via WhatsApp, a semana é **bloqueada** (`week_locks` no Firestore)
+- Após o envio do consolidado ao produtor via WhatsApp, a semana é **bloqueada** (`week_locks` no Firestore) — é o horário de corte do pedido
 - Membros não-admin não podem criar nem editar pedidos em semana bloqueada (HTTP 403)
 - Administradores podem criar e editar pedidos mesmo após o bloqueio
 - O bloqueio ocorre tanto pelo envio manual (admin) quanto pelo **scheduler automático de terça-feira às 6h**
@@ -131,7 +119,7 @@
 
 ### Texto WhatsApp (Consolidado Extras)
 
-- Cabeçalho: `*Nome da Colmeia — Semana de YYYY-MM-DD*` (nome vem de `colmeia.name`)
+- Cabeçalho: `*Nome da Padaria — Semana de YYYY-MM-DD*` (nome vem de `colmeia.name`)
 - Nome do produtor e total de membros **não** são incluídos no texto gerado
 
 ## Frequência Quinzenal
@@ -185,3 +173,16 @@
 - Vencimento: dia `dueDay` do **mês seguinte** (pós-consumo, como extras)
 - **Geração automática:** mesmo cron da cota (dia 1, 08h); `upsertPaymentsForOrder` nunca toca em `'Entrega'`
 - `POST /payments/frete/all` disponível para reprocessamento manual via API; `POST /payments/frete` garante a fatura do próprio membro (auto-ensure ao abrir Meus Pagamentos)
+
+---
+
+## Herança da CSA ainda não decidida
+
+Regras que vieram do fork e continuam ativas no código sem decisão de produto para a padaria:
+
+- **Período de acolhida** (`acolhidaExpiry`): 30 dias para membro novo, apenas informativo
+- **Frequência quinzenal** (`quinzenal` + `quinzenalParity`): cliente recebe a cada duas semanas
+- **Doação de cota**: membro doa a cesta da semana e sai do planejamento de entrega
+- **Função no coletivo** (`role`): campo livre, sem efeito em permissão
+
+Nenhuma atrapalha a operação; todas viram dívida se ficarem sem dono.

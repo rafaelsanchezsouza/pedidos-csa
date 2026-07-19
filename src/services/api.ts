@@ -1,5 +1,5 @@
 import { auth } from './firebase'
-import type { Colmeia, Product, Producer, WeeklyOffering, Order, User, ParsedProduct, Payment, ColmeiaRole } from '@/types'
+import type { Colmeia, Product, Producer, WeeklyOffering, Order, User, Payment, ColmeiaRole } from '@/types'
 
 const BASE_URL = '/api'
 
@@ -63,10 +63,10 @@ export const offeringsApi = {
     request<WeeklyOffering>('/offerings', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
   update: (id: string, data: Partial<WeeklyOffering>, colmeiaId: string) =>
     request<WeeklyOffering>(`/offerings/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
-  parse: (rawMessage: string, colmeiaId: string, producerId: string) =>
-    request<ParsedProduct[]>('/offerings/parse', {
+  fromCatalog: (weekStart: string, colmeiaId: string, producerId?: string) =>
+    request<WeeklyOffering[]>('/offerings/from-catalog', {
       method: 'POST',
-      body: JSON.stringify({ rawMessage, colmeiaId, producerId }),
+      body: JSON.stringify({ weekStart, colmeiaId, producerId }),
     }, colmeiaId),
   fallback: (weekStart: string, colmeiaId: string, producerId?: string) =>
     request<WeeklyOffering[]>('/offerings/fallback', {

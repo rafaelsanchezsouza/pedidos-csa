@@ -25,7 +25,7 @@ declare module 'express' {
 }
 
 const app = express()
-const PORT = process.env.PORT ?? 3001
+const PORT = process.env.PORT ?? 3004
 // 127.0.0.1: backend nunca exposto direto — só via nginx (prod) ou localhost (dev)
 const HOST = process.env.HOST || '127.0.0.1'
 

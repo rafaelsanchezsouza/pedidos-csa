@@ -1,8 +1,10 @@
-# Definições do Projeto — pedidos-csa
+# Definições do Projeto — padaria-app
 
 ## Visão Geral
 
-App web para gestão de pedidos de uma CSA (Comunidade que Sustenta a Agricultura). Produtores enviam mensagens de WhatsApp com produtos disponíveis → admin faz parsing → usuários fazem pedidos semanais → admin gera consolidado para enviar ao produtor.
+App de gestão de pedidos e entregas de padaria. O catálogo é próprio e estável → admin gera a oferta da semana a partir dele → clientes pedem extras → admin gera o consolidado e a lista de entrega.
+
+Fork de `pedidos-csa`; o tenant continua se chamando `colmeia` no código (ver `requirements.md`, "Herança da CSA").
 
 ## Stack
 
@@ -14,7 +16,6 @@ App web para gestão de pedidos de uma CSA (Comunidade que Sustenta a Agricultur
 | Backend | Express.js + TypeScript (tsx watch) |
 | Banco | Firebase Firestore (NoSQL) |
 | Auth | Firebase Authentication (email/senha) |
-| Parsing | fuzzy matching (ativo) / OpenAI GPT-4o-mini (alternativa) |
 | Testes | Vitest (ambiente `node`, sem DOM) |
 | Env | dotenv |
 
@@ -22,7 +23,7 @@ App web para gestão de pedidos de uma CSA (Comunidade que Sustenta a Agricultur
 
 ```bash
 npm run dev          # Frontend (http://localhost:5173)
-npm run dev:server   # Backend (http://localhost:3001)
+npm run dev:server   # Backend (http://localhost:3004)
 npm run dev:all      # Ambos simultaneamente
 npm run build        # tsc -b + vite build
 npm run build:backend # tsc -p server/tsconfig.json
@@ -73,7 +74,7 @@ src/
 │   ├── PerfilPage.tsx
 │   ├── PagamentosPage.tsx     # Membro: faturas do mês
 │   ├── CatalogoPage.tsx       # Admin: catálogo de produtos
-│   ├── OfertasPage.tsx        # Admin: ofertas semanais + parsing
+│   ├── OfertasPage.tsx        # Admin: oferta da semana (gerada do catálogo)
 │   ├── EntregasPage.tsx       # Admin: lista de entrega da semana
 │   ├── ConsolidadoGeralPage.tsx # Admin: todos os membros da semana + texto WhatsApp
 │   ├── VerificarPagamentosPage.tsx
@@ -94,19 +95,14 @@ server/
 │   ├── users.ts
 │   ├── products.ts
 │   ├── producers.ts
-│   ├── offerings.ts           # Usa parseProducerMessage do serviço de domínio
+│   ├── offerings.ts           # Oferta da semana: upsert + geração a partir do catálogo
 │   └── orders.ts
 ├── repositories/
 │   └── firestore.ts           # Abstração Firestore
 └── services/
     ├── paymentService.ts      # Faturas, cotas e contagem de semanas de entrega
     ├── weekMath.ts            # Espelho puro de weekUtils p/ o backend (ver "Datas e fusos")
-    ├── weekMath.test.ts       # Trava a sincronia weekMath x weekUtils
-    └── parseMessage/          # Serviço de domínio: parsing de mensagens de produtor
-        ├── index.ts           # Exporta implementação ativa (fuzzy)
-        ├── types.ts           # MessageParser, ParsedProduct, ExistingProduct
-        ├── fuzzy.ts           # Impl: regex + Levenshtein (ATIVA, sem deps externas)
-        └── openai.ts          # Impl: GPT-4o-mini (alternativa)
+    └── weekMath.test.ts       # Trava a sincronia weekMath x weekUtils
 ```
 
 ## Modelos de Dados
@@ -146,6 +142,8 @@ interface Product {
   producerId: string
   colmeiaId: string
   dateUpdated: string
+  type?: 'fixo' | 'extra'   // ausente = extra
+  ativo?: boolean           // ausente = ativo; false = fora de linha
 }
 
 interface OfferingItem {
@@ -163,7 +161,6 @@ interface WeeklyOffering {
   colmeiaId: string
   items: OfferingItem[]
   weekStart: string        // ISO 8601, início da semana (segunda)
-  rawMessage?: string      // Mensagem original do WhatsApp
   dateCreated: string
 }
 
@@ -198,12 +195,12 @@ interface Payment {
   amount: number
 }
 
-interface ParsedProduct {
+interface OfferingDraftItem {
   name: string
   unit: string
   price: number
   type: 'fixo' | 'extra'
-  matchedProductId?: string  // Preenchido se achou no catálogo
+  matchedProductId?: string  // Ausente = item novo, criado ao salvar a oferta
 }
 ```
 
@@ -213,14 +210,14 @@ interface ParsedProduct {
 |---|---|---|
 | `colmeias` | auto | name, adminId, dateCreated |
 | `users` | uid Firebase | name, email, role, colmeiaId, frequency, deliveryType |
-| `products` | auto | name, unit, price, producerId, colmeiaId, dateUpdated |
+| `products` | auto | name, unit, price, producerId, colmeiaId, dateUpdated, type, ativo |
 | `producers` | auto | name, contact, colmeiaId |
-| `weekly_offerings` | auto | producerId, colmeiaId, items[], weekStart, rawMessage |
+| `weekly_offerings` | auto | producerId, colmeiaId, items[], weekStart |
 | `orders` | auto | userId, colmeiaId, weekId, items[], status |
 
 ## Endpoints da API
 
-Base URL: `/api` (proxy para `http://localhost:3001` em dev)
+Base URL: `/api` (proxy para `http://localhost:3004` em dev)
 
 Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
 
@@ -268,7 +265,8 @@ Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
 | GET | `/api/offerings?weekId=&colmeiaId=` | Lista ofertas da semana |
 | POST | `/api/offerings` | Cria oferta |
 | PUT | `/api/offerings/:id` | Atualiza oferta |
-| POST | `/api/offerings/parse` | Faz parsing de mensagem via OpenAI |
+| POST | `/api/offerings/from-catalog` | Gera/republica a oferta da semana a partir do catálogo ativo |
+| POST | `/api/offerings/fallback` | Copia a oferta da semana anterior |
 
 ### Pedidos
 | Método | Rota | Descrição |
@@ -321,7 +319,15 @@ Layout responsivo do `PageHeader`: no **desktop** é uma linha horizontal (títu
 
 **`EstadoLista` para carregando/vazio**: `loading` vence `vazio` (anunciar "nenhum resultado" antes dos dados chegarem é mentira). **Só serve para empty-state em `Card`** — telas cujo vazio vive em `<TableRow>` (CatalogoPage, AdminPage) mantêm a guarda `if (loading) return` manual e não usam o componente.
 
-**Parsing Flow**: Admin cola mensagem WhatsApp → `POST /api/offerings/parse` → OpenAI retorna `ParsedProduct[]` → admin revisa → salva como `WeeklyOffering`.
+**Oferta a partir do catálogo**: a padaria é a produtora, então não há mensagem para
+interpretar. `POST /api/offerings/from-catalog` monta a oferta com os produtos `ativo !== false`
+de cada produtor e faz upsert via `upsertOffering` — a mesma função do `POST /`, então
+publicar do catálogo e publicar do formulário têm exatamente a mesma semântica (substitui a
+oferta da semana, remove dos pedidos os itens que saíram, reabre os extras). O admin pode
+ajustar os itens no dialog antes de salvar.
+
+**Produtores continuam múltiplos**: a oferta é publicada por produtor. A padaria é um
+produtor; parcerias com outras produções entram como produtores adicionais.
 
 **Lógica testável fora do IO**: cálculo puro não fica em módulo que importa Firestore, senão
 não dá para testar sem subir o firebase-admin. Ex.: `server/services/weekMath.ts` foi extraído
@@ -351,6 +357,5 @@ VITE_FIREBASE_APP_ID=
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=   # \n precisa ser substituído por newlines reais
-OPENAI_API_KEY=
-PORT=3001
+PORT=3004
 ```

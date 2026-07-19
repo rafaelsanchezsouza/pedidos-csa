@@ -1,93 +1,78 @@
 # Visão Geral
 
-App web para gestão de pedidos de uma CSA (Comunidade que Sustenta a Agricultura). Produtores enviam mensagens de WhatsApp com produtos disponíveis; admin faz parsing; usuários fazem pedidos semanais.
+App de gestão de pedidos e entregas para padaria. O cardápio é estável (catálogo próprio,
+não mensagem de produtor). O cliente interage **principalmente pelo WhatsApp**; a web é a
+ferramenta do admin da padaria.
+
+Fork de `pedidos-csa` (Rede CSA Parahyba). Cliente distinto, base de código independente —
+ver "Herança da CSA" no fim.
 
 ---
 
 # Fases de Implementação
 
-## Fase 1 — Base ✅
-- Auth (Firebase email/senha)
-- Multi-tenancy por colmeia
-- Catálogo de produtos + produtores
-- Parsing de mensagem de produtor via OpenAI
-- Ofertas semanais (fixo + extra)
-- Pedidos semanais por usuário (rascunho/enviado)
+## F0 — Fork e desmontagem da CSA ✅
+- Clone com histórico, `origin` removido, porta 3004 na VM
+- Parsing de mensagem de produtor removido (`parseMessage`, dep `openai`)
+- Oferta da semana passa a ser gerada do catálogo (`POST /api/offerings/from-catalog`)
+- Produto ganha `type` (fixo/extra) e `ativo` (fora de linha)
+- Múltiplos produtores mantidos — parcerias com outras produções
 
-## Fase 2 — Consolidação e Pagamentos ✅
-- Pedido consolidado para envio ao produtor (WhatsApp)
-- Relatório de pagamentos mensal (individual + consolidado)
-- Upload de comprovante de pagamento
-- Verificação de pagamento pelo admin
+## F1 — Operação web ⬜
+- Catálogo, oferta semanal, pedidos de extras
+- Lista de entrega com ordenação manual (herdada, funcional)
+- Faturas: cota mensal + extras + frete
 
-## Fase 3 — Operação e Histórico ⬜
-- Visão de entregas semanal com extras por usuário
-- ~~Histórico de pedidos por usuário~~ — **descartado**. A tela chegou a ser construída,
-  foi ocultada da navegação em `8b836a0` (02/04/2026) e removida do código em 17/07/2026.
-  Recuperável no git se voltar a fazer sentido.
-- Frequência quinzenal (mostrar/ocultar itens conforme frequência do usuário)
+## F2 — WhatsApp como interface principal ⬜
+- Adaptador `zap-in/1` inbound + gateway outbound (ver `~/repos/ZAP-PROTOCOL.md`)
+- **Instância dedicada** (número próprio) — bot fala com terceiros
+- Auto-cadastro do cliente pelo WhatsApp, com **aprovação do admin** antes de começar a receber
+- Menu conversacional: ver cardápio, pedir extra, consultar fatura
 
-## Fase 4 — Futuro ⬜
-- Integração com WhatsApp (envio automático)
-- Role `produtor` com acesso específico
+## F3 — Pix ⬜
+- Chave estática + comprovante (fluxo já existente), pagamento **pré-entrega**
+- Cobrança por pedido, não só fatura mensal
 
 ---
 
 # Funcionalidades
 
-## Produtos e Catálogo
-- Produto: nome, unidade, preço, agricultor
-- Preço atualizado quando produtor informar novo valor
-- Deduplicação via OpenAI (variações de escrita)
+## Catálogo
+- Produto: nome, unidade, preço, produtor, tipo (fixo/extra), ativo
+- Produto **fixo** é cobrado via cota, não entra em pedido avulso
+- Produto **extra** é pedido avulso pelo cliente
+- Produto fora de linha (`ativo: false`) some da oferta sem apagar o histórico
 
-## Ofertas Semanais
-- Geradas a partir de mensagem de WhatsApp do produtor
-- Parsing via OpenAI → admin revisa → salva
-- Fallback: se produtor não enviou, usar semana anterior
-- Geraldo: só extras com preço
-- Edilson Jucy: fixo sem preço + extras sem preço
+## Oferta da Semana
+- Gerada a partir do catálogo ativo, por produtor
+- Admin pode ajustar itens antes de publicar
+- Fallback: copiar a oferta da semana anterior
 
 ## Pedidos
-- Usuário preenche pedido com base nas ofertas
-- Editável mesmo após enviado
+- Um pedido por cliente por semana; editável enquanto a semana não estiver travada
+- Consolidado por produtor para envio via WhatsApp
 
-## Pagamentos
-- Relatório mensal individual e consolidado (admin)
-- Upload de comprovante pelo usuário
-- Verificação pelo gestor
+## Entrega
+- Lista da semana com ordenação manual (arrastar) para a rota do motoboy
+- Ordem persiste entre semanas
+
+## Financeiro
+- Cota mensal (pedido fixo não é registrado, só cobrado)
+- Extras por pedido
+- Frete por entrega
+- Comprovante enviado pelo cliente, verificado pelo admin
 
 ## Acesso
-- Apenas com login válido
-- Roles: admin, usuário comum, superadmin, produtor
+- Web: apenas admin da padaria (por enquanto)
+- Cliente: WhatsApp, identificado por telefone
 
 ---
 
-# Usuários
+# Herança da CSA
 
-- Admin ou comum ou superadmin ou produtor
-- Admins: acesso aos menus de Administração
-- Dados do usuário: nome, endereço, contato, frequência (semanal/quinzenal), tipo de retirada (na colmeia / entrega)
+Reaproveitado quase intacto: auth + multi-tenancy, cálculo de semana/ciclo quinzenal,
+motor de faturas/cotas, lista de entrega, `PageHeader` e o kit de UI, `deploy.sh`.
 
----
-
-# Colmeia
-
-Usuários, pedidos e admins agregados em colmeias — grupos independentes com admin próprio, sem acesso cruzado.
-
----
-
-# Frontend
-
-- React + TypeScript
-- Tailwind CSS + shadcn/ui
-- Simples e limpo
-
-# Backend
-
-- Node.js + Express, arquitetura em camadas
-- Firebase (Auth + Firestore)
-- Sem testes unitários/e2e
-
-# Filosofia
-
-Tudo minimalista e robusto.
+O identificador interno do tenant continua `colmeiaId` (coleção `colmeias`) —
+**deliberado**: renomear quebraria o `git cherry-pick` de correções entre os dois forks, e o
+cálculo de data/fuso duplicado é justamente o que se vai querer portar. A UI fala "padaria".

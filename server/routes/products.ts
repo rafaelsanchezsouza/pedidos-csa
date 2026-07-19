@@ -10,6 +10,8 @@ interface ProductDoc {
   producerId: string
   colmeiaId: string
   dateUpdated: string
+  type?: 'fixo' | 'extra'
+  ativo?: boolean
 }
 
 router.get('/', async (req: Request, res: Response) => {

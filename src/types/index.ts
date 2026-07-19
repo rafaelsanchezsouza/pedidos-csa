@@ -58,6 +58,10 @@ export interface Product {
   producerId: string
   colmeiaId: string
   dateUpdated: string
+  /** Item do cardápio fixo (cobrado via cota) ou extra pedido avulso. Ausente = extra. */
+  type?: 'fixo' | 'extra'
+  /** Produto fora de linha some da oferta sem apagar o histórico. Ausente = ativo. */
+  ativo?: boolean
 }
 
 export interface OfferingItem {
@@ -75,7 +79,6 @@ export interface WeeklyOffering {
   colmeiaId: string
   items: OfferingItem[]
   weekStart: string
-  rawMessage?: string
   dateCreated: string
 }
 
@@ -121,10 +124,12 @@ export interface Payment {
   dateUpdated: string
 }
 
-export interface ParsedProduct {
+/** Item em edição no formulário de oferta, antes de virar `OfferingItem`. */
+export interface OfferingDraftItem {
   name: string
   unit: string
   price: number
   type: 'fixo' | 'extra'
+  /** Id do produto no catálogo; ausente = item novo, criado ao salvar a oferta. */
   matchedProductId?: string
 }

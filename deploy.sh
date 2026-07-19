@@ -36,9 +36,9 @@ echo "==> [4/5] Instalando dependências de produção..."
 $SSH "cd $VM_DIR && npm ci --omit=dev"
 
 echo "==> [5/5] Reiniciando servidor..."
-$SSH "cd $VM_DIR && pm2 describe pedidos-csa > /dev/null 2>&1 \
-  && pm2 restart pedidos-csa \
-  || pm2 start dist-server/index.js --name pedidos-csa && pm2 save"
+$SSH "cd $VM_DIR && pm2 describe padaria-app > /dev/null 2>&1 \
+  && pm2 restart padaria-app \
+  || pm2 start dist-server/index.js --name padaria-app && pm2 save"
 
 echo ""
 echo "Deploy concluído! App disponível em https://$VM_HOST"

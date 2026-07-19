@@ -29,9 +29,11 @@ interface ProductForm {
   unit: string
   price: string
   producerId: string
+  type: 'fixo' | 'extra'
+  ativo: boolean
 }
 
-const emptyForm: ProductForm = { name: '', unit: 'unid', price: '', producerId: '' }
+const emptyForm: ProductForm = { name: '', unit: 'unid', price: '', producerId: '', type: 'extra', ativo: true }
 
 export function CatalogoPage() {
   const { colmeia } = useAuth()
@@ -70,7 +72,14 @@ export function CatalogoPage() {
 
   function openEdit(p: Product) {
     setEditing(p)
-    setForm({ name: p.name, unit: p.unit, price: String(p.price), producerId: p.producerId })
+    setForm({
+      name: p.name,
+      unit: p.unit,
+      price: String(p.price),
+      producerId: p.producerId,
+      type: p.type ?? 'extra',
+      ativo: p.ativo !== false,
+    })
     setDialogOpen(true)
   }
 
@@ -84,6 +93,8 @@ export function CatalogoPage() {
         price: parseFloat(form.price),
         producerId: form.producerId,
         colmeiaId: colmeia.id,
+        type: form.type,
+        ativo: form.ativo,
       }
       if (editing) {
         await productsApi.update(editing.id, data, colmeia.id)
@@ -167,8 +178,16 @@ export function CatalogoPage() {
               </TableRow>
             ) : (
               visibleProducts.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.name}</TableCell>
+                <TableRow key={p.id} className={p.ativo === false ? 'opacity-50' : undefined}>
+                  <TableCell className="font-medium">
+                    {p.name}
+                    {p.type === 'fixo' && (
+                      <span className="ml-2 text-xs text-muted-foreground">fixo</span>
+                    )}
+                    {p.ativo === false && (
+                      <span className="ml-2 text-xs text-muted-foreground">fora de linha</span>
+                    )}
+                  </TableCell>
                   <TableCell>{p.unit}</TableCell>
                   <TableCell>R$ {p.price.toFixed(2)}</TableCell>
                   <TableCell>{producerName(p.producerId)}</TableCell>
@@ -263,6 +282,38 @@ export function CatalogoPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select
+                  value={form.type}
+                  onValueChange={(v) => setForm({ ...form, type: v as 'fixo' | 'extra' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="extra">Extra (pedido avulso)</SelectItem>
+                    <SelectItem value="fixo">Fixo (cobrado na cota)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Situação</Label>
+                <Select
+                  value={form.ativo ? 'ativo' : 'inativo'}
+                  onValueChange={(v) => setForm({ ...form, ativo: v === 'ativo' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ativo">Ativo</SelectItem>
+                    <SelectItem value="inativo">Fora de linha</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>

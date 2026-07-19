@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express'
 import { listDocs, createDoc, updateDoc, db } from '../repositories/firestore.js'
-import { parseProducerMessage } from '../services/parseMessage/index.js'
 
 const router = Router()
 
@@ -18,7 +17,6 @@ interface OfferingDoc {
   colmeiaId: string
   items: OfferingItem[]
   weekStart: string
-  rawMessage?: string
   dateCreated: string
 }
 
@@ -29,6 +27,8 @@ interface ProductDoc {
   producerId: string
   colmeiaId: string
   dateUpdated: string
+  type?: 'fixo' | 'extra'
+  ativo?: boolean
 }
 
 interface OrderDoc {
@@ -51,30 +51,6 @@ router.get('/', async (req: Request, res: Response) => {
     if (weekId) filters.push(['weekStart', '==', weekId])
     const offerings = await listDocs<OfferingDoc>('weekly_offerings', filters)
     res.json(offerings)
-  } catch (err) {
-    res.status(500).json({ message: String(err) })
-  }
-})
-
-router.post('/parse', async (req: Request, res: Response) => {
-  try {
-    const { rawMessage, colmeiaId, producerId } = req.body as { rawMessage: string; colmeiaId: string; producerId?: string }
-    const id = colmeiaId || req.colmeiaId
-    if (!id) { res.status(400).json({ message: 'colmeiaId obrigatório' }); return }
-
-    const productFilters: Array<[string, FirebaseFirestore.WhereFilterOp, unknown]> = [['colmeiaId', '==', id]]
-    if (producerId) productFilters.push(['producerId', '==', producerId])
-    const existingProducts = await listDocs<ProductDoc>('products', productFilters)
-    const catalog = existingProducts.map((p) => ({ id: p.id, name: p.name, unit: p.unit, price: p.price }))
-    const parsed = await parseProducerMessage(rawMessage, catalog)
-
-    // Enriquece com preço do catálogo quando não discriminado na mensagem
-    const priceMap = new Map(catalog.map((p) => [p.id, p.price]))
-    const enriched = parsed.map((item) => ({
-      ...item,
-      price: item.matchedProductId ? (priceMap.get(item.matchedProductId) ?? item.price) : item.price,
-    }))
-    res.json(enriched)
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
@@ -122,7 +98,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
         .filter((o) => o.producerId === pid && o.weekStart < weekStart)
         .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
       if (!previous[0]) continue
-      const { id: _id, rawMessage: _raw, ...prevData } = previous[0]
+      const { id: _id, ...prevData } = previous[0]
       const fallback = await createDoc<OfferingDoc>('weekly_offerings', {
         ...prevData,
         weekStart,
@@ -137,98 +113,161 @@ router.post('/fallback', async (req: Request, res: Response) => {
   }
 })
 
+// Publica a oferta da semana de um produtor: normaliza os itens pelo catálogo,
+// substitui a oferta anterior da mesma semana e reabre os extras se fechados.
+async function upsertOffering(data: Omit<OfferingDoc, 'dateCreated'>) {
+  const existingProducts = await listDocs<ProductDoc>('products', [
+    ['colmeiaId', '==', data.colmeiaId],
+    ['producerId', '==', data.producerId],
+  ])
+  const catalogMap = new Map(existingProducts.map((p) => [p.id, { name: p.name }]))
+  const dateUpdated = new Date().toISOString()
+
+  // Resolve itens: normaliza nome pelo catálogo e atualiza preço/unidade; cria produto novo quando não existir
+  const resolvedItems: OfferingItem[] = await Promise.all(
+    data.items.map(async (item) => {
+      const cat = catalogMap.get(item.productId)
+      if (cat) {
+        await updateDoc<ProductDoc>('products', item.productId, { price: item.price, unit: item.unit, dateUpdated })
+        return { ...item, productName: cat.name }
+      }
+      const created = await createDoc<ProductDoc>('products', {
+        name: item.productName,
+        unit: item.unit,
+        price: item.price,
+        producerId: data.producerId,
+        colmeiaId: data.colmeiaId,
+        dateUpdated,
+      })
+      return { ...item, productId: created.id }
+    })
+  )
+
+  // Deduplica por productId (o mesmo produto pode entrar duas vezes na oferta)
+  const seen = new Set<string>()
+  const deduped = resolvedItems.filter((i) => {
+    if (seen.has(i.productId)) return false
+    seen.add(i.productId)
+    return true
+  })
+
+  // Substitui se já existir oferta do mesmo produtor na mesma semana
+  const existing = await listDocs<OfferingDoc>('weekly_offerings', [
+    ['colmeiaId', '==', data.colmeiaId],
+    ['producerId', '==', data.producerId],
+    ['weekStart', '==', data.weekStart],
+  ])
+
+  let offering
+  const anterior = existing[0]
+  if (anterior) {
+    await updateDoc<OfferingDoc>('weekly_offerings', anterior.id, { items: deduped })
+    offering = { ...anterior, items: deduped }
+
+    // Produtos removidos da oferta → descartar dos pedidos da semana
+    const prevIds = new Set(anterior.items.map((i) => i.productId))
+    const newIds = new Set(deduped.map((i) => i.productId))
+    const removidos = [...prevIds].filter((id) => !newIds.has(id))
+    if (removidos.length > 0) {
+      const orders = await listDocs<OrderDoc>('orders', [
+        ['colmeiaId', '==', data.colmeiaId],
+        ['weekId', '==', data.weekStart],
+      ])
+      const affected = orders.filter((o) =>
+        o.items.some((item) => item.offeringId === anterior.id && removidos.includes(item.productId))
+      )
+      const now = new Date().toISOString()
+      await Promise.all(affected.map((o) =>
+        updateDoc<OrderDoc>('orders', o.id, {
+          items: o.items.filter(
+            (item) => !(item.offeringId === anterior.id && removidos.includes(item.productId))
+          ),
+          dateUpdated: now,
+        })
+      ))
+    }
+  } else {
+    offering = await createDoc<OfferingDoc>('weekly_offerings', {
+      ...data,
+      items: deduped,
+      dateCreated: new Date().toISOString(),
+    })
+  }
+
+  // Auto-desbloqueio: nova oferta publicada → reabrir pedidos se estiverem fechados
+  const colmeiaSnap = await db.collection('colmeias').doc(data.colmeiaId).get()
+  const extrasAtual = (colmeiaSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
+  if (!extrasAtual) {
+    await db.collection('colmeias').doc(data.colmeiaId).update({ extrasAberto: true })
+      .catch((err) => console.error('[offerings] auto-unlock falhou:', err))
+  }
+
+  return offering
+}
+
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const data = req.body as Omit<OfferingDoc, 'dateCreated'>
-    const existingProducts = await listDocs<ProductDoc>('products', [
-      ['colmeiaId', '==', data.colmeiaId],
-      ['producerId', '==', data.producerId],
-    ])
-    const catalogMap = new Map(existingProducts.map((p) => [p.id, { name: p.name }]))
-    const dateUpdated = new Date().toISOString()
-
-    // Resolve itens: normaliza nome pelo catálogo e atualiza preço/unidade; cria produto novo quando não existir
-    const resolvedItems: OfferingItem[] = await Promise.all(
-      data.items.map(async (item) => {
-        const cat = catalogMap.get(item.productId)
-        if (cat) {
-          await updateDoc<ProductDoc>('products', item.productId, { price: item.price, unit: item.unit, dateUpdated })
-          return { ...item, productName: cat.name }
-        }
-        const created = await createDoc<ProductDoc>('products', {
-          name: item.productName,
-          unit: item.unit,
-          price: item.price,
-          producerId: data.producerId,
-          colmeiaId: data.colmeiaId,
-          dateUpdated,
-        })
-        return { ...item, productId: created.id }
-      })
-    )
-
-    // Deduplica por productId (mesmo produto pode vir com nomes diferentes na mensagem)
-    const seen = new Set<string>()
-    const deduped = resolvedItems.filter((i) => {
-      if (seen.has(i.productId)) return false
-      seen.add(i.productId)
-      return true
-    })
-
-    // Substitui se já existir oferta do mesmo produtor na mesma semana
-    const existing = await listDocs<OfferingDoc>('weekly_offerings', [
-      ['colmeiaId', '==', data.colmeiaId],
-      ['producerId', '==', data.producerId],
-      ['weekStart', '==', data.weekStart],
-    ])
-
-    let offering
-    if (existing[0]) {
-      await updateDoc<OfferingDoc>('weekly_offerings', existing[0].id, {
-        items: deduped,
-        rawMessage: data.rawMessage,
-      })
-      offering = { ...existing[0], items: deduped, rawMessage: data.rawMessage }
-
-      // Produtos removidos da oferta → descartar dos pedidos da semana
-      const prevIds = new Set(existing[0].items.map((i) => i.productId))
-      const newIds = new Set(deduped.map((i) => i.productId))
-      const removidos = [...prevIds].filter((id) => !newIds.has(id))
-      if (removidos.length > 0) {
-        const orders = await listDocs<OrderDoc>('orders', [
-          ['colmeiaId', '==', data.colmeiaId],
-          ['weekId', '==', data.weekStart],
-        ])
-        const affected = orders.filter((o) =>
-          o.items.some((item) => item.offeringId === existing[0].id && removidos.includes(item.productId))
-        )
-        const now = new Date().toISOString()
-        await Promise.all(affected.map((o) =>
-          updateDoc<OrderDoc>('orders', o.id, {
-            items: o.items.filter(
-              (item) => !(item.offeringId === existing[0].id && removidos.includes(item.productId))
-            ),
-            dateUpdated: now,
-          })
-        ))
-      }
-    } else {
-      offering = await createDoc<OfferingDoc>('weekly_offerings', {
-        ...data,
-        items: deduped,
-        dateCreated: new Date().toISOString(),
-      })
-    }
-
-    // Auto-desbloqueio: nova oferta publicada → reabrir pedidos se estiverem fechados
-    const colmeiaSnap = await db.collection('colmeias').doc(data.colmeiaId).get()
-    const extrasAtual = (colmeiaSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
-    if (!extrasAtual) {
-      await db.collection('colmeias').doc(data.colmeiaId).update({ extrasAberto: true })
-        .catch((err) => console.error('[offerings POST] auto-unlock falhou:', err))
-    }
-
+    const offering = await upsertOffering(req.body as Omit<OfferingDoc, 'dateCreated'>)
     res.status(201).json(offering)
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// POST /api/offerings/from-catalog — gera a oferta da semana a partir do catálogo ativo.
+// Substitui o parsing de mensagem de produtor da CSA: aqui o cardápio é estável e a
+// oferta é o próprio catálogo do produtor, opcionalmente ajustado depois pelo admin.
+router.post('/from-catalog', async (req: Request, res: Response) => {
+  try {
+    const { weekStart, colmeiaId: bodyColmeiaId, producerId } = req.body as {
+      weekStart: string; colmeiaId?: string; producerId?: string
+    }
+    const colmeiaId = bodyColmeiaId || req.colmeiaId
+    if (!colmeiaId || !weekStart) {
+      res.status(400).json({ message: 'weekStart e colmeiaId obrigatórios' }); return
+    }
+
+    const productFilters: Array<[string, FirebaseFirestore.WhereFilterOp, unknown]> = [
+      ['colmeiaId', '==', colmeiaId],
+    ]
+    if (producerId) productFilters.push(['producerId', '==', producerId])
+    const produtos = (await listDocs<ProductDoc>('products', productFilters))
+      .filter((p) => p.ativo !== false)
+
+    if (produtos.length === 0) {
+      res.status(201).json([]); return
+    }
+
+    const producers = await listDocs<{ name: string }>('producers', [['colmeiaId', '==', colmeiaId]])
+    const producerNames = new Map(producers.map((p) => [p.id, p.name]))
+
+    // Um produto pertence a um produtor; a oferta é publicada por produtor
+    const porProdutor = new Map<string, (ProductDoc & { id: string })[]>()
+    for (const p of produtos) {
+      const lista = porProdutor.get(p.producerId) ?? []
+      lista.push(p)
+      porProdutor.set(p.producerId, lista)
+    }
+
+    const created = []
+    for (const [pid, lista] of porProdutor) {
+      const offering = await upsertOffering({
+        producerId: pid,
+        producerName: producerNames.get(pid) ?? '',
+        colmeiaId,
+        weekStart,
+        items: lista.map((p) => ({
+          productId: p.id,
+          productName: p.name,
+          unit: p.unit,
+          price: p.price,
+          type: p.type ?? 'extra',
+        })),
+      })
+      created.push(offering)
+    }
+
+    res.status(201).json(created)
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }
