@@ -1,6 +1,6 @@
 # Visão Geral
 
-App de gestão de pedidos e entregas para padaria. O cardápio é estável (catálogo próprio,
+App de gestão de pedidos e entregas da padaria **Fermentou**. O cardápio é estável (catálogo próprio,
 não mensagem de produtor). O cliente interage **principalmente pelo WhatsApp**; a web é a
 ferramenta do admin da padaria.
 

@@ -1,6 +1,6 @@
-# padaria-app
+# Fermentou (`padaria-app`)
 
-Gestão de pedidos e entregas de padaria — catálogo, rota de entrega e faturas.
+Gestão de pedidos e entregas da padaria Fermentou — catálogo, rota de entrega e faturas.
 
 ## Pré-requisitos
 
