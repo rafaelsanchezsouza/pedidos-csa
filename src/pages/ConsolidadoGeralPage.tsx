@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { ordersApi, usersApi, offeringsApi } from '@/services/api'
 import type { Order, User, WeeklyOffering } from '@/types'
+import { formatQuota } from '@/lib/quota'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -193,7 +194,7 @@ export function ConsolidadoGeralPage() {
     const lines = [`Consolidado — ${dataStr}`]
     activeUsers.forEach((u) => {
       const order = orderByUser.get(u.id)
-      const parts = [u.name, '--------------------------', u.quota, u.neighborhood, order?.weeklyAddress ?? u.address, u.contact]
+      const parts = [u.name, '--------------------------', formatQuota(u), u.neighborhood, order?.weeklyAddress ?? u.address, u.contact]
       if (order?.doacao) parts.push('⟶ DOAÇÃO')
       if (order?.recebido) parts.push('⟶ RECEBIDO')
       if (order?.status === 'enviado' && order.items.length > 0) {
@@ -355,7 +356,7 @@ export function ConsolidadoGeralPage() {
                             {order?.weeklyNote && (
                               <div className="mt-0.5 text-xs bg-yellow-100 text-yellow-800 rounded px-1 inline-block">{order.weeklyNote}</div>
                             )}
-                            {u.quota && <div className="text-xs text-muted-foreground">{u.quota}</div>}
+                            {formatQuota(u) && <div className="text-xs text-muted-foreground">{formatQuota(u)}</div>}
                             {u.contact && <div className="text-xs text-muted-foreground">{u.contact}</div>}
                             {u.deliveryType === 'colmeia' && (
                               <div className="text-xs text-blue-600">retira na colmeia</div>

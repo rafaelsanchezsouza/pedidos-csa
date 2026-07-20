@@ -21,6 +21,7 @@ interface UserDoc {
   disabled?: boolean
   deleted?: boolean
   quota?: 'Cota inteira' | 'Meia cota'
+  quotaQty?: number
   acolhidaExpiry?: string
   deliveryOrder?: number
   freteDelivery?: number

@@ -1,6 +1,7 @@
 import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
 import { isFixoWeekFromDate } from './weekMath.js'
 import { resolveFrete } from './freteMath.js'
+import { quotaAmount } from './quotaMath.js'
 
 interface OrderItem {
   price: number
@@ -34,6 +35,7 @@ interface PaymentDoc {
 interface UserDoc {
   name: string
   quota?: string
+  quotaQty?: number
   frequency?: 'semanal' | 'quinzenal'
   quinzenalParity?: 'par' | 'impar'
   isentoCotas?: boolean
@@ -183,7 +185,7 @@ export async function generateQuotaForUser(
     : (colmeiaDoc?.quotaInteira ?? 65)
 
   const weeks = countDeliveryWeeks(month, userDoc.frequency ?? 'semanal', userDoc.quinzenalParity)
-  const amount = weeklyRate * weeks
+  const amount = quotaAmount(weeklyRate, userDoc.quotaQty, weeks)
   const dueDay = colmeiaDoc?.dueDay ?? 10
   const dueDate = buildDueDate(month, 'cota', dueDay)
 
@@ -232,7 +234,7 @@ export async function generateQuotaForAll(colmeiaId: string, month: string): Pro
       ? (colmeiaDoc?.quotaMeia ?? 40)
       : (colmeiaDoc?.quotaInteira ?? 65)
     const weeks = countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
-    const amount = weeklyRate * weeks
+    const amount = quotaAmount(weeklyRate, u.quotaQty, weeks)
 
     const existing = await listDocs<PaymentDoc>('payments', [
       ['userId', '==', u.id],

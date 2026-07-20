@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { ordersApi, usersApi } from '@/services/api'
 import type { Order, User } from '@/types'
+import { formatQuota } from '@/lib/quota'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -118,7 +119,7 @@ export function EntregasPage() {
       return list.map((u) => {
         const order = orderByUser.get(u.id)
         if (order?.suspensa) return null
-        const lines = [u.name, '--------------------------', u.quota, u.neighborhood, order?.weeklyAddress ?? u.address, u.contact]
+        const lines = [u.name, '--------------------------', formatQuota(u), u.neighborhood, order?.weeklyAddress ?? u.address, u.contact]
         if (order?.weeklyNote) lines.push(`⚠ ${order.weeklyNote}`)
         if (order?.status === 'enviado' && order.items.length > 0) {
           order.items.forEach((i) => lines.push(`- ${i.qty} ${i.unit} ${i.productName}`))
@@ -384,7 +385,7 @@ function LinhaEntrega({ user: u, order, isSuspending, onEditAddress, onEditNote,
       </td>
       <td className="px-4 py-2 font-medium">
         <div className={suspensa ? 'line-through text-muted-foreground' : ''}>{u.name}</div>
-        {u.quota && <div className="text-xs text-muted-foreground">{u.quota}</div>}
+        {formatQuota(u) && <div className="text-xs text-muted-foreground">{formatQuota(u)}</div>}
         {u.contact && <div className="text-xs text-muted-foreground">{u.contact}</div>}
         {u.frequency === 'quinzenal' && <span className="text-xs text-muted-foreground">quinzenal</span>}
         {order?.weeklyAddress ? (

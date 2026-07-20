@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { usersApi } from '@/services/api'
 import type { User } from '@/types'
+import { formatQuota } from '@/lib/quota'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/PageHeader'
 import { Input } from '@/components/ui/input'
@@ -114,7 +115,7 @@ export function PerfilPage() {
             <div className="space-y-1">
               <Label>Cota</Label>
               <p className="text-sm text-muted-foreground">
-                {user.quota}
+                {formatQuota(user)}
               </p>
             </div>
           )}

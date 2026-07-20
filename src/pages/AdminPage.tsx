@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { usersApi, producersApi, colmeiasApi, rolesApi } from '@/services/api'
 import type { BatchResult } from '@/services/api'
 import type { User, Producer, ColmeiaRole } from '@/types'
+import { formatQuota } from '@/lib/quota'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/PageHeader'
 import { Input } from '@/components/ui/input'
@@ -43,10 +44,11 @@ interface MemberForm {
   role?: string
   isentoCotas?: boolean
   quota: User['quota']
+  quotaQty: number
 }
 const emptyMemberForm: MemberForm = {
   name: '', email: '', password: '', address: '', neighborhood: '', contact: '',
-  frequency: 'semanal', deliveryType: 'colmeia', acesso: 'user', quota: 'Cota inteira',
+  frequency: 'semanal', deliveryType: 'colmeia', acesso: 'user', quota: 'Cota inteira', quotaQty: 1,
 }
 
 
@@ -262,6 +264,7 @@ export function AdminPage() {
       role: u.role,
       isentoCotas: u.isentoCotas,
       quota: u.quota,
+      quotaQty: u.quotaQty ?? 1,
       acolhidaExpiry: u.acolhidaExpiry,
       freteDelivery: u.freteDelivery,
     })
@@ -492,7 +495,7 @@ export function AdminPage() {
                           ? u.quinzenalParity === 'impar' ? 'A' : u.quinzenalParity === 'par' ? 'B' : '—'
                           : '—'}
                       </TableCell>
-                      <TableCell className="text-sm">{u.quota ?? '—'}</TableCell>
+                      <TableCell className="text-sm">{formatQuota(u) || '—'}</TableCell>
                       <TableCell className="text-sm">{u.contact}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -547,7 +550,7 @@ export function AdminPage() {
                         </span>
                       )}
                     </div>
-                    <div className="text-sm text-muted-foreground">{u.quota ?? '—'}</div>
+                    <div className="text-sm text-muted-foreground">{formatQuota(u) || '—'}</div>
                     <div className="text-sm text-muted-foreground">{u.contact}</div>
                     <div className="flex gap-1 pt-1">
                       <Button variant="ghost" size="icon" onClick={() => openEditMember(u)}>
@@ -883,13 +886,22 @@ export function AdminPage() {
               </div>
               <div className="space-y-1">
                 <Label>Cota</Label>
-                <Select value={memberForm.quota ?? 'Cota inteira'} onValueChange={(v) => setMember('quota', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Cota inteira">Cota inteira</SelectItem>
-                    <SelectItem value="Meia cota">Meia cota</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Select value={memberForm.quota ?? 'Cota inteira'} onValueChange={(v) => setMember('quota', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cota inteira">Cota inteira</SelectItem>
+                        <SelectItem value="Meia cota">Meia cota</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Input
+                    type="number" min={1} className="w-16" title="Quantidade de cotas"
+                    value={memberForm.quotaQty}
+                    onChange={(e) => setMemberForm((p) => ({ ...p, quotaQty: Math.max(1, parseInt(e.target.value) || 1) }))}
+                  />
+                </div>
               </div>
             </div>
             <div className="space-y-1">
@@ -1137,13 +1149,22 @@ export function AdminPage() {
               </div>
               <div className="space-y-1">
                 <Label>Cota</Label>
-                <Select value={editForm.quota ?? 'Cota inteira'} onValueChange={(v) => setEdit('quota', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Cota inteira">Cota inteira</SelectItem>
-                    <SelectItem value="Meia cota">Meia cota</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Select value={editForm.quota ?? 'Cota inteira'} onValueChange={(v) => setEdit('quota', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cota inteira">Cota inteira</SelectItem>
+                        <SelectItem value="Meia cota">Meia cota</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Input
+                    type="number" min={1} className="w-16" title="Quantidade de cotas"
+                    value={editForm.quotaQty ?? 1}
+                    onChange={(e) => setEditForm((p) => ({ ...p, quotaQty: Math.max(1, parseInt(e.target.value) || 1) }))}
+                  />
+                </div>
               </div>
             </div>
             <div className="space-y-1">

@@ -27,6 +27,7 @@
 
 ### Outros campos de usuário
 - `quota: 'Cota inteira' | 'Meia cota'` — define o valor da cota mensal; **obrigatório para elegibilidade** (usuário sem `quota` não tem cota gerada)
+- `quotaQty: number` — quantidade de cotas **do mesmo tipo** (padrão 1). Ex: membro que recebe 2 cotas inteiras (`quota: 'Cota inteira'`, `quotaQty: 2`) ou 3 meias (`quota: 'Meia cota'`, `quotaQty: 3`). Ausente = 1 (retrocompatível). Não permite misturar inteira+meia no mesmo membro (usar dois cadastros)
 - `isentoCotas: boolean` — quando `true`, o usuário não tem cota mensal gerada e não aparece na lista de verificação de pagamentos de cota
 - `disabled: boolean` — quando `true`, usuário inativo; excluído da geração de cotas
 - `deleted: boolean` — quando `true`, usuário removido; excluído da geração de cotas
@@ -165,7 +166,8 @@
 ### Cota mensal
 - `producerName === 'Cota'`; criada via `POST /payments/quota` (por usuário) ou `POST /payments/quota/all` (admin, gera para todos elegíveis)
 - `quotaInteira` e `quotaMeia` são valores **por semana** (ex: R$65/semana cota inteira)
-- Valor mensal = `weeklyRate × countDeliveryWeeks(month, user.frequency, user.quinzenalParity)`
+- Valor mensal = `weeklyRate × quotaQty × countDeliveryWeeks(month, user.frequency, user.quinzenalParity)`
+  - `quotaQty` (padrão 1) multiplica a cota: 2 inteiras = `quotaInteira × 2 × semanas`; 3 meias = `quotaMeia × 3 × semanas`
   - Usuário `semanal`: conta todas as quartas-feiras do mês
   - Usuário `quinzenal`: conta apenas as semanas do ciclo do membro
 - Vencimento: dia `dueDay` do **mês anterior** (pagamento pré-consumo)
