@@ -27,7 +27,8 @@ scp -i "$SSH_KEY" -r dist/        "$VM_USER@$VM_HOST:$VM_DIR/dist"
 scp -i "$SSH_KEY" -r dist-server/ "$VM_USER@$VM_HOST:$VM_DIR/dist-server"
 scp -i "$SSH_KEY" package.json package-lock.json "$VM_USER@$VM_HOST:$VM_DIR/"
 scp -i "$SSH_KEY" "$ENV_FILE" "$VM_USER@$VM_HOST:$VM_DIR/.env"
-scp -i "$SSH_KEY" docker-compose.yml "$VM_USER@$VM_HOST:$VM_DIR/docker-compose.yml"
+# evolution-api NÃO é deployado por este app: é infra compartilhada da VM (já roda na 8080).
+# O docker-compose.yml do repo é referência local; não vai pra VM.
 
 echo "==> [3/5] Ajustando permissões do .env na VM..."
 $SSH "chmod 600 $VM_DIR/.env"

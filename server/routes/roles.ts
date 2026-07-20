@@ -3,8 +3,9 @@ import { listDocs, createDoc, getDoc, deleteDoc } from '../repositories/firestor
 
 const router = Router()
 
-// Sem funções padrão: campo livre, o admin cria as suas. Os defaults antigos
-// ('colmeia'/'coagricultor') eram vocabulário da CSA — ver PENDENCIAS.md B3.
+// Sem funções padrão: campo livre, o admin cria as suas (ex: numa padaria, "consumidor").
+// Os defaults antigos ('colmeia'/'coagricultor') eram vocabulário da CSA. Para padaria o
+// campo é quase redundante com o acesso Cliente — ver PENDENCIAS.md B3 e MERGE.md.
 const DEFAULTS: string[] = []
 
 interface RoleDoc {
