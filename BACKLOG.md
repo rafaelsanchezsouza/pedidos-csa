@@ -38,10 +38,14 @@ Eram bugs independentes, não a mesma raiz:
 | # | Item | Issue | Nota |
 |---|------|-------|------|
 | 3 | Quantidade por pedido: cota cheia / meia / N cotas (padrão 1) | #45 | Hoje André precisa de 2 cadastros; Luciano recebe 2–3 meias. Muda modelo de dados. Ver #18 antes. |
-| 6 | Upload de comprovante de pagamento do delivery pelo membro | #47 | Precisa storage + tela |
 
-Feito: **#46** (drag-and-drop da lista de entrega + admin alfabético) — em produção,
-validado no mobile (PRs #54/#55). Itens 4 e 5 do feedback original.
+⚠️ **#47 (fatura de frete da entrega)** — deployado em produção 2026-07-19 (PR #56), mas
+**AINDA NÃO VERIFICADO pelo usuário**. Issue #47 continua ABERTA. Envolve dinheiro (gera
+fatura), então validar o cálculo com membro real antes de fechar. Ver detalhes/riscos no
+handoff. Não mexer no cálculo de frete sem essa validação.
+
+Feito e validado: **#46** (drag-and-drop da lista de entrega + admin alfabético) — em
+produção, validado no mobile (PRs #54/#55). Itens 4 e 5 do feedback original.
 
 ## P2 — issues de produto
 
