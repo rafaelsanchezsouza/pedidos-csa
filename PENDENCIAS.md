@@ -59,6 +59,21 @@ pedidos → entregas → pagamentos). Ressalvas:
 | C3 | Corrigido nesta sessão: `/api/setup` fixava o tenant "Flor de Quilombo" e **não criava o doc do admin** → `GET /users/me` dava 404 e o login travava. Agora parametriza o nome e cria o admin `superadmin`. **Ainda não exercitado** (cai no C1) |
 | C4 | Jobs de cron (cota dia 1, envio terça 6h) sobem no boot; sem produtores/pedidos não fazem nada. O envio terça usa WhatsApp (best-effort, loga se falhar) |
 
+## E. Vender para outro cliente (multi-tenant → SaaS)
+
+O modelo de dados **já é multi-tenant**: nova padaria = novo tenant, isolado por `tenantId`,
+mesma instância. Config em **Administração** (superadmin cria em "Nova Organização"; cota/frete/
+vencimento/agenda na aba "Configurações"; catálogo/clientes/fornecedores por tenant). O que
+falta para virar produto vendável:
+
+| # | Lacuna | Impacto |
+|---|---|---|
+| E1 | `POST /tenants` não cria o admin da padaria (aponta `adminId` pro superadmin) | onboarding manual: criar o admin dela à mão em cada tenant novo |
+| E2 | Isolamento é na camada de app (backend filtra por `tenantId`), **não** em regra do Firestore | bug de escopo = vazamento entre padarias; pente-fino de segurança antes de vender |
+| E3 | Sem self-service e sem billing (cobrança da padaria pra você) | provisionar e cobrar por fora |
+| E4 | Marca/domínio/tema compartilhados (`APP_NAME` global, uma URL) | não é white-label; cada tenant só muda o próprio nome |
+| E5 | Infra compartilhada (1 Firebase, 1 pm2) | deploy ruim ou quota atinge todas as padarias juntas |
+
 ## D. Escolhas que eu tomei e você pode vetar
 
 | # | Escolha | Reversível? |
