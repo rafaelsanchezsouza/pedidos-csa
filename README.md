@@ -57,8 +57,12 @@ Com os servidores rodando (passo 5), execute uma vez:
 ```bash
 curl -X POST http://localhost:3004/api/setup \
   -H "Content-Type: application/json" \
-  -d '{"adminUid": "SEU_UID_AQUI"}'
+  -d '{"adminUid": "SEU_UID_AQUI", "tenantName": "Fermentou", "adminName": "Seu Nome", "adminEmail": "voce@email.com"}'
 ```
+
+Cria a organização e o doc do admin (`acesso: superadmin`) em `users`. Roda uma vez só —
+bloqueia assim que existir qualquer organização. Sem o doc do admin, `GET /users/me` daria
+404 e o login não carregaria.
 
 ## Rodando em desenvolvimento
 

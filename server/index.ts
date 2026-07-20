@@ -32,22 +32,43 @@ const HOST = process.env.HOST || '127.0.0.1'
 app.use(cors())
 app.use(express.json())
 
-// One-time setup endpoint (no auth) — creates "Flor de Quilombo" tenant
-// POST /api/setup  { adminEmail: string, adminUid: string }
+// One-time setup endpoint (no auth) — cria a primeira organização (tenant) e o doc
+// do admin. Bloqueado assim que já existir qualquer tenant (roda uma vez só).
+// POST /api/setup  { adminUid, tenantName, adminName?, adminEmail? }
 app.post('/api/setup', async (req, res) => {
   try {
-    const existing = await db.collection('tenants').where('name', '==', 'Flor de Quilombo').get()
+    const existing = await db.collection('tenants').limit(1).get()
     if (!existing.empty) {
-      res.status(400).json({ message: 'Tenant já existe' })
+      res.status(400).json({ message: 'Setup já executado: já existe uma organização' })
       return
     }
-    const { adminUid } = req.body as { adminUid: string }
-    const ref = await db.collection('tenants').add({
-      name: 'Flor de Quilombo',
+    const { adminUid, tenantName, adminName, adminEmail } = req.body as {
+      adminUid?: string; tenantName?: string; adminName?: string; adminEmail?: string
+    }
+    if (!adminUid || !tenantName?.trim()) {
+      res.status(400).json({ message: 'adminUid e tenantName obrigatórios' })
+      return
+    }
+    const now = new Date().toISOString()
+    const tenantRef = await db.collection('tenants').add({
+      name: tenantName.trim(),
       adminId: adminUid,
-      dateCreated: new Date().toISOString(),
+      dateCreated: now,
     })
-    res.status(201).json({ id: ref.id, name: 'Flor de Quilombo' })
+    // Doc do admin em `users` — sem ele, GET /users/me dá 404 e o login não carrega.
+    // superadmin: acessa a administração e todas as organizações.
+    await db.collection('users').doc(adminUid).set({
+      name: adminName?.trim() || 'Admin',
+      email: adminEmail?.trim().toLowerCase() || '',
+      address: '',
+      contact: '',
+      frequency: 'semanal',
+      deliveryType: 'retirada',
+      tenantId: tenantRef.id,
+      acesso: 'superadmin',
+      isentoCotas: true,
+    })
+    res.status(201).json({ id: tenantRef.id, name: tenantName.trim() })
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }

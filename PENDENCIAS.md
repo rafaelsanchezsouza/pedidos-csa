@@ -47,11 +47,17 @@ Falta você (precisa de SSH na VM + Firebase pronto):
 | B6 | Número de WhatsApp dedicado (F2) | hoje seguimos no número compartilhado, só para teste |
 | B7 | Merge com pedidos-csa | ver `MERGE.md` — §1 (nome do identificador) é a decisão estrutural, exige migração da CSA |
 
-## C. Não verificado
+## C. Estado "pronto pra rodar"
+
+**Depois do Firestore, o fluxo web de admin roda** (login email/senha → catálogo → oferta →
+pedidos → entregas → pagamentos). Ressalvas:
 
 | # | Item |
 |---|---|
-| C1 | `POST /api/offerings/from-catalog` nunca tocou um Firestore — build, typecheck e 65 testes passam, mas o fluxo nunca rodou de ponta a ponta |
+| C1 | Nada rodou contra um Firestore real ainda — build, typecheck e 65 testes passam, mas o fluxo é não-exercitado de ponta a ponta |
+| C2 | **Login por WhatsApp (OTP) e mensagem de boas-vindas** precisam do evolution-api conectado (F2). O login **email/senha** do admin **não** depende disso — cobre o acesso web |
+| C3 | Corrigido nesta sessão: `/api/setup` fixava o tenant "Flor de Quilombo" e **não criava o doc do admin** → `GET /users/me` dava 404 e o login travava. Agora parametriza o nome e cria o admin `superadmin`. **Ainda não exercitado** (cai no C1) |
+| C4 | Jobs de cron (cota dia 1, envio terça 6h) sobem no boot; sem produtores/pedidos não fazem nada. O envio terça usa WhatsApp (best-effort, loga se falhar) |
 
 ## D. Escolhas que eu tomei e você pode vetar
 

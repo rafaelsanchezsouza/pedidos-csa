@@ -31,7 +31,8 @@ function gerarSenha() {
 }
 
 async function enviarBoasVindas(contact: string, name: string, email: string, password: string, tenantName: string) {
-  const msg = `Olá, ${name}! Bem-vinde à ${tenantName} 🌿\n\nSeu acesso ao app de pedidos foi criado:\nE-mail: ${email}\nSenha: ${password}\n\nAcesse: http://csaparahyba.com.br/\n\nNa primeira entrada, defina uma nova senha.`
+  const acesso = process.env.APP_URL ? `\n\nAcesse: ${process.env.APP_URL}` : ''
+  const msg = `Olá, ${name}! Bem-vinde à ${tenantName}\n\nSeu acesso ao app de pedidos foi criado:\nE-mail: ${email}\nSenha: ${password}${acesso}\n\nNa primeira entrada, defina uma nova senha.`
   await sendWhatsAppMessage(normalizePhone(contact), msg)
 }
 
