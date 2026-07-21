@@ -65,7 +65,7 @@ app.post('/api/setup', async (req, res) => {
       frequency: 'semanal',
       deliveryType: 'retirada',
       tenantId: tenantRef.id,
-      acesso: 'superadmin',
+      acesso: ['superadmin', 'admin', 'fornecedor'],
       isentoCotas: true,
     })
     // Fornecedor padrão = a própria loja. Enquanto for o único, a UI de seleção de

@@ -1,3 +1,5 @@
+import type { Acesso } from '@/lib/acesso'
+
 export interface Tenant {
   id: string
   name: string
@@ -23,7 +25,7 @@ export interface User {
   frequency: 'semanal' | 'quinzenal'
   deliveryType: 'retirada' | 'entrega'
   tenantId: string
-  acesso: 'admin' | 'user' | 'superadmin' | 'produtor'
+  acesso: Acesso[]
   role?: string
   isentoCotas?: boolean
   disabled?: boolean

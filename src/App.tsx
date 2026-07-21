@@ -12,6 +12,7 @@ import { EntregasPage } from '@/pages/EntregasPage'
 import { ConsolidadoGeralPage } from '@/pages/ConsolidadoGeralPage'
 import { VerificarPagamentosPage } from '@/pages/VerificarPagamentosPage'
 import { DefinirSenhaPage } from '@/pages/DefinirSenhaPage'
+import { isAdmin } from '@/lib/acesso'
 import { ReactNode } from 'react'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
@@ -20,7 +21,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>
   if (!firebaseUser || !tenant) return <Navigate to="/login" replace />
   if (user?.mustChangePassword) return <Navigate to="/definir-senha" replace />
-  if (adminOnly && user?.acesso !== 'admin' && user?.acesso !== 'superadmin') {
+  if (adminOnly && !isAdmin(user)) {
     return <Navigate to="/pedidos" replace />
   }
   return <>{children}</>

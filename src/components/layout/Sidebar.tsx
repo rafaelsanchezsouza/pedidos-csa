@@ -2,31 +2,34 @@ import { NavLink } from 'react-router-dom'
 import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, UserCircle, Truck, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { isAdmin as checkAdmin, isFornecedor, isSuperadmin } from '@/lib/acesso'
+import { MULTI_TENANT } from '@/lib/features'
 import { ReportarProblema } from '@/components/ReportarProblema'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
+// fornecedorVisible: item visível também para fornecedor (gerencia/vê só o que é dele)
 const navItems = [
-  { to: '/pedidos', label: 'Meus Pedidos', icon: ShoppingCart, adminOnly: false, produtorVisible: false },
-  { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard, adminOnly: false, produtorVisible: false },
-  { to: '/verificar-pagamentos', label: 'Verificar Pagamentos', icon: CheckCircle, adminOnly: true, produtorVisible: true },
-  { to: '/ofertas', label: 'Extras da Semana', icon: Wheat, adminOnly: true, produtorVisible: false },
-  { to: '/entregas', label: 'Entregas', icon: Truck, adminOnly: true, produtorVisible: false },
-  { to: '/consolidado-geral', label: 'Consolidado', icon: ClipboardList, adminOnly: true, produtorVisible: false },
-  { to: '/catalogo', label: 'Catálogo', icon: BookOpen, adminOnly: true, produtorVisible: false },
-  { to: '/admin', label: 'Administração', icon: Settings, adminOnly: true, produtorVisible: false },
-  { to: '/perfil', label: 'Meu Perfil', icon: UserCircle, adminOnly: false, produtorVisible: false },
+  { to: '/pedidos', label: 'Meus Pedidos', icon: ShoppingCart, adminOnly: false, fornecedorVisible: false },
+  { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard, adminOnly: false, fornecedorVisible: false },
+  { to: '/verificar-pagamentos', label: 'Verificar Pagamentos', icon: CheckCircle, adminOnly: true, fornecedorVisible: true },
+  { to: '/ofertas', label: 'Extras da Semana', icon: Wheat, adminOnly: true, fornecedorVisible: true },
+  { to: '/entregas', label: 'Entregas', icon: Truck, adminOnly: true, fornecedorVisible: false },
+  { to: '/consolidado-geral', label: 'Consolidado', icon: ClipboardList, adminOnly: true, fornecedorVisible: false },
+  { to: '/catalogo', label: 'Catálogo', icon: BookOpen, adminOnly: true, fornecedorVisible: true },
+  { to: '/admin', label: 'Administração', icon: Settings, adminOnly: true, fornecedorVisible: false },
+  { to: '/perfil', label: 'Meu Perfil', icon: UserCircle, adminOnly: false, fornecedorVisible: false },
 ]
 
 export function Sidebar() {
   const { user, tenant, tenants, selectTenant } = useAuth()
-  const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
-  const isProdutor = user?.acesso === 'produtor'
-  const isSuperAdmin = user?.acesso === 'superadmin'
+  const isAdmin = checkAdmin(user)
+  const isFornec = isFornecedor(user)
+  const isSuperAdmin = isSuperadmin(user)
 
   return (
     <aside className="w-56 border-r bg-background flex flex-col">
-      {/* Bloco da organização só aparece quando há mais de uma (com 1, é redundante com a marca) */}
-      {tenant && tenants.length > 1 && (
+      {/* Bloco da organização: só com multi-loja ligado E mais de uma organização */}
+      {tenant && MULTI_TENANT && tenants.length > 1 && (
         <div className="px-4 py-3 border-b">
           {isSuperAdmin ? (
             <Select value={tenant.id} onValueChange={selectTenant}>
@@ -46,7 +49,7 @@ export function Sidebar() {
       )}
       <nav className="flex-1 py-2">
         {navItems
-          .filter((item) => !item.adminOnly || isAdmin || (item.produtorVisible && isProdutor))
+          .filter((item) => !item.adminOnly || isAdmin || (item.fornecedorVisible && isFornec))
           .map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}

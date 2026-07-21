@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDeliveryDate, getPresentWeekId, isUserDeliveryWeek } from '@/lib/weekUtils'
+import { isAdmin as checkAdmin } from '@/lib/acesso'
 import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@/components/PageHeader'
 import { EstadoLista } from '@/components/EstadoLista'
@@ -23,7 +24,7 @@ export function PedidosPage() {
   const [weekId, setWeekId] = useState(() => getPresentWeekId(tenant?.weekChangeDay ?? 0))
   const [extrasAberto, setExtrasAberto] = useState(true)
   const showFixo = user ? isUserDeliveryWeek(user, weekId) : true
-  const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
+  const isAdmin = checkAdmin(user)
   const pedidosBloqueados = !extrasAberto && !isAdmin
 
   const load = useCallback(async () => {

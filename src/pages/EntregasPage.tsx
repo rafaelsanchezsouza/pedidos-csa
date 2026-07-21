@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { ordersApi, usersApi } from '@/services/api'
 import type { Order, User } from '@/types'
+import { isFornecedor, isConsumidor } from '@/lib/acesso'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -67,7 +68,7 @@ export function EntregasPage() {
 
   const activeUsers = users.filter((u) => {
     if (u.disabled || u.deleted) return false
-    if (u.acesso === 'produtor') return false
+    if (isFornecedor(u) && !isConsumidor(u)) return false // fornecedor puro não recebe entrega
     if (!isUserDeliveryWeek(u, weekId)) return false
     if (orderByUser.get(u.id)?.doacao) return false
     return true
@@ -79,7 +80,7 @@ export function EntregasPage() {
   // Conjunto completo de entrega (todas as semanas) — base do merge que preserva a posição
   // de quem não aparece nesta semana. Só atributos de membro, não flags semanais (doacao).
   const todosEntrega = users.filter(
-    (u) => u.deliveryType === 'entrega' && !u.disabled && !u.deleted && u.acesso !== 'produtor',
+    (u) => u.deliveryType === 'entrega' && !u.disabled && !u.deleted && !(isFornecedor(u) && !isConsumidor(u)),
   )
 
   const sensors = useSensors(

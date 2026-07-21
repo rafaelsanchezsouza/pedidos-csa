@@ -71,6 +71,18 @@ de ponta a ponta contra o Firestore real:
 Estado do banco: 1 tenant (Fermentou, id `biYY08CKHpJm2nywMAJC`), 1 user (admin superadmin,
 `rafaelsanchezsouza@gmail.com`). Falta: rodar o deploy na VM (A-bis) e cadastrar catálogo real.
 
+## F. Acesso multi-categoria — ressalvas
+
+`acesso` agora é lista (`superadmin/admin/consumidor/fornecedor`, checkboxes). Feito: abas
+Clientes (só consumidores) e Admins, Organizações OFF por `MULTI_TENANT` (src/lib/features.ts),
+fornecedor vê nav de Catálogo/Ofertas/Verificar Pagamentos. **Ainda falta** (não exercitado —
+o único fornecedor hoje é o owner, que é admin e vê tudo):
+
+| # | Lacuna |
+|---|---|
+| F1 | **Escopo do fornecedor em Catálogo/Ofertas não filtra por dono** — um fornecedor-só veria/gerenciaria TODOS os produtos, não apenas os seus. Verificar Pagamentos já filtra (por `producerName === user.name`) |
+| F2 | O filtro do fornecedor é por **nome** (`producerName === user.name`) — frágil: exige que o nome do usuário == nome da entidade fornecedor no catálogo. Ligar usuário↔fornecedor por id seria robusto |
+
 ## E. Vender para outro cliente (multi-tenant → SaaS)
 
 O modelo de dados **já é multi-tenant**: nova padaria = novo tenant, isolado por `tenantId`,

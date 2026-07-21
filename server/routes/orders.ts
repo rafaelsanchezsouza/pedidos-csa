@@ -3,6 +3,7 @@ import { listDocs, createDoc, updateDoc, getDoc, db } from '../repositories/fire
 import { upsertPaymentsForOrder } from '../services/paymentService.js'
 import { sendWhatsAppMessage } from '../services/whatsapp/index.js'
 import { buildConsolidatedText, normalizePhone } from '../services/ordersService.js'
+import { isAdmin as checkAdmin } from '../services/acesso.js'
 
 const router = Router()
 
@@ -201,8 +202,8 @@ router.post('/', async (req: Request, res: Response) => {
       db.collection('users').doc(req.user!.uid).get(),
       db.collection('tenants').doc(data.tenantId).get(),
     ])
-    const acesso = (userSnap.data() as { acesso?: string } | undefined)?.acesso
-    const isAdmin = acesso === 'admin' || acesso === 'superadmin'
+    const acesso = (userSnap.data() as { acesso?: unknown } | undefined)?.acesso
+    const isAdmin = checkAdmin(acesso)
     const extrasAberto = (tenantSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
     if (!extrasAberto && !isAdmin) {
       res.status(403).json({ message: 'Pedidos de extras estão encerrados no momento' }); return
@@ -226,8 +227,8 @@ router.put('/:id', async (req: Request, res: Response) => {
         db.collection('users').doc(req.user!.uid).get(),
         db.collection('tenants').doc(existing.tenantId).get(),
       ])
-      const userData = userSnap.data() as { acesso?: string } | undefined
-      const isAdmin = userData?.acesso === 'admin' || userData?.acesso === 'superadmin'
+      const userData = userSnap.data() as { acesso?: unknown } | undefined
+      const isAdmin = checkAdmin(userData?.acesso)
       const extrasAberto = (tenantSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
       if (!extrasAberto && !isAdmin) {
         res.status(403).json({ message: 'Pedidos de extras estão encerrados no momento' }); return

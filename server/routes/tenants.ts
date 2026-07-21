@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { listDocs, createDoc, getDoc, updateDoc, db } from '../repositories/firestore.js'
+import { isSuperadmin, isAdmin } from '../services/acesso.js'
 
 const router = Router()
 
@@ -20,9 +21,9 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const uid = req.user!.uid
     const userSnap = await import('../repositories/firestore.js').then(m => m.db.collection('users').doc(uid).get())
-    const userData = userSnap.data() as { tenantId?: string; acesso?: string; role?: string } | undefined
+    const userData = userSnap.data() as { tenantId?: string; acesso?: unknown; role?: string } | undefined
 
-    if (userData?.acesso === 'superadmin' || userData?.role === 'superadmin') {
+    if (isSuperadmin(userData?.acesso) || userData?.role === 'superadmin') {
       const tenants = await listDocs<TenantDoc>('tenants')
       res.json(tenants)
     } else if (userData?.tenantId) {
@@ -68,9 +69,9 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const userSnap = await db.collection('users').doc(req.user!.uid).get()
-    const userData = userSnap.data() as { acesso?: string; tenantId?: string } | undefined
-    const isSuperAdmin = userData?.acesso === 'superadmin'
-    const isTenantAdmin = userData?.acesso === 'admin' && userData?.tenantId === req.params['id']
+    const userData = userSnap.data() as { acesso?: unknown; tenantId?: string } | undefined
+    const isSuperAdmin = isSuperadmin(userData?.acesso)
+    const isTenantAdmin = isAdmin(userData?.acesso) && userData?.tenantId === req.params['id']
     if (!isSuperAdmin && !isTenantAdmin) {
       res.status(403).json({ message: 'Sem permissão' }); return
     }

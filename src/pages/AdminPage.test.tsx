@@ -38,7 +38,7 @@ beforeEach(() => vi.clearAllMocks())
 
 describe('AdminPage — ação principal por aba', () => {
   it('aba clientes: Novo Cliente e Importar CSV', async () => {
-    montar('admin')
+    montar(['admin'])
     expect(await screen.findByRole('button', { name: /Novo Cliente/i })).toBeInTheDocument()
     expect(botao('Importar CSV')).toBeInTheDocument()
     expect(botao('Novo Fornecedor')).not.toBeInTheDocument()
@@ -46,7 +46,7 @@ describe('AdminPage — ação principal por aba', () => {
 
   it('aba fornecedores: troca para Novo Fornecedor e some o Importar CSV', async () => {
     const user = userEvent.setup()
-    montar('admin')
+    montar(['admin'])
     await user.click(await screen.findByRole('tab', { name: 'Fornecedores' }))
 
     expect(botao('Novo Fornecedor')).toBeInTheDocument()
@@ -57,7 +57,7 @@ describe('AdminPage — ação principal por aba', () => {
 
   it('aba configurações: nenhuma ação no cabeçalho', async () => {
     const user = userEvent.setup()
-    montar('admin')
+    montar(['admin'])
     await user.click(await screen.findByRole('tab', { name: 'Configurações' }))
 
     expect(botao('Novo Cliente')).not.toBeInTheDocument()
@@ -66,24 +66,24 @@ describe('AdminPage — ação principal por aba', () => {
     expect(botao('Nova Organização')).not.toBeInTheDocument()
   })
 
-  it('superadmin: aba organizações existe e mostra Nova Organização', async () => {
+  it('aba admins: troca para Novo Usuário', async () => {
     const user = userEvent.setup()
-    montar('superadmin')
-    await user.click(await screen.findByRole('tab', { name: 'Organizações' }))
+    montar(['admin'])
+    await user.click(await screen.findByRole('tab', { name: 'Admins' }))
 
-    expect(botao('Nova Organização')).toBeInTheDocument()
-    expect(botao('Novo Cliente')).not.toBeInTheDocument()
+    expect(botao('Novo Usuário')).toBeInTheDocument()
+    expect(botao('Novo Fornecedor')).not.toBeInTheDocument()
   })
 
-  it('admin comum não vê a aba padarias', async () => {
-    montar('admin')
+  it('organizações OFF por default: nem superadmin vê a aba (MULTI_TENANT=false)', async () => {
+    montar(['superadmin'])
     expect(await screen.findByRole('tab', { name: 'Clientes' })).toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Organizações' })).not.toBeInTheDocument()
   })
 
   it('volta para Novo Cliente ao retornar à aba clientes', async () => {
     const user = userEvent.setup()
-    montar('admin')
+    montar(['admin'])
     await user.click(await screen.findByRole('tab', { name: 'Fornecedores' }))
     await user.click(screen.getByRole('tab', { name: 'Clientes' }))
 

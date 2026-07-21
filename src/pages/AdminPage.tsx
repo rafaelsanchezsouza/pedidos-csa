@@ -5,6 +5,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { usersApi, producersApi, tenantsApi, rolesApi } from '@/services/api'
 import type { BatchResult } from '@/services/api'
 import type { User, Producer, TenantRole } from '@/types'
+import { isAdmin, isConsumidor, isSuperadmin, acessos, ACESSO_LABEL, type Acesso } from '@/lib/acesso'
+import { MULTI_TENANT } from '@/lib/features'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/PageHeader'
 import { Input } from '@/components/ui/input'
@@ -46,9 +48,11 @@ interface MemberForm {
 }
 const emptyMemberForm: MemberForm = {
   name: '', email: '', password: '', address: '', neighborhood: '', contact: '',
-  frequency: 'semanal', deliveryType: 'retirada', acesso: 'user', quota: 'Cota inteira',
+  frequency: 'semanal', deliveryType: 'retirada', acesso: ['consumidor'], quota: 'Cota inteira',
 }
 
+// Categorias oferecidas nos checkboxes de acesso (superadmin não é atribuível pela UI comum).
+const ACESSO_OPCOES: Acesso[] = ['consumidor', 'fornecedor', 'admin']
 
 interface ParsedRow {
   name: string
@@ -59,7 +63,7 @@ interface ParsedRow {
   deliveryType: 'retirada' | 'entrega'
   frequency: 'semanal' | 'quinzenal'
   quota: 'Cota inteira' | 'Meia cota'
-  acesso: 'user'
+  acesso: Acesso[]
 }
 
 function parseCsvLine(line: string): string[] {
@@ -107,7 +111,7 @@ function parseGoogleFormCsv(text: string): ParsedRow[] {
       deliveryType: (retirada.includes('entrega') ? 'entrega' : 'retirada') as 'retirada' | 'entrega',
       frequency: (freq.includes('quinzenal') ? 'quinzenal' : 'semanal') as 'semanal' | 'quinzenal',
       quota: (cota.includes('meia') ? 'Meia cota' : 'Cota inteira') as 'Cota inteira' | 'Meia cota',
-      acesso: 'user' as const,
+      acesso: ['consumidor'] as Acesso[],
     }
   }).filter(r => r.name && r.email)
 }
@@ -258,7 +262,7 @@ export function AdminPage() {
       frequency: u.frequency,
       quinzenalParity: u.quinzenalParity,
       deliveryType: u.deliveryType,
-      acesso: u.acesso,
+      acesso: acessos(u),
       role: u.role,
       isentoCotas: u.isentoCotas,
       quota: u.quota,
@@ -367,6 +371,21 @@ export function AdminPage() {
     setMemberForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  // Liga/desliga uma categoria de acesso (checkboxes; um usuário pode ter várias).
+  function toggleMemberAcesso(role: Acesso) {
+    setMemberForm((prev) => {
+      const has = prev.acesso.includes(role)
+      return { ...prev, acesso: has ? prev.acesso.filter((a) => a !== role) : [...prev.acesso, role] }
+    })
+  }
+  function toggleEditAcesso(role: Acesso) {
+    setEditForm((prev) => {
+      const cur = acessos(prev)
+      const has = cur.includes(role)
+      return { ...prev, acesso: has ? cur.filter((a) => a !== role) : [...cur, role] }
+    })
+  }
+
   async function handleSaveQuota() {
     if (!tenant) return
     setSavingQuota(true)
@@ -392,20 +411,143 @@ export function AdminPage() {
 
   if (loading) return <div className="text-muted-foreground">Carregando...</div>
 
-  const visibleUsers = users
+  const baseUsers = users
     .filter((u) => !u.deleted)
     .filter((u) => showInactive || !u.disabled)
     .filter((u) => !filterName.trim() || u.name.toLowerCase().includes(filterName.toLowerCase()))
+  // Clientes = consumidores (admin/superadmin nunca entram); Admins = admin/superadmin.
+  const clientes = baseUsers.filter((u) => isConsumidor(u) && !isAdmin(u))
+  const admins = baseUsers.filter((u) => isAdmin(u))
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) // admin sempre em ordem alfabética (#46)
 
-  // Ação principal de cada aba. Não repete a checagem de superadmin da aba `tenants`:
-  // o trigger e o TabsContent dela já são guardados e setTab só é chamado pelo próprio
-  // Tabs, então `tab === 'tenants'` é inalcançável para os demais. Guarda redundante aqui
-  // sugeriria que o portão é este, e não é.
+  // Tabela de usuários (desktop + mobile), reusada nas abas Clientes e Admins.
+  function renderUserTable(list: User[]) {
+    return (
+      <>
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Frequência</TableHead>
+                <TableHead>Semana</TableHead>
+                <TableHead>Cota</TableHead>
+                <TableHead>Contato</TableHead>
+                <TableHead className="w-20"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {list.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    Nenhum usuário encontrado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                list.map((u) => (
+                  <TableRow key={u.id} className={u.disabled ? 'opacity-50' : ''}>
+                    <TableCell className="font-medium">
+                      {u.name}
+                      {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
+                      {u.acolhidaExpiry && (
+                        <span className={`ml-2 text-xs ${acolhidaBadge(u.acolhidaExpiry).active ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                          ({acolhidaBadge(u.acolhidaExpiry).label})
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="capitalize">{u.frequency}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {u.frequency === 'quinzenal'
+                        ? u.quinzenalParity === 'impar' ? 'A' : u.quinzenalParity === 'par' ? 'B' : '—'
+                        : '—'}
+                    </TableCell>
+                    <TableCell className="text-sm">{u.quota ?? '—'}</TableCell>
+                    <TableCell className="text-sm">{u.contact}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditMember(u)} title="Editar">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)} title={u.disabled ? 'Habilitar' : 'Desabilitar'}>
+                          {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
+                        </Button>
+                        {isSuperadmin(user) && (
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)} title="Excluir">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="md:hidden space-y-3">
+          {list.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Nenhum usuário encontrado.
+              </CardContent>
+            </Card>
+          ) : (
+            list.map((u) => (
+              <Card key={u.id} className={u.disabled ? 'opacity-50' : ''}>
+                <CardContent className="py-3 px-4 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">
+                      {u.name}
+                      {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
+                      {u.acolhidaExpiry && (
+                        <span className={`ml-2 text-xs ${acolhidaBadge(u.acolhidaExpiry).active ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                          ({acolhidaBadge(u.acolhidaExpiry).label})
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground capitalize">
+                    {u.frequency}
+                    {u.frequency === 'quinzenal' && (
+                      <span className="ml-1">
+                        · Semana {u.quinzenalParity === 'impar' ? 'A' : u.quinzenalParity === 'par' ? 'B' : '—'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-muted-foreground">{u.quota ?? '—'}</div>
+                  <div className="text-sm text-muted-foreground">{u.contact}</div>
+                  <div className="flex gap-1 pt-1">
+                    <Button variant="ghost" size="icon" onClick={() => openEditMember(u)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)}>
+                      {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
+                    </Button>
+                    {isSuperadmin(user) && (
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      </>
+    )
+  }
+
+  // Ação principal de cada aba.
   const acaoPrincipalDaAba =
     tab === 'usuarios' ? (
       <Button onClick={openCreateMember}>
         <Plus className="mr-2 h-4 w-4" /> Novo Cliente
+      </Button>
+    ) : tab === 'admins' ? (
+      <Button onClick={openCreateMember}>
+        <Plus className="mr-2 h-4 w-4" /> Novo Usuário
       </Button>
     ) : tab === 'produtores' ? (
       <Button onClick={openCreateProducer}>
@@ -432,9 +574,10 @@ export function AdminPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="usuarios">Clientes</TabsTrigger>
+          <TabsTrigger value="admins">Admins</TabsTrigger>
           <TabsTrigger value="produtores">Fornecedores</TabsTrigger>
           <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
-          {user?.acesso === 'superadmin' && (
+          {MULTI_TENANT && isSuperadmin(user) && (
             <TabsTrigger value="tenants">Organizações</TabsTrigger>
           )}
         </TabsList>
@@ -454,119 +597,11 @@ export function AdminPage() {
               Mostrar inativos
             </Button>
           </div>
-          {/* Desktop */}
-          <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Frequência</TableHead>
-                  <TableHead>Semana</TableHead>
-                  <TableHead>Cota</TableHead>
-                  <TableHead>Contato</TableHead>
-                  <TableHead className="w-20"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleUsers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                      Nenhum usuário encontrado.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibleUsers.map((u) => (
-                    <TableRow key={u.id} className={u.disabled ? 'opacity-50' : ''}>
-                      <TableCell className="font-medium">
-                        {u.name}
-                        {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
-                        {u.acolhidaExpiry && (
-                          <span className={`ml-2 text-xs ${acolhidaBadge(u.acolhidaExpiry).active ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                            ({acolhidaBadge(u.acolhidaExpiry).label})
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="capitalize">{u.frequency}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {u.frequency === 'quinzenal'
-                          ? u.quinzenalParity === 'impar' ? 'A' : u.quinzenalParity === 'par' ? 'B' : '—'
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="text-sm">{u.quota ?? '—'}</TableCell>
-                      <TableCell className="text-sm">{u.contact}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEditMember(u)} title="Editar cliente">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)} title={u.disabled ? 'Habilitar' : 'Desabilitar'}>
-                            {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
-                          </Button>
-                          {user?.acesso === 'superadmin' && (
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)} title="Excluir">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          {renderUserTable(clientes)}
+        </TabsContent>
 
-          {/* Mobile */}
-          <div className="md:hidden space-y-3">
-            {visibleUsers.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  Nenhum usuário encontrado.
-                </CardContent>
-              </Card>
-            ) : (
-              visibleUsers.map((u) => (
-                <Card key={u.id} className={u.disabled ? 'opacity-50' : ''}>
-                  <CardContent className="py-3 px-4 space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium">
-                        {u.name}
-                        {u.disabled && <span className="ml-2 text-xs text-destructive">(desabilitado)</span>}
-                        {u.acolhidaExpiry && (
-                          <span className={`ml-2 text-xs ${acolhidaBadge(u.acolhidaExpiry).active ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                            ({acolhidaBadge(u.acolhidaExpiry).label})
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="text-sm text-muted-foreground capitalize">
-                      {u.frequency}
-                      {u.frequency === 'quinzenal' && (
-                        <span className="ml-1">
-                          · Semana {u.quinzenalParity === 'impar' ? 'A' : u.quinzenalParity === 'par' ? 'B' : '—'}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-sm text-muted-foreground">{u.quota ?? '—'}</div>
-                    <div className="text-sm text-muted-foreground">{u.contact}</div>
-                    <div className="flex gap-1 pt-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEditMember(u)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)}>
-                        {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
-                      </Button>
-                      {user?.acesso === 'superadmin' && (
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+        <TabsContent value="admins">
+          {renderUserTable(admins)}
         </TabsContent>
 
         <TabsContent value="produtores">
@@ -735,7 +770,7 @@ export function AdminPage() {
           </Card>
         </TabsContent>
 
-        {user?.acesso === 'superadmin' && (
+        {MULTI_TENANT && isSuperadmin(user) && (
           <TabsContent value="tenants">
             <Card>
               <CardContent className="p-0">
@@ -871,15 +906,19 @@ export function AdminPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Nível de acesso</Label>
-                <Select value={memberForm.acesso} onValueChange={(v) => setMember('acesso', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">Cliente</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="produtor">Fornecedor</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Acesso <span className="text-muted-foreground font-normal">(pode marcar mais de um)</span></Label>
+                <div className="flex flex-wrap gap-3 pt-1">
+                  {ACESSO_OPCOES.map((role) => (
+                    <label key={role} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={memberForm.acesso.includes(role)}
+                        onChange={() => toggleMemberAcesso(role)}
+                      />
+                      {ACESSO_LABEL[role]}
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="space-y-1">
                 <Label>Cota</Label>
@@ -1125,15 +1164,19 @@ export function AdminPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Nível de acesso</Label>
-                <Select value={editForm.acesso} onValueChange={(v) => setEdit('acesso', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">Cliente</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="produtor">Fornecedor</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Acesso <span className="text-muted-foreground font-normal">(pode marcar mais de um)</span></Label>
+                <div className="flex flex-wrap gap-3 pt-1">
+                  {ACESSO_OPCOES.map((role) => (
+                    <label key={role} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={acessos(editForm).includes(role)}
+                        onChange={() => toggleEditAcesso(role)}
+                      />
+                      {ACESSO_LABEL[role]}
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="space-y-1">
                 <Label>Cota</Label>

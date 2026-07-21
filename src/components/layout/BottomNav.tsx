@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { isAdmin as checkAdmin, isFornecedor } from '@/lib/acesso'
 
 const memberItems = [
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart },
@@ -13,7 +14,7 @@ const memberItems = [
   { to: '/perfil', label: 'Perfil', icon: UserCircle },
 ]
 
-const produtorItems = [
+const fornecedorItems = [
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart },
   { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard },
   { to: '/verificar-pagamentos', label: 'Verificar', icon: CheckCircle },
@@ -40,10 +41,10 @@ export function BottomNav() {
   const location = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
 
-  const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
-  const isProdutor = user?.acesso === 'produtor'
+  const isAdmin = checkAdmin(user)
+  const isFornec = isFornecedor(user)
 
-  const mainItems = isAdmin ? adminMainItems : isProdutor ? produtorItems : memberItems
+  const mainItems = isAdmin ? adminMainItems : isFornec ? fornecedorItems : memberItems
   const moreActive = isAdmin && adminMoreItems.some((i) => location.pathname === i.to)
 
   return (

@@ -15,7 +15,7 @@ interface UserDoc {
   frequency: 'semanal' | 'quinzenal'
   deliveryType: 'retirada' | 'entrega'
   tenantId: string
-  acesso: 'admin' | 'user' | 'superadmin' | 'produtor'
+  acesso: string[]
   role?: string
   isentoCotas?: boolean
   disabled?: boolean

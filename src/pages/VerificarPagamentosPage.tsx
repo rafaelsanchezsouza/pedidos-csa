@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi } from '@/services/api'
 import type { Payment } from '@/types'
 import { statusLabel, statusVariant } from '@/lib/statusPagamento'
+import { isAdmin, isFornecedor } from '@/lib/acesso'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -23,16 +24,17 @@ export function VerificarPagamentosPage() {
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState<string | null>(null)
 
-  const isAllowed = user?.acesso === 'admin' || user?.acesso === 'superadmin' || user?.acesso === 'produtor'
+  const isAllowed = isAdmin(user) || isFornecedor(user)
   if (user && !isAllowed) return <Navigate to="/pedidos" replace />
 
-  const isProdutor = user?.acesso === 'produtor'
+  // Fornecedor que NÃO é admin vê só o que é dele; admin vê tudo.
+  const soFornecedor = isFornecedor(user) && !isAdmin(user)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const all = await paymentsApi.list(month, tenantId)
-      const filtered = isProdutor ? all.filter((p) => p.producerName === user?.name) : all
+      const filtered = soFornecedor ? all.filter((p) => p.producerName === user?.name) : all
       filtered.sort((a, b) =>
   a.userName.localeCompare(b.userName, 'pt-BR') ||
   a.producerName.localeCompare(b.producerName, 'pt-BR')
@@ -41,7 +43,7 @@ export function VerificarPagamentosPage() {
     } finally {
       setLoading(false)
     }
-  }, [month, tenantId, isProdutor, user?.name])
+  }, [month, tenantId, soFornecedor, user?.name])
 
   useEffect(() => { load() }, [load])
 

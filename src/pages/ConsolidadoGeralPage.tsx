@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { ordersApi, usersApi, offeringsApi } from '@/services/api'
 import type { Order, User, WeeklyOffering } from '@/types'
+import { isFornecedor, isConsumidor } from '@/lib/acesso'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -61,7 +62,7 @@ export function ConsolidadoGeralPage() {
 
   const activeUsers = users.filter((u) => {
     if (u.disabled || u.deleted) return false
-    if (u.acesso === 'produtor') return false
+    if (isFornecedor(u) && !isConsumidor(u)) return false // fornecedor puro não é destinatário
     if (!isUserDeliveryWeek(u, weekId)) return false
     return true
   })
