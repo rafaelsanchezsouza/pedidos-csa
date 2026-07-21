@@ -24,11 +24,8 @@ Implantado na VM: `/opt/pedidos-app`, nginx na 8092 (reusa cert LE), pm2 `pedido
 (id 4, `NODE_ENV=production`, lê `.env.production`, conectado ao Firebase `fermentou-9a97d`).
 Verificado **na VM**: SPA (200), `/api/setup` responde "já executado" (lê o Firestore real).
 
-**Único bloqueio para acesso externo — só você:** liberar a porta **8092** no Oracle Cloud
-Security List. iptables do host já está aberto; falta a regra de ingress da borda.
-- Oracle Cloud Console → Networking → VCN → Security Lists → Default Security List →
-  **Add Ingress Rule**: Stateless não, Source `0.0.0.0/0`, IP Protocol **TCP**, Destination Port **8092**.
-- Depois: `curl -k https://csaparahyba.com.br:8092/` deve dar 200 (hoje dá timeout).
+**NO AR:** https://csaparahyba.com.br:8092 — ingress 8092 liberado no Oracle SL, acesso
+externo confirmado (SPA 200, login → /api/users/me 200). Login email/senha do admin.
 
 ### (histórico) O que estava preparado antes do deploy
 
