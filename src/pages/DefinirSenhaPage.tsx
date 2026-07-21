@@ -1,9 +1,9 @@
 import { useState, FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Leaf } from 'lucide-react'
 import { updatePassword } from 'firebase/auth'
 import { useAuth } from '@/hooks/useAuth'
 import { usersApi } from '@/services/api'
+import { BRAND } from '@/lib/brand'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -44,7 +44,7 @@ export function DefinirSenhaPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
-            <Leaf className="h-8 w-8 text-primary" />
+            <img src={BRAND.icon} alt="" className="h-12 w-12 object-contain" />
           </div>
           <CardTitle>Bem-vindo(a), {user.name.split(' ')[0]}!</CardTitle>
           <CardDescription>Defina sua senha para continuar</CardDescription>

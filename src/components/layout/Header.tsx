@@ -1,7 +1,7 @@
-import { LogOut, Leaf } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
-import { APP_NAME } from '@/lib/brand'
+import { BRAND } from '@/lib/brand'
 
 export function Header() {
   const { user, tenant, logout } = useAuth()
@@ -9,9 +9,9 @@ export function Header() {
   return (
     <header className="h-14 border-b bg-background flex items-center justify-between px-4">
       <div className="flex items-center gap-2">
-        <Leaf className="h-5 w-5 text-primary" />
-        <span className="font-semibold text-primary">{APP_NAME}</span>
-        {tenant && (
+        <img src={BRAND.icon} alt="" className="h-6 w-6 object-contain" />
+        <span className="font-semibold text-primary">{BRAND.name}</span>
+        {tenant && tenant.name !== BRAND.name && (
           <span className="text-muted-foreground text-sm ml-2">/ {tenant.name}</span>
         )}
       </div>

@@ -1,11 +1,11 @@
 import { useState, FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Leaf, MessageCircle, ArrowLeft } from 'lucide-react'
+import { MessageCircle, ArrowLeft } from 'lucide-react'
 import { signInWithCustomToken } from 'firebase/auth'
 import { useAuth } from '@/hooks/useAuth'
 import { auth } from '@/services/firebase'
 import { whatsappApi } from '@/services/api'
-import { APP_NAME } from '@/lib/brand'
+import { BRAND } from '@/lib/brand'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -106,7 +106,7 @@ export function LoginPage() {
         <Card className="w-full max-w-sm">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-2">
-              <Leaf className="h-8 w-8 text-primary" />
+              <img src={BRAND.icon} alt="" className="h-12 w-12 object-contain" />
             </div>
             <CardTitle>Selecionar Organização</CardTitle>
             <CardDescription>Você pertence a mais de uma organização</CardDescription>
@@ -135,10 +135,10 @@ export function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
-            <Leaf className="h-8 w-8 text-primary" />
+            <img src={BRAND.icon} alt="" className="h-16 w-16 object-contain" />
           </div>
-          <CardTitle className="text-2xl">{APP_NAME}</CardTitle>
-          <CardDescription>Gestão de pedidos e entregas</CardDescription>
+          <CardTitle className="text-2xl">{BRAND.name}</CardTitle>
+          <CardDescription>{BRAND.tagline}</CardDescription>
         </CardHeader>
         <CardContent>
           {otpSent ? (

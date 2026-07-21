@@ -2,49 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
+/* As cores abaixo são FALLBACK pré-JS. A fonte real da paleta é src/lib/brand.ts,
+   aplicada por applyBrand() no boot. Para trocar as cores do tenant, edite brand.ts
+   (estes valores só evitam um flash antes do JS rodar). */
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 0 0% 0%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 142.1 76.2% 36.3%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 22 83% 14%;
+    --primary-foreground: 25 67% 90%;
+    --secondary: 25 67% 81%;
+    --secondary-foreground: 22 83% 14%;
+    --muted: 28 50% 94%;
+    --muted-foreground: 22 25% 35%;
+    --accent: 25 67% 81%;
+    --accent-foreground: 22 83% 14%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 26 40% 84%;
+    --input: 26 40% 84%;
+    --ring: 22 83% 14%;
     --radius: 0.5rem;
   }
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 142.1 70.6% 45.3%;
-    --primary-foreground: 144.9 80.4% 10%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 142.4 71.8% 29.2%;
+    --background: 22 40% 7%;
+    --foreground: 25 67% 90%;
+    --card: 22 40% 9%;
+    --card-foreground: 25 67% 90%;
+    --popover: 22 40% 9%;
+    --popover-foreground: 25 67% 90%;
+    --primary: 25 67% 81%;
+    --primary-foreground: 22 83% 14%;
+    --secondary: 22 30% 18%;
+    --secondary-foreground: 25 67% 90%;
+    --muted: 22 30% 16%;
+    --muted-foreground: 25 30% 65%;
+    --accent: 22 30% 20%;
+    --accent-foreground: 25 67% 90%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 22 30% 20%;
+    --input: 22 30% 20%;
+    --ring: 25 67% 81%;
   }
 }
 
