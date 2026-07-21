@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, X, History, Pencil, Lock, Unlock, ListPlus } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { isAdmin, isFornecedor } from '@/lib/acesso'
 import { offeringsApi, producersApi, productsApi, tenantsApi } from '@/services/api'
 import { formatDeliveryDate, getPresentWeekId } from '@/lib/weekUtils'
 import { WeekNavigator } from '@/components/WeekNavigator'
@@ -28,11 +29,11 @@ import {
 
 
 export function OfertasPage() {
-  const { tenant } = useAuth()
+  const { tenant, user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [offerings, setOfferings] = useState<WeeklyOffering[]>([])
-  const [producers, setProducers] = useState<Producer[]>([])
-  const [products, setProducts] = useState<Product[]>([])
+  const [allOfferings, setAllOfferings] = useState<WeeklyOffering[]>([])
+  const [allProducers, setAllProducers] = useState<Producer[]>([])
+  const [allProducts, setAllProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedProducerId, setSelectedProducerId] = useState('')
@@ -48,6 +49,12 @@ export function OfertasPage() {
 
   const [weekId, setWeekId] = useState(getPresentWeekId())
 
+  // Fornecedor não-admin só vê/edita o próprio contexto (seu producerId). Admin vê tudo.
+  const soFornecedor = isFornecedor(user) && !isAdmin(user)
+  const producers = soFornecedor ? allProducers.filter((p) => p.id === user?.producerId) : allProducers
+  const offerings = soFornecedor ? allOfferings.filter((o) => o.producerId === user?.producerId) : allOfferings
+  const products = soFornecedor ? allProducts.filter((p) => p.producerId === user?.producerId) : allProducts
+
   const load = useCallback(async () => {
     if (!tenant) return
     setLoading(true)
@@ -58,9 +65,9 @@ export function OfertasPage() {
         productsApi.list(tenant.id),
         tenantsApi.get(tenant.id),
       ])
-      setOfferings(offs)
-      setProducers(prods)
-      setProducts(prdsrs)
+      setAllOfferings(offs)
+      setAllProducers(prods)
+      setAllProducts(prdsrs)
       setExtrasAberto(freshTenant.extrasAberto ?? true)
     } catch {
       // silencioso — erros de carregamento não são exibidos ao usuário aqui

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import { paymentsApi } from '@/services/api'
+import { paymentsApi, producersApi } from '@/services/api'
 import type { Payment } from '@/types'
 import { statusLabel, statusVariant } from '@/lib/statusPagamento'
 import { isAdmin, isFornecedor } from '@/lib/acesso'
@@ -34,7 +34,13 @@ export function VerificarPagamentosPage() {
     setLoading(true)
     try {
       const all = await paymentsApi.list(month, tenantId)
-      const filtered = soFornecedor ? all.filter((p) => p.producerName === user?.name) : all
+      let filtered = all
+      if (soFornecedor) {
+        // Faturas do próprio fornecedor: producerName == nome da entidade vinculada (producerId).
+        const producers = await producersApi.list(tenantId)
+        const meuNome = producers.find((p) => p.id === user?.producerId)?.name
+        filtered = all.filter((p) => p.producerName === meuNome)
+      }
       filtered.sort((a, b) =>
   a.userName.localeCompare(b.userName, 'pt-BR') ||
   a.producerName.localeCompare(b.producerName, 'pt-BR')

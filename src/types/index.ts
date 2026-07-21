@@ -26,6 +26,7 @@ export interface User {
   deliveryType: 'retirada' | 'entrega'
   tenantId: string
   acesso: Acesso[]
+  producerId?: string // se fornecedor: a entidade fornecedor (catálogo) que este usuário representa
   role?: string
   isentoCotas?: boolean
   disabled?: boolean

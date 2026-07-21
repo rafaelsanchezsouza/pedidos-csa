@@ -16,6 +16,7 @@ interface UserDoc {
   deliveryType: 'retirada' | 'entrega'
   tenantId: string
   acesso: string[]
+  producerId?: string
   role?: string
   isentoCotas?: boolean
   disabled?: boolean

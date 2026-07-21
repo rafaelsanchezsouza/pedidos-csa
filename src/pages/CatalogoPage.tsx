@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { isAdmin, isFornecedor } from '@/lib/acesso'
 import { productsApi, producersApi } from '@/services/api'
 import type { Product, Producer } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -36,9 +37,9 @@ interface ProductForm {
 const emptyForm: ProductForm = { name: '', unit: 'unid', price: '', producerId: '', type: 'extra', ativo: true }
 
 export function CatalogoPage() {
-  const { tenant } = useAuth()
+  const { tenant, user } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
-  const [producers, setProducers] = useState<Producer[]>([])
+  const [allProducers, setAllProducers] = useState<Producer[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
@@ -56,7 +57,7 @@ export function CatalogoPage() {
         producersApi.list(tenant.id),
       ])
       setProducts(prods)
-      setProducers(prodsrs)
+      setAllProducers(prodsrs)
     } finally {
       setLoading(false)
     }
@@ -115,11 +116,16 @@ export function CatalogoPage() {
     setProducts((prev) => prev.filter((p) => p.id !== id))
   }
 
+  // Fornecedor não-admin só enxerga/gerencia o próprio contexto (seu producerId). Admin vê tudo.
+  const soFornecedor = isFornecedor(user) && !isAdmin(user)
+  const producers = soFornecedor ? allProducers.filter((p) => p.id === user?.producerId) : allProducers
+
   const producerName = (id: string) => producers.find((p) => p.id === id)?.name ?? '-'
   // Com 1 fornecedor (a própria loja), a seleção de fornecedor some da UI. Reaparece ao adicionar o 2º.
   const multiFornecedor = producers.length > 1
 
   const visibleProducts = products
+    .filter((p) => !soFornecedor || p.producerId === user?.producerId)
     .filter((p) => filterProducer === 'todos' || p.producerId === filterProducer)
     .filter((p) => !filterName.trim() || p.name.toLowerCase().includes(filterName.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))

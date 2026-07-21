@@ -42,6 +42,7 @@ interface MemberForm {
   frequency: User['frequency']
   deliveryType: User['deliveryType']
   acesso: User['acesso']
+  producerId?: string
   role?: string
   isentoCotas?: boolean
   quota: User['quota']
@@ -277,7 +278,8 @@ export function AdminPage() {
     if (!editingUser || !tenant) return
     setSavingEdit(true)
     try {
-      await usersApi.update(editingUser.id, editForm, tenant.id)
+      const producerId = resolveProducerId(acessos(editForm), editForm.producerId)
+      await usersApi.update(editingUser.id, { ...editForm, producerId }, tenant.id)
       setEditDialog(false)
       await load()
       await refreshUser()
@@ -325,7 +327,7 @@ export function AdminPage() {
         ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         : undefined
       const result = await usersApi.createMember(
-        { ...memberForm, tenantId: tenant.id, ...(acolhidaExpiry ? { acolhidaExpiry } : {}) },
+        { ...memberForm, producerId: resolveProducerId(memberForm.acesso, memberForm.producerId), tenantId: tenant.id, ...(acolhidaExpiry ? { acolhidaExpiry } : {}) },
         tenant.id
       )
       await load()
@@ -371,19 +373,25 @@ export function AdminPage() {
     setMemberForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  // Liga/desliga uma categoria de acesso (checkboxes; um usuário pode ter várias).
+  // Liga/desliga uma categoria (checkboxes). Regra: fornecedor e consumidor são exclusivos.
+  function nextAcesso(cur: Acesso[], role: Acesso): Acesso[] {
+    const has = cur.includes(role)
+    let next = has ? cur.filter((a) => a !== role) : [...cur, role]
+    if (!has && role === 'fornecedor') next = next.filter((a) => a !== 'consumidor')
+    if (!has && role === 'consumidor') next = next.filter((a) => a !== 'fornecedor')
+    return next
+  }
+  // Resolve o vínculo fornecedor↔entidade: fornecedor com 1 fornecedor no catálogo → auto;
+  // não-fornecedor → limpa (undefined). Salvo em User.producerId.
+  function resolveProducerId(acesso: Acesso[], atual?: string): string | undefined {
+    if (!acesso.includes('fornecedor')) return undefined
+    return atual || (producers.length === 1 ? producers[0].id : undefined)
+  }
   function toggleMemberAcesso(role: Acesso) {
-    setMemberForm((prev) => {
-      const has = prev.acesso.includes(role)
-      return { ...prev, acesso: has ? prev.acesso.filter((a) => a !== role) : [...prev.acesso, role] }
-    })
+    setMemberForm((prev) => ({ ...prev, acesso: nextAcesso(prev.acesso, role) }))
   }
   function toggleEditAcesso(role: Acesso) {
-    setEditForm((prev) => {
-      const cur = acessos(prev)
-      const has = cur.includes(role)
-      return { ...prev, acesso: has ? cur.filter((a) => a !== role) : [...cur, role] }
-    })
+    setEditForm((prev) => ({ ...prev, acesso: nextAcesso(acessos(prev), role) }))
   }
 
   async function handleSaveQuota() {
@@ -919,6 +927,18 @@ export function AdminPage() {
                     </label>
                   ))}
                 </div>
+                {memberForm.acesso.includes('fornecedor') && (
+                  producers.length > 1 ? (
+                    <Select value={memberForm.producerId ?? ''} onValueChange={(v) => setMember('producerId', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Vincular a um fornecedor..." /></SelectTrigger>
+                      <SelectContent>
+                        {producers.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : producers[0] ? (
+                    <p className="text-xs text-muted-foreground mt-1">Vinculado a: {producers[0].name}</p>
+                  ) : null
+                )}
               </div>
               <div className="space-y-1">
                 <Label>Cota</Label>
@@ -1177,6 +1197,18 @@ export function AdminPage() {
                     </label>
                   ))}
                 </div>
+                {acessos(editForm).includes('fornecedor') && (
+                  producers.length > 1 ? (
+                    <Select value={editForm.producerId ?? ''} onValueChange={(v) => setEdit('producerId', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Vincular a um fornecedor..." /></SelectTrigger>
+                      <SelectContent>
+                        {producers.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : producers[0] ? (
+                    <p className="text-xs text-muted-foreground mt-1">Vinculado a: {producers[0].name}</p>
+                  ) : null
+                )}
               </div>
               <div className="space-y-1">
                 <Label>Cota</Label>
