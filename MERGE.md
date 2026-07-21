@@ -7,6 +7,9 @@ forks e, principalmente, **o que não concilia sem decisão ou migração de dad
 Escopo: o merge é do **backend + modelo de dados**. Os frontends podem permanecer separados
 (vocabulário e fluxo diferentes), então divergência de UI **não** entra na lista crítica.
 
+> **Antes do merge, leia a §6 (Port-back).** Vários bugfixes e melhorias feitos no fork valem
+> para o `pedidos-csa` **hoje**, independentemente do merge — alguns corrigem bugs latentes lá.
+
 Contexto que torna isto sensível: `pedidos-csa` está **em produção com dados reais** (Firestore
 com documentos já gravados) e **sem CI**. `pedidos-app` não tem dados ainda. Portanto, em todo
 conflito de dado gravado, quem migra é a CSA, e migração em produção sem CI é a parte cara.
@@ -40,6 +43,7 @@ dois formatos ao mesmo tempo sem um passo de migração ou uma camada de compati
 | 7 | **`parseMessage` + dep `openai`** | núcleo do fluxo CSA (produtor manda cardápio por texto) | **removido** | O motor unificado **precisa manter** `parseMessage` (a CSA depende). Para a padaria fica inativo. Reverter a remoção no lado do motor. |
 | 8 | **Campos de `Product`** | sem `type`/`ativo` | tem `type` (fixo/extra) e `ativo` (fora de linha) | Aditivos e opcionais → manter no modelo unificado; CSA ignora se não usar. |
 | 9 | **Funções padrão de `role`** | seeda `'colmeia'` e `'coagricultor'` (não deletáveis) | sem defaults (campo livre) | Tornar os defaults **config por tenant**. Ver §4. |
+| 11 | **Modelo de `acesso`** | valor único (`'admin'\|'user'\|'superadmin'\|'produtor'`) | **lista** (`superadmin\|admin\|consumidor\|fornecedor`)[] + fornecedor XOR consumidor + `User.producerId` | Migrar users da CSA para lista e normalizar rótulos (`user`→`consumidor`, `produtor`→`fornecedor`). Predicados já normalizam string legada, então leitura é retrocompatível. Ver Port-back §6.4. |
 
 ---
 
@@ -83,7 +87,31 @@ Estes são os candidatos naturais a virar o núcleo compartilhado no merge. A re
 
 ---
 
-## 6. Ordem sugerida para o merge
+## 6. Port-back: melhorias do fork para o `pedidos-csa`
+
+Mudanças feitas no fork que **não são específicas de padaria** e valem para o CSA **agora**,
+sem esperar o merge. Ordenadas por relação valor/risco. Confirmado por leitura do código do
+CSA em 2026-07-21.
+
+| # | Melhoria (commit no fork) | Estado no CSA hoje | Valor | Risco de portar |
+|---|---|---|---|---|
+| 6.1 | **OTP usa o nome do tenant** — `getTenantName()` em `whatsappAuth.ts` | Hardcoded `"Seu código de acesso ao Pedidos CSA"` | Correção de marca; trivial | Baixo — troca de 1 string por lookup |
+| 6.2 | **`/api/setup` cria o doc do admin** (+ parametriza o nome) | Fixa `"Flor de Quilombo"` e **NÃO cria** o doc do admin em `users` → 1º login daria 404 em `/users/me` | Corrige **bug latente** de first-run; útil pra novas colmeias | Baixo — CSA já rodou o setup, então é aditivo |
+| 6.3 | **deploy robusto**: copia env como `.env.production` + sobe pm2 com `NODE_ENV=production` | Copia como `.env` e sobe pm2 **sem** `NODE_ENV`; `env.ts` procura `.env.production` só em produção → prod funciona por env salvo no dump do pm2 (**frágil**) | Alto — deploy deixa de depender de estado invisível do pm2 | **Médio — testar com cuidado**: o prod da CSA funciona hoje pelo dump; validar antes de confiar |
+| 6.4 | **`acesso` multi-categoria + predicados** (`src/lib/acesso.ts`, `server/services/acesso.ts`) | valor único; checagens espalhadas (`acesso === 'admin'`...) | Médio — permite admin+fornecedor, centraliza permissão | Médio — mexe em todo check; predicados normalizam string legada, então migração de dados é opcional/gradual |
+| 6.5 | **Escopo de fornecedor por id** (`User.producerId`, não por nome) | `produtor` na CSA escopa por **nome** (`producerName === user.name`) — frágil (F2) | Médio — robustez do escopo do produtor | Baixo-médio — aditivo; precisa vincular os produtores existentes a um `producerId` |
+
+**Não portar** (divergência de domínio, ver §2): remoção do `parseMessage`, `from-catalog`,
+colapso de fornecedor/organização quando único, rename `colmeia`→`tenant`, camada de brand.
+Esses são a personalidade da padaria, não melhorias do motor.
+
+Como portar: `git cherry-pick` **não** vale mais (identificadores divergiram, §1). Fazer à mão,
+traduzindo `tenant`→`colmeia` / `tenantId`→`colmeiaId` / `consumidor`→`user` / `fornecedor`→
+`produtor` no caminho. São mudanças pequenas e localizadas (exceto 7.3/7.4).
+
+---
+
+## 7. Ordem sugerida para o merge
 
 1. Decidir o nome do identificador (§1.1) — tudo depende disso.
 2. Camada de acesso a dados que leia `colmeiaId` **e** `tenantId` (transição sem downtime).

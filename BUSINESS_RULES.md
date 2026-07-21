@@ -14,14 +14,31 @@
 
 ## Usuários
 
-### Nível de acesso (`acesso`)
+### Categorias de acesso (`acesso: Acesso[]`)
+
+`acesso` é uma **lista** — um usuário pode ter mais de uma categoria. Rótulos antigos são
+normalizados na leitura (`user`→`consumidor`, `produtor`→`fornecedor`). Predicados são a fonte
+única de checagem: `src/lib/acesso.ts` (front) e `server/services/acesso.ts` (back).
 
 | Valor | Permissões |
 |---|---|
-| `user` | Faz pedidos, envia comprovante, vê próprio histórico |
-| `admin` | Tudo de user + gerencia catálogo, publica a oferta da semana, consolida pedidos, verifica pagamentos |
-| `superadmin` | Acessa todas as organizações |
-| `produtor` | Acessa verificação de pagamentos dos próprios produtos |
+| `consumidor` | Faz pedidos, envia comprovante, vê próprio histórico |
+| `fornecedor` | Vê/edita **só o próprio contexto** (produtos, ofertas, pagamentos do seu `producerId`) |
+| `admin` | Tudo + gerencia catálogo/ofertas/pedidos/pagamentos de **todos** os fornecedores |
+| `superadmin` | Tudo de admin + acessa todas as organizações |
+
+Regras:
+- **`fornecedor` XOR `consumidor`** — mutuamente exclusivos no cadastro
+- **`admin` sobrepõe `fornecedor`** — admin vê tudo, sem escopo
+- `isAdmin` = tem `admin` ou `superadmin`. Fornecedor entra em Catálogo/Ofertas/Verificar Pagamentos (com escopo próprio); as demais telas admin exigem `admin`
+- **Vínculo fornecedor**: `User.producerId` liga o usuário à entidade fornecedor do catálogo (por id, não por nome). Escopo hoje é no **frontend** (trava server-side pendente — ver PENDENCIAS F3)
+
+### Administração — abas
+- **Clientes**: só consumidores (admin/superadmin nunca aparecem)
+- **Admins**: usuários com `admin`/`superadmin`
+- **Fornecedores**: entidades do catálogo (`producers`)
+- **Configurações**: cota, frete, vencimento, agenda
+- **Organizações**: OFF por default (flag `MULTI_TENANT` em `src/lib/features.ts`); só aparece com multi-loja ligado
 
 ### Função no coletivo (`role`)
 - Campo livre (`string`) que descreve a função do membro dentro do coletivo (ex: "tesoureiro", "coordenador")

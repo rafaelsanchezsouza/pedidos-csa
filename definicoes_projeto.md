@@ -124,7 +124,8 @@ interface User {
   frequency: 'semanal' | 'quinzenal'
   deliveryType: 'retirada' | 'entrega'
   tenantId: string
-  role: 'admin' | 'user' | 'superadmin' | 'produtor'
+  acesso: Acesso[]         // ('superadmin'|'admin'|'consumidor'|'fornecedor')[] — múltiplas; ver BUSINESS_RULES
+  producerId?: string      // se fornecedor: entidade fornecedor (catálogo) que ele representa
 }
 
 interface Producer {
