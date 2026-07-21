@@ -71,17 +71,18 @@ de ponta a ponta contra o Firestore real:
 Estado do banco: 1 tenant (Fermentou, id `biYY08CKHpJm2nywMAJC`), 1 user (admin superadmin,
 `rafaelsanchezsouza@gmail.com`). Falta: rodar o deploy na VM (A-bis) e cadastrar catálogo real.
 
-## F. Acesso multi-categoria — ressalvas
+## F. Acesso multi-categoria
 
-`acesso` agora é lista (`superadmin/admin/consumidor/fornecedor`, checkboxes). Feito: abas
-Clientes (só consumidores) e Admins, Organizações OFF por `MULTI_TENANT` (src/lib/features.ts),
-fornecedor vê nav de Catálogo/Ofertas/Verificar Pagamentos. **Ainda falta** (não exercitado —
-o único fornecedor hoje é o owner, que é admin e vê tudo):
+`acesso` é lista (`superadmin/admin/consumidor/fornecedor`, checkboxes). Abas Clientes (só
+consumidores) e Admins; Organizações OFF por `MULTI_TENANT` (src/lib/features.ts). Fornecedor
+XOR consumidor. Fornecedor não-admin vê/edita só o próprio contexto (`User.producerId`) em
+Catálogo/Ofertas/Verificar Pagamentos; admin sobrepõe. **Validado** com fornecedor de teste.
 
-| # | Lacuna |
+| # | Status |
 |---|---|
-| F1 | **Escopo do fornecedor em Catálogo/Ofertas não filtra por dono** — um fornecedor-só veria/gerenciaria TODOS os produtos, não apenas os seus. Verificar Pagamentos já filtra (por `producerName === user.name`) |
-| F2 | O filtro do fornecedor é por **nome** (`producerName === user.name`) — frágil: exige que o nome do usuário == nome da entidade fornecedor no catálogo. Ligar usuário↔fornecedor por id seria robusto |
+| F1 | ✅ Escopo do fornecedor em Catálogo/Ofertas/Pagamentos filtra por `producerId` (frontend) |
+| F2 | ✅ Vínculo por **id** (`User.producerId` → entidade fornecedor), não por nome |
+| F3 | ⬜ **Trava server-side do escopo de escrita** pendente: um fornecedor poderia, via API direta, criar/editar produto/oferta de OUTRO `producerId` (o backend não valida o dono). Mesma classe do isolamento em camada de app (E2). Fazer antes de ter fornecedor externo com acesso real |
 
 ## E. Vender para outro cliente (multi-tenant → SaaS)
 
