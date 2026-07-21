@@ -249,6 +249,7 @@ Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
 |---|---|---|
 | GET | `/api/products?tenantId=` | Lista catálogo |
 | POST | `/api/products` | Cria produto |
+| POST | `/api/products/import-batch` | Importa catálogo via CSV (lote) |
 | PUT | `/api/products/:id` | Atualiza produto |
 | DELETE | `/api/products/:id` | Remove produto |
 

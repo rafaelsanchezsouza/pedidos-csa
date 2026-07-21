@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { isAdmin, isFornecedor } from '@/lib/acesso'
 import { productsApi, producersApi } from '@/services/api'
+import type { ProductBatchResult } from '@/services/api'
 import type { Product, Producer } from '@/types'
+import { parseCsvLine, parsePrice } from '@/lib/csv'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/PageHeader'
 import { Input } from '@/components/ui/input'
@@ -36,6 +38,37 @@ interface ProductForm {
 
 const emptyForm: ProductForm = { name: '', unit: 'unid', price: '', producerId: '', type: 'extra', ativo: true }
 
+// Linha do CSV já resolvida contra os fornecedores do tenant.
+// producerId vazio = fornecedor não encontrado (linha não será importada).
+interface CatalogRow {
+  producerName: string
+  producerId: string
+  name: string
+  unit: string
+  price: number
+}
+
+// Formato: fornecedor,produto,unidade,preco (com cabeçalho na 1ª linha).
+// forcedProducerId: fornecedor logado importa direto no próprio contexto (coluna ignorada).
+// Com um único fornecedor, a coluna pode ficar vazia (assume o fornecedor único).
+function parseCatalogCsv(text: string, producers: Producer[], forcedProducerId?: string): CatalogRow[] {
+  const byName = new Map(producers.map((p) => [p.name.trim().toLowerCase(), p.id]))
+  const soloId = producers.length === 1 ? producers[0].id : ''
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+  return lines.slice(1).map((line) => {
+    const c = parseCsvLine(line)
+    const producerName = c[0]?.trim() ?? ''
+    const producerId = forcedProducerId || byName.get(producerName.toLowerCase()) || soloId
+    return {
+      producerName,
+      producerId,
+      name: c[1]?.trim() ?? '',
+      unit: c[2]?.trim() || 'unid',
+      price: parsePrice(c[3] ?? ''),
+    }
+  }).filter((r) => r.name)
+}
+
 export function CatalogoPage() {
   const { tenant, user } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
@@ -47,6 +80,12 @@ export function CatalogoPage() {
   const [saving, setSaving] = useState(false)
   const [filterProducer, setFilterProducer] = useState('todos')
   const [filterName, setFilterName] = useState('')
+
+  // Importação por CSV
+  const [csvDialog, setCsvDialog] = useState(false)
+  const [csvRows, setCsvRows] = useState<CatalogRow[]>([])
+  const [csvImporting, setCsvImporting] = useState(false)
+  const [csvResults, setCsvResults] = useState<ProductBatchResult[] | null>(null)
 
   const load = useCallback(async () => {
     if (!tenant) return
@@ -116,6 +155,46 @@ export function CatalogoPage() {
     setProducts((prev) => prev.filter((p) => p.id !== id))
   }
 
+  // --- Importar CSV ---
+  function handleCsvFile(file: File) {
+    const forcedProducerId = soFornecedor ? user?.producerId : undefined
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setCsvRows(parseCatalogCsv(e.target?.result as string, producers, forcedProducerId))
+      setCsvResults(null)
+    }
+    reader.readAsText(file, 'UTF-8')
+  }
+
+  async function handleCsvImport() {
+    if (!tenant) return
+    const validas = csvRows.filter((r) => r.producerId)
+    if (validas.length === 0) return
+    setCsvImporting(true)
+    try {
+      const payload = validas.map((r) => ({
+        name: r.name,
+        unit: r.unit,
+        price: r.price,
+        producerId: r.producerId,
+        tenantId: tenant.id,
+        type: 'extra' as const,
+        ativo: true,
+      }))
+      const { results } = await productsApi.importBatch(payload, tenant.id)
+      setCsvResults(results)
+      await load()
+    } finally {
+      setCsvImporting(false)
+    }
+  }
+
+  function closeCsvDialog() {
+    setCsvDialog(false)
+    setCsvRows([])
+    setCsvResults(null)
+  }
+
   // Fornecedor não-admin só enxerga/gerencia o próprio contexto (seu producerId). Admin vê tudo.
   const soFornecedor = isFornecedor(user) && !isAdmin(user)
   const producers = soFornecedor ? allProducers.filter((p) => p.id === user?.producerId) : allProducers
@@ -139,6 +218,11 @@ export function CatalogoPage() {
     <div className="max-w-4xl space-y-6">
       <PageHeader
         title="Catálogo de Produtos"
+        secondaryAction={
+          <Button variant="outline" onClick={() => setCsvDialog(true)}>
+            <Upload className="mr-2 h-4 w-4" /> Importar CSV
+          </Button>
+        }
         primaryAction={
           <Button onClick={openCreate}>
             <Plus className="mr-2" /> Novo Produto
@@ -335,6 +419,114 @@ export function CatalogoPage() {
               {saving ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: importar catálogo via CSV */}
+      <Dialog open={csvDialog} onOpenChange={(open) => { if (!open) closeCsvDialog() }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Importar catálogo via CSV</DialogTitle>
+          </DialogHeader>
+
+          {!csvResults && csvRows.length === 0 && (
+            <div className="py-4 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Colunas esperadas (com cabeçalho): <code>fornecedor,produto,unidade,preco</code>.
+                {multiFornecedor
+                  ? ' O fornecedor precisa já estar cadastrado — o nome é casado sem diferenciar maiúsculas.'
+                  : ' A coluna fornecedor pode ficar vazia.'}{' '}
+                Produtos entram como <em>extra</em> e ativos.
+              </p>
+              <a href="/exemplo-catalogo.csv" download className="text-sm text-primary underline">
+                Baixar CSV de exemplo
+              </a>
+              <input
+                type="file"
+                accept=".csv"
+                className="block text-sm"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvFile(f) }}
+              />
+            </div>
+          )}
+
+          {!csvResults && csvRows.length > 0 && (() => {
+            const validas = csvRows.filter((r) => r.producerId).length
+            const invalidas = csvRows.length - validas
+            return (
+              <>
+                {invalidas > 0 && (
+                  <p className="text-sm text-destructive">
+                    {invalidas} linha{invalidas > 1 ? 's' : ''} com fornecedor não cadastrado — {invalidas > 1 ? 'serão ignoradas' : 'será ignorada'}.
+                  </p>
+                )}
+                <div className="py-2 max-h-72 overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-muted-foreground border-b">
+                        <th className="pb-1 pr-3">Produto</th>
+                        {multiFornecedor && <th className="pb-1 pr-3">Fornecedor</th>}
+                        <th className="pb-1 pr-3">Unidade</th>
+                        <th className="pb-1">Preço</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvRows.map((r, i) => (
+                        <tr key={i} className={`border-b last:border-0 ${r.producerId ? '' : 'opacity-50'}`}>
+                          <td className="py-1 pr-3 font-medium">{r.name}</td>
+                          {multiFornecedor && (
+                            <td className="py-1 pr-3">
+                              {r.producerId
+                                ? (producerName(r.producerId) === '-' ? r.producerName : producerName(r.producerId))
+                                : <span className="text-destructive" title="Fornecedor não cadastrado">{r.producerName || '—'} ✗</span>}
+                            </td>
+                          )}
+                          <td className="py-1 pr-3">{r.unit}</td>
+                          <td className="py-1">R$ {r.price.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setCsvRows([])}>Voltar</Button>
+                  <Button onClick={handleCsvImport} disabled={csvImporting || validas === 0}>
+                    {csvImporting ? 'Importando...' : `Importar ${validas} produto${validas > 1 ? 's' : ''}`}
+                  </Button>
+                </DialogFooter>
+              </>
+            )
+          })()}
+
+          {csvResults && (
+            <>
+              <div className="py-2 max-h-72 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b">
+                      <th className="pb-1 pr-3">Produto</th>
+                      <th className="pb-1">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvResults.map((r, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="py-1 pr-3 font-medium">{r.name}</td>
+                        <td className="py-1">
+                          {r.success
+                            ? <span className="text-green-700">✓ criado</span>
+                            : <span className="text-destructive" title={r.error}>✗ erro</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <DialogFooter>
+                <Button onClick={closeCsvDialog}>Fechar</Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

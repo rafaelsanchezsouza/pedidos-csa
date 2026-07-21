@@ -7,6 +7,7 @@ import type { BatchResult } from '@/services/api'
 import type { User, Producer, TenantRole } from '@/types'
 import { isAdmin, isConsumidor, isSuperadmin, acessos, ACESSO_LABEL, type Acesso } from '@/lib/acesso'
 import { MULTI_TENANT } from '@/lib/features'
+import { parseCsvLine } from '@/lib/csv'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/PageHeader'
 import { Input } from '@/components/ui/input'
@@ -65,26 +66,6 @@ interface ParsedRow {
   frequency: 'semanal' | 'quinzenal'
   quota: 'Cota inteira' | 'Meia cota'
   acesso: Acesso[]
-}
-
-function parseCsvLine(line: string): string[] {
-  const fields: string[] = []
-  let field = ''
-  let inQuotes = false
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i]
-    if (inQuotes) {
-      if (c === '"' && line[i + 1] === '"') { field += '"'; i++ }
-      else if (c === '"') { inQuotes = false }
-      else { field += c }
-    } else {
-      if (c === '"') { inQuotes = true }
-      else if (c === ',') { fields.push(field); field = '' }
-      else { field += c }
-    }
-  }
-  fields.push(field)
-  return fields
 }
 
 function acolhidaBadge(expiry: string) {

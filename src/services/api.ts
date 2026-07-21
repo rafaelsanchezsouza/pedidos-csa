@@ -44,6 +44,14 @@ export const productsApi = {
     request<Product>(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }, tenantId),
   delete: (id: string, tenantId: string) =>
     request<void>(`/products/${id}`, { method: 'DELETE' }, tenantId),
+  importBatch: (products: Array<Omit<Product, 'id' | 'dateUpdated'>>, tenantId: string) =>
+    request<{ results: ProductBatchResult[] }>('/products/import-batch', { method: 'POST', body: JSON.stringify({ products }) }, tenantId),
+}
+
+export interface ProductBatchResult {
+  name: string
+  success: boolean
+  error?: string
 }
 
 export const producersApi = {
