@@ -18,7 +18,19 @@ Atualizado em 2026-07-19. Nada aqui eu consigo resolver sozinho.
 Depois de A1 e A2 eu consigo registrar o app web e escrever as chaves `VITE_FIREBASE_*`
 (que são públicas — vão embutidas no JS do browser).
 
-## A-bis. Deploy — o que já preparei e o que falta
+## A-bis. Deploy — FEITO em 2026-07-21 (falta 1 regra no Oracle)
+
+Implantado na VM: `/opt/pedidos-app`, nginx na 8092 (reusa cert LE), pm2 `pedidos-app`
+(id 4, `NODE_ENV=production`, lê `.env.production`, conectado ao Firebase `fermentou-9a97d`).
+Verificado **na VM**: SPA (200), `/api/setup` responde "já executado" (lê o Firestore real).
+
+**Único bloqueio para acesso externo — só você:** liberar a porta **8092** no Oracle Cloud
+Security List. iptables do host já está aberto; falta a regra de ingress da borda.
+- Oracle Cloud Console → Networking → VCN → Security Lists → Default Security List →
+  **Add Ingress Rule**: Stateless não, Source `0.0.0.0/0`, IP Protocol **TCP**, Destination Port **8092**.
+- Depois: `curl -k https://csaparahyba.com.br:8092/` deve dar 200 (hoje dá timeout).
+
+### (histórico) O que estava preparado antes do deploy
 
 Pronto no repo (não precisa de você):
 - `build:all` gera `dist/` + `dist-server/index.js` ✅
