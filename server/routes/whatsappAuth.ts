@@ -38,6 +38,15 @@ async function findUserByPhone(normalized: string): Promise<{ uid: string; conta
   return null
 }
 
+// Nome da organização do usuário, para a mensagem de OTP (sem hardcode de marca).
+async function getTenantName(uid: string): Promise<string> {
+  const userSnap = await db.collection('users').doc(uid).get()
+  const tenantId = (userSnap.data() as { tenantId?: string } | undefined)?.tenantId
+  if (!tenantId) return ''
+  const tenantSnap = await db.collection('tenants').doc(tenantId).get()
+  return (tenantSnap.data() as { name?: string } | undefined)?.name ?? ''
+}
+
 // POST /api/auth/whatsapp/request-otp
 // Body: { identifier: string } — email ou telefone
 router.post('/request-otp', async (req: Request, res: Response) => {
@@ -100,9 +109,10 @@ router.post('/request-otp', async (req: Request, res: Response) => {
 
     await otpDocRef.set({ uid, code, expiresAt, lastRequestAt: now } satisfies OtpDoc)
 
+    const tenantName = await getTenantName(uid)
     await sendWhatsAppMessage(
       whatsappNumber,
-      `Seu código de acesso ao Pedidos CSA é: *${code}*\n\nEle expira em 5 minutos.`,
+      `Seu código de acesso${tenantName ? ` ao ${tenantName}` : ''} é: *${code}*\n\nEle expira em 5 minutos.`,
     )
 
     res.json({ success: true })
