@@ -140,6 +140,9 @@ export function PedidosPage() {
       .reduce((s, item) => s + item.price * (quantities[qtyKey(off.id, item.productId)] || 0), 0)
   }, 0)
 
+  // Com 1 fornecedor, o nome dele como título de cada bloco é redundante.
+  const multiFornecedor = new Set(offerings.map((o) => o.producerId)).size > 1
+
   return (
     <div className="max-w-3xl space-y-6">
       <PageHeader
@@ -200,7 +203,7 @@ export function PedidosPage() {
           return (
           <Card key={offering.id}>
             <CardHeader>
-              <CardTitle className="text-lg">{offering.producerName}</CardTitle>
+              <CardTitle className="text-lg">{multiFornecedor ? offering.producerName : 'Extras da semana'}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {visibleItems.map((item) => {

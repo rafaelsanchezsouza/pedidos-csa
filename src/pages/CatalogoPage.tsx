@@ -66,7 +66,8 @@ export function CatalogoPage() {
 
   function openCreate() {
     setEditing(null)
-    setForm(emptyForm)
+    // Com fornecedor único, já entra atribuído a ele (o campo fica oculto no form).
+    setForm({ ...emptyForm, producerId: producers.length === 1 ? producers[0].id : '' })
     setDialogOpen(true)
   }
 
@@ -115,6 +116,8 @@ export function CatalogoPage() {
   }
 
   const producerName = (id: string) => producers.find((p) => p.id === id)?.name ?? '-'
+  // Com 1 fornecedor (a própria loja), a seleção de fornecedor some da UI. Reaparece ao adicionar o 2º.
+  const multiFornecedor = producers.length > 1
 
   const visibleProducts = products
     .filter((p) => filterProducer === 'todos' || p.producerId === filterProducer)
@@ -138,17 +141,19 @@ export function CatalogoPage() {
       />
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <Select value={filterProducer} onValueChange={setFilterProducer}>
-          <SelectTrigger className="w-full sm:w-56">
-            <SelectValue placeholder="Todos os fornecedores" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos os fornecedores</SelectItem>
-            {producers.map((p) => (
-              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {multiFornecedor && (
+          <Select value={filterProducer} onValueChange={setFilterProducer}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue placeholder="Todos os fornecedores" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os fornecedores</SelectItem>
+              {producers.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Input
           placeholder="Buscar por nome..."
           value={filterName}
@@ -165,14 +170,14 @@ export function CatalogoPage() {
               <TableHead>Nome</TableHead>
               <TableHead>Unidade</TableHead>
               <TableHead>Preço</TableHead>
-              <TableHead>Fornecedor</TableHead>
+              {multiFornecedor && <TableHead>Fornecedor</TableHead>}
               <TableHead className="w-24"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visibleProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={multiFornecedor ? 5 : 4} className="text-center text-muted-foreground py-8">
                   {products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto para este fornecedor.'}
                 </TableCell>
               </TableRow>
@@ -190,7 +195,7 @@ export function CatalogoPage() {
                   </TableCell>
                   <TableCell>{p.unit}</TableCell>
                   <TableCell>R$ {p.price.toFixed(2)}</TableCell>
-                  <TableCell>{producerName(p.producerId)}</TableCell>
+                  {multiFornecedor && <TableCell>{producerName(p.producerId)}</TableCell>}
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
@@ -232,7 +237,7 @@ export function CatalogoPage() {
                   </div>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {producerName(p.producerId)} · {p.unit} · R$ {p.price.toFixed(2)}
+                  {multiFornecedor ? `${producerName(p.producerId)} · ` : ''}{p.unit} · R$ {p.price.toFixed(2)}
                 </div>
               </CardContent>
             </Card>
@@ -270,19 +275,21 @@ export function CatalogoPage() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Fornecedor</Label>
-              <Select value={form.producerId} onValueChange={(v) => setForm({ ...form, producerId: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {producers.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {multiFornecedor && (
+              <div className="space-y-2">
+                <Label>Fornecedor</Label>
+                <Select value={form.producerId} onValueChange={(v) => setForm({ ...form, producerId: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {producers.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Tipo</Label>

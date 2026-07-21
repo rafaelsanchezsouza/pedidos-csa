@@ -210,6 +210,9 @@ export function ConsolidadoGeralPage() {
     setTimeout(() => setReportCopied(false), 2000)
   }
 
+  // Com 1 fornecedor, o rótulo por fornecedor é redundante (o botão de envio já basta).
+  const multiFornecedor = new Set(offerings.map((o) => o.producerId)).size > 1
+
   return (
     <div className="max-w-3xl space-y-6">
       <PageHeader
@@ -422,7 +425,7 @@ export function ConsolidadoGeralPage() {
                 {offerings.map((offering) => (
                   <div key={offering.id} className="space-y-2">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium">{offering.producerName}</span>
+                      <span className="text-sm font-medium">{multiFornecedor ? offering.producerName : ''}</span>
                       <div className="flex items-center gap-2 flex-wrap justify-end">
                         <Button
                           size="sm"

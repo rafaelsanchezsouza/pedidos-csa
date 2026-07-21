@@ -68,6 +68,13 @@ app.post('/api/setup', async (req, res) => {
       acesso: 'superadmin',
       isentoCotas: true,
     })
+    // Fornecedor padrão = a própria loja. Enquanto for o único, a UI de seleção de
+    // fornecedor fica colapsada (produtos entram nele direto). Ver frontend.
+    await db.collection('producers').add({
+      name: tenantName.trim(),
+      contact: '',
+      tenantId: tenantRef.id,
+    })
     res.status(201).json({ id: tenantRef.id, name: tenantName.trim() })
   } catch (err) {
     res.status(500).json({ message: String(err) })

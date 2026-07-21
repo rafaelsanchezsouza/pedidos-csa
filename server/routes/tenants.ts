@@ -57,6 +57,8 @@ router.post('/', async (req: Request, res: Response) => {
       quotaMeia: 40,
       dueDay: 10,
     })
+    // Fornecedor padrão = a própria loja (colapsado na UI enquanto for o único).
+    await createDoc('producers', { name, contact: '', tenantId: tenant.id })
     res.status(201).json(tenant)
   } catch (err) {
     res.status(500).json({ message: String(err) })

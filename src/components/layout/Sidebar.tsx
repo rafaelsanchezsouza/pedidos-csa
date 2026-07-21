@@ -25,9 +25,10 @@ export function Sidebar() {
 
   return (
     <aside className="w-56 border-r bg-background flex flex-col">
-      {tenant && (
+      {/* Bloco da organização só aparece quando há mais de uma (com 1, é redundante com a marca) */}
+      {tenant && tenants.length > 1 && (
         <div className="px-4 py-3 border-b">
-          {isSuperAdmin && tenants.length > 1 ? (
+          {isSuperAdmin ? (
             <Select value={tenant.id} onValueChange={selectTenant}>
               <SelectTrigger className="h-auto text-sm font-medium border-0 p-0 shadow-none focus:ring-0 w-full">
                 <SelectValue />

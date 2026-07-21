@@ -106,10 +106,14 @@ export function OfertasPage() {
     }
   }, [producers, searchParams, setSearchParams, rascunhoDoCatalogo])
 
+  // Com 1 fornecedor (a própria loja), a seleção some da UI e ele é usado direto.
+  const multiFornecedor = producers.length > 1
+
   function openDialog(producerId = '') {
     setEditing(null)
-    setSelectedProducerId(producerId)
-    setItens(producerId ? rascunhoDoCatalogo(producerId) : [])
+    const pid = producerId || (producers.length === 1 ? producers[0].id : '')
+    setSelectedProducerId(pid)
+    setItens(pid ? rascunhoDoCatalogo(pid) : [])
     setDialogOpen(true)
   }
 
@@ -258,7 +262,7 @@ export function OfertasPage() {
             .map((p) => (
               <Card key={p.id} className="border-dashed opacity-70">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-lg text-muted-foreground">{p.name}</CardTitle>
+                  <CardTitle className="text-lg text-muted-foreground">{multiFornecedor ? p.name : 'Oferta da semana'}</CardTitle>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
@@ -297,7 +301,7 @@ export function OfertasPage() {
             offerings.map((off) => (
               <Card key={off.id}>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-lg">{off.producerName}</CardTitle>
+                  <CardTitle className="text-lg">{multiFornecedor ? off.producerName : 'Oferta da semana'}</CardTitle>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(off)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -327,19 +331,21 @@ export function OfertasPage() {
             <DialogTitle>{editing ? 'Editar Oferta' : 'Nova Oferta'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Fornecedor</Label>
-              <Select value={selectedProducerId} onValueChange={handleProducerChange} disabled={!!editing}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o fornecedor..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {producers.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {multiFornecedor && (
+              <div className="space-y-2">
+                <Label>Fornecedor</Label>
+                <Select value={selectedProducerId} onValueChange={handleProducerChange} disabled={!!editing}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o fornecedor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {producers.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {itens && (
               <div className="space-y-2">
