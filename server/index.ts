@@ -65,7 +65,7 @@ app.post('/api/setup', async (req, res) => {
       frequency: 'semanal',
       deliveryType: 'retirada',
       tenantId: tenantRef.id,
-      acesso: ['superadmin', 'admin', 'fornecedor'],
+      acesso: ['superadmin', 'admin'], // quem roda o setup é o admin/dev; o fornecedor (dono da loja) é criado depois
       isentoCotas: true,
     })
     // Fornecedor padrão = a própria loja. Enquanto for o único, a UI de seleção de
