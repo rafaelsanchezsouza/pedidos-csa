@@ -47,17 +47,20 @@ Falta você (precisa de SSH na VM + Firebase pronto):
 | B6 | Número de WhatsApp dedicado (F2) | hoje seguimos no número compartilhado, só para teste |
 | B7 | Merge com pedidos-csa | ver `MERGE.md` — §1 (nome do identificador) é a decisão estrutural, exige migração da CSA |
 
-## C. Estado "pronto pra rodar"
+## C. Estado "pronto pra rodar" — VALIDADO EM PRODUÇÃO (2026-07-21)
 
-**Depois do Firestore, o fluxo web de admin roda** (login email/senha → catálogo → oferta →
-pedidos → entregas → pagamentos). Ressalvas:
+Projeto Firebase `fermentou-9a97d` com Auth + Firestore + Storage criados. Fluxo exercitado
+de ponta a ponta contra o Firestore real:
 
-| # | Item |
-|---|---|
-| C1 | Nada rodou contra um Firestore real ainda — build, typecheck e 65 testes passam, mas o fluxo é não-exercitado de ponta a ponta |
-| C2 | **Login por WhatsApp (OTP) e mensagem de boas-vindas** precisam do evolution-api conectado (F2). O login **email/senha** do admin **não** depende disso — cobre o acesso web |
-| C3 | Corrigido nesta sessão: `/api/setup` fixava o tenant "Flor de Quilombo" e **não criava o doc do admin** → `GET /users/me` dava 404 e o login travava. Agora parametriza o nome e cria o admin `superadmin`. **Ainda não exercitado** (cai no C1) |
-| C4 | Jobs de cron (cota dia 1, envio terça 6h) sobem no boot; sem produtores/pedidos não fazem nada. O envio terça usa WhatsApp (best-effort, loga se falhar) |
+| # | Item | Status |
+|---|---|---|
+| C1 | Login email/senha → `/api/users/me` → `/api/tenants`; `/api/setup` criou tenant Fermentou + admin `superadmin`; `from-catalog` gerou oferta (fixo+extra) e gravou | ✅ validado; dados de teste limpos |
+| C3 | `/api/setup` (parametrizado, cria doc do admin) | ✅ exercitado — resolvia o 404 de `/users/me` |
+| C2 | **Login por WhatsApp (OTP) e boas-vindas** precisam do evolution-api conectado (F2). Email/senha do admin **não** depende disso | ⬜ pendente F2 |
+| C4 | Jobs de cron (cota dia 1, envio terça 6h) sobem no boot; sem dados não fazem nada | ok |
+
+Estado do banco: 1 tenant (Fermentou, id `biYY08CKHpJm2nywMAJC`), 1 user (admin superadmin,
+`rafaelsanchezsouza@gmail.com`). Falta: rodar o deploy na VM (A-bis) e cadastrar catálogo real.
 
 ## E. Vender para outro cliente (multi-tenant → SaaS)
 
