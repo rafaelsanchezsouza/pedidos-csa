@@ -21,7 +21,7 @@ interface UserDoc {
   isentoCotas?: boolean
   disabled?: boolean
   deleted?: boolean
-  quota?: 'Cota inteira' | 'Meia cota'
+  quota?: string
   acolhidaExpiry?: string
   deliveryOrder?: number
   freteDelivery?: number
@@ -155,6 +155,26 @@ router.put('/reorder-delivery', async (req: Request, res: Response) => {
     orderedIds.forEach((id, i) => batch.update(db.collection('users').doc(id), { deliveryOrder: i }))
     await batch.commit()
     res.json({ updated: orderedIds.length })
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
+// Cascata ao renomear um tier de cota: atualiza todos os usuários da tenant que apontam ao nome
+// antigo para o novo. Registrada antes de /:uid. Escopo por tenant (não renomeia fora dela).
+router.put('/rename-quota', async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenantId
+    if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
+    const { from, to } = req.body as { from?: string; to?: string }
+    if (!from || !to) { res.status(400).json({ message: 'from e to obrigatórios' }); return }
+    if (from === to) { res.json({ updated: 0 }); return }
+    const membros = await listDocs<UserDoc>('users', [['tenantId', '==', tenantId]])
+    const alvos = membros.filter((u) => u.quota === from)
+    const batch = db.batch()
+    alvos.forEach((u) => batch.update(db.collection('users').doc(u.id), { quota: to }))
+    await batch.commit()
+    res.json({ updated: alvos.length })
   } catch (err) {
     res.status(500).json({ message: String(err) })
   }

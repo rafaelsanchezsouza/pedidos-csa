@@ -33,11 +33,24 @@ Regras:
 - `isAdmin` = tem `admin` ou `superadmin`. Fornecedor entra em Catálogo/Ofertas/Verificar Pagamentos (com escopo próprio); as demais telas admin exigem `admin`
 - **Vínculo fornecedor**: `User.producerId` liga o usuário à entidade fornecedor do catálogo (por id, não por nome). Escopo hoje é no **frontend** (trava server-side pendente — ver PENDENCIAS F3)
 
+### Cadastro/edição de usuário — tipo + admin
+O modal de criar/editar usuário tem um seletor de **tipo** (radio, mutuamente exclusivo):
+- **Cliente** (`consumidor`) · **Fornecedor** (`fornecedor`) · **Somente administrador**
+- Checkbox **"Também é administrador"** (independente) adiciona `admin` a Cliente/Fornecedor;
+  em "Somente administrador" o `admin` é implícito. Combinações: Cliente, Cliente+Admin,
+  Fornecedor, Fornecedor+Admin, só Admin. `superadmin` é preservado na edição (não editável pela UI).
+- Helpers puros: `tipoDeAcesso` / `montarAcesso` em `src/lib/acesso.ts`.
+- **Campos por tipo**: só **Cliente** mostra os campos de consumo (endereço, bairro, cota,
+  frequência, retirada, ciclo quinzenal, frete, isento de cota, acolhida). Fornecedor/admin
+  mostram só nome/e-mail/senha/contato/tipo/função (+ vínculo de fornecedor). Ao **converter**
+  um cliente em fornecedor/admin na edição, os campos de consumo são **zerados** (senão a fatura
+  de cota/frete continuaria sendo gerada por resíduo — a elegibilidade de cota só olha `quota`).
+
 ### Administração — abas
 - **Clientes**: só consumidores (admin/superadmin nunca aparecem)
 - **Admins**: usuários com `admin`/`superadmin`
 - **Fornecedores**: entidades do catálogo (`producers`)
-- **Configurações**: cota, frete, vencimento, agenda
+- **Configurações**: cotas (termo + tiers), frete, vencimento, agenda
 - **Organizações**: OFF por default (flag `MULTI_TENANT` em `src/lib/features.ts`); só aparece com multi-loja ligado
 
 ### Função no coletivo (`role`)
@@ -47,7 +60,7 @@ Regras:
 - Não afeta permissões de sistema — apenas informativo
 
 ### Outros campos de usuário
-- `quota: 'Cota inteira' | 'Meia cota'` — define o valor da cota mensal; **obrigatório para elegibilidade** (usuário sem `quota` não tem cota gerada)
+- `quota: string` — **nome** do tier de cota do usuário (ver "Cotas" abaixo); define o valor da cota mensal e é **obrigatório para elegibilidade** (usuário sem `quota` não tem cota gerada). O nome é auto-descritivo e é exibido direto (entregas, consolidado, perfil). Legado: `'Cota inteira'`/`'Meia cota'`
 - `isentoCotas: boolean` — quando `true`, o usuário não tem cota mensal gerada e não aparece na lista de verificação de pagamentos de cota
 - `disabled: boolean` — quando `true`, usuário inativo; excluído da geração de cotas
 - `deleted: boolean` — quando `true`, usuário removido; excluído da geração de cotas
@@ -167,10 +180,22 @@ Regras:
 - `upsertPaymentsForOrder` nunca toca em pagamentos com `producerName === 'Cota'`
 - Vencimento: dia `dueDay` do **mês seguinte** (pagamento pós-consumo)
 
+### Cotas (tiers dinâmicos por tenant)
+- `tenant.quotas: { name, price }[]` — **N tiers** (2, 3, ou mais), `price` = valor **por semana**.
+  Editável em Administração → Configurações (nome + preço, adicionar/remover). `tenant.quotaTerm`
+  = rótulo exibido no lugar de "Cota" (ex: "Fornada"). Tenant novo nasce com "Fornada Completa"/
+  "Fornada Leve"; termo "Fornada".
+- **Compat/fallback**: se `quotas` ausente, deriva do legado `quotaInteira`/`quotaMeia`
+  (`[{'Cota inteira', quotaInteira}, {'Meia cota', quotaMeia}]`). `User.quota` guarda o **nome** do
+  tier; o preço é resolvido por `weeklyRate(quota, tenant)` em `server/services/quotaMath.ts`
+  (fallback = inteira legada / 65). Cota inexistente cai no fallback.
+- **Renomear um tier** em Configurações faz **cascata**: os usuários com o nome antigo são migrados
+  para o novo (`PUT /users/rename-quota`). **Remover** um tier em uso é bloqueado (avisa quantos).
+- Ao salvar cotas, `quotaInteira`/`quotaMeia` deixam de ser gravados (mantidos só p/ leitura legada).
+
 ### Cota mensal
 - `producerName === 'Cota'`; criada via `POST /payments/quota` (por usuário) ou `POST /payments/quota/all` (admin, gera para todos elegíveis)
-- `quotaInteira` e `quotaMeia` são valores **por semana** (ex: R$65/semana cota inteira)
-- Valor mensal = `weeklyRate × countDeliveryWeeks(month, user.frequency, user.quinzenalParity)`
+- Valor mensal = `weeklyRate(user.quota, tenant) × countDeliveryWeeks(month, user.frequency, user.quinzenalParity)`
   - Usuário `semanal`: conta todas as quartas-feiras do mês
   - Usuário `quinzenal`: conta apenas as semanas do ciclo do membro
 - Vencimento: dia `dueDay` do **mês anterior** (pagamento pré-consumo)

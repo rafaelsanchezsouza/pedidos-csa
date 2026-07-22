@@ -189,6 +189,8 @@ export const usersApi = {
     request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify(data) }, tenantId),
   reorderDelivery: (orderedIds: string[], tenantId: string) =>
     request<{ updated: number }>('/users/reorder-delivery', { method: 'PUT', body: JSON.stringify({ orderedIds }) }, tenantId),
+  renameQuota: (from: string, to: string, tenantId: string) =>
+    request<{ updated: number }>('/users/rename-quota', { method: 'PUT', body: JSON.stringify({ from, to }) }, tenantId),
   disable: (uid: string, tenantId: string) =>
     request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify({ disabled: true }) }, tenantId),
   enable: (uid: string, tenantId: string) =>

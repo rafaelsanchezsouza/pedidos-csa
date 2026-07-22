@@ -1,12 +1,17 @@
 import type { Acesso } from '@/lib/acesso'
 
+// Um "tier" de cota: nome exibido (também é o valor gravado em User.quota) + preço semanal.
+export interface QuotaTier { name: string; price: number }
+
 export interface Tenant {
   id: string
   name: string
   adminId: string
   dateCreated: string
-  quotaInteira?: number
-  quotaMeia?: number
+  quotas?: QuotaTier[]    // cotas dinâmicas (N tiers); ausente = derivar de quotaInteira/quotaMeia
+  quotaTerm?: string      // rótulo do campo/coluna de cota (default 'Cota'); ex. 'Fornada'
+  quotaInteira?: number   // legado: fallback quando quotas ausente
+  quotaMeia?: number      // legado: fallback quando quotas ausente
   freteDelivery?: number  // frete padrão da tenant (por entrega); membro pode ter override
   dueDay?: number
   orderSendDay?: number   // 0-6 (0=Dom, 2=Ter), default 2
@@ -33,7 +38,7 @@ export interface User {
   deleted?: boolean
   mustChangePassword?: boolean
   quinzenalParity?: 'par' | 'impar'
-  quota?: 'Cota inteira' | 'Meia cota'
+  quota?: string          // nome do tier de cota (ver Tenant.quotas); legado: 'Cota inteira'/'Meia cota'
   acolhidaExpiry?: string
   deliveryOrder?: number // posição manual na lista de entrega (só deliveryType 'entrega'); ausente = não ordenado
   freteDelivery?: number // override do frete deste membro; ausente = usa o padrão da tenant

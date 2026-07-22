@@ -87,6 +87,8 @@ email/senha, screenshot. Foi assim que validei cada feature no site real, não s
 | Entregas + ordenação manual + texto motoboy | ✅ (herdado) |
 | Faturas: cota mensal, extras, frete | ✅ (herdado) |
 | Acesso multi-categoria + abas Clientes/Admins | ✅ validado |
+| Cadastro por tipo (Cliente/Fornecedor/Admin) + campos dinâmicos | ✅ modal criar/editar |
+| Cotas dinâmicas (N tiers, editáveis em Configurações; cascata no rename) | ✅ |
 | Fornecedor com escopo por `producerId` (frontend) | ✅ validado |
 | Marca Fermentou (nome/ícone/paleta light+dark) | ✅ |
 | WhatsApp número dedicado (F2) | ⬜ usa o compartilhado |
@@ -99,6 +101,10 @@ email/senha, screenshot. Foi assim que validei cada feature no site real, não s
 
 Em ordem do que eu faria:
 
+0. **Renomear as cotas da Fermentou** (Administração → Configurações → Cotas). O tenant já existente
+   ainda mostra os tiers legados "Cota inteira/Meia cota" (derivados do `quotaInteira/quotaMeia`);
+   renomeie para "Fornada Completa/Leve" e ajuste o termo para "Fornada". O rename faz **cascata**
+   nos usuários (migra `User.quota`). Tenant novo já nasce com esses nomes.
 1. **Cadastrar o catálogo real da Fermentou** (Administração → Catálogo). É o que falta pra virar
    uso de verdade; você faz pela tela.
 2. **Criar o usuário do dono da Fermentou** — marcar `Fornecedor` (vincula ao Fermentou sozinho).

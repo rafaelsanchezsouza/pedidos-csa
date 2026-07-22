@@ -112,7 +112,7 @@ export function PerfilPage() {
           )}
           {user.quota && (
             <div className="space-y-1">
-              <Label>Cota</Label>
+              <Label>{tenant?.quotaTerm || 'Cota'}</Label>
               <p className="text-sm text-muted-foreground">
                 {user.quota}
               </p>

@@ -1,6 +1,7 @@
 import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
 import { isFixoWeekFromDate } from './weekMath.js'
 import { resolveFrete } from './freteMath.js'
+import { weeklyRate } from './quotaMath.js'
 
 interface OrderItem {
   price: number
@@ -43,7 +44,9 @@ interface UserDoc {
   freteDelivery?: number
 }
 
+interface QuotaTier { name: string; price: number }
 interface TenantSettings {
+  quotas?: QuotaTier[]
   quotaInteira?: number
   quotaMeia?: number
   freteDelivery?: number
@@ -178,12 +181,8 @@ export async function generateQuotaForUser(
   if (!userDoc?.quota) throw new Error('Usuário sem cota definida')
   if (userDoc.isentoCotas) return { skipped: true }
 
-  const weeklyRate = userDoc.quota === 'Meia cota'
-    ? (tenantDoc?.quotaMeia ?? 40)
-    : (tenantDoc?.quotaInteira ?? 65)
-
   const weeks = countDeliveryWeeks(month, userDoc.frequency ?? 'semanal', userDoc.quinzenalParity)
-  const amount = weeklyRate * weeks
+  const amount = weeklyRate(userDoc.quota, tenantDoc) * weeks
   const dueDay = tenantDoc?.dueDay ?? 10
   const dueDate = buildDueDate(month, 'cota', dueDay)
 
@@ -228,11 +227,8 @@ export async function generateQuotaForAll(tenantId: string, month: string): Prom
   let generated = 0
 
   for (const u of eligible) {
-    const weeklyRate = u.quota === 'Meia cota'
-      ? (tenantDoc?.quotaMeia ?? 40)
-      : (tenantDoc?.quotaInteira ?? 65)
     const weeks = countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
-    const amount = weeklyRate * weeks
+    const amount = weeklyRate(u.quota, tenantDoc) * weeks
 
     const existing = await listDocs<PaymentDoc>('payments', [
       ['userId', '==', u.id],

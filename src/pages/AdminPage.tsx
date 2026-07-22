@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Pencil, Trash2, Ban, CheckCircle, Upload } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { usersApi, producersApi, tenantsApi, rolesApi } from '@/services/api'
 import type { BatchResult } from '@/services/api'
-import type { User, Producer, TenantRole } from '@/types'
-import { isAdmin, isConsumidor, isSuperadmin, acessos, ACESSO_LABEL, type Acesso } from '@/lib/acesso'
+import type { User, Producer, TenantRole, QuotaTier } from '@/types'
+import { isAdmin, isConsumidor, isSuperadmin, acessos, tipoDeAcesso, montarAcesso, type Acesso, type Tipo } from '@/lib/acesso'
 import { MULTI_TENANT } from '@/lib/features'
 import { parseCsvLine } from '@/lib/csv'
 import { Button } from '@/components/ui/button'
@@ -46,15 +46,12 @@ interface MemberForm {
   producerId?: string
   role?: string
   isentoCotas?: boolean
-  quota: User['quota']
+  quota?: string
 }
 const emptyMemberForm: MemberForm = {
   name: '', email: '', password: '', address: '', neighborhood: '', contact: '',
-  frequency: 'semanal', deliveryType: 'retirada', acesso: ['consumidor'], quota: 'Cota inteira',
+  frequency: 'semanal', deliveryType: 'retirada', acesso: ['consumidor'],
 }
-
-// Categorias oferecidas nos checkboxes de acesso (superadmin não é atribuível pela UI comum).
-const ACESSO_OPCOES: Acesso[] = ['consumidor', 'fornecedor', 'admin']
 
 interface ParsedRow {
   name: string
@@ -64,8 +61,43 @@ interface ParsedRow {
   neighborhood: string
   deliveryType: 'retirada' | 'entrega'
   frequency: 'semanal' | 'quinzenal'
-  quota: 'Cota inteira' | 'Meia cota'
+  quota?: string
   acesso: Acesso[]
+}
+
+// Seletor de tipo (radio) + checkbox admin. Reutilizado nos modais de criar/editar usuário.
+function TipoSelector({ name, acesso, onChange }: { name: string; acesso: Acesso[]; onChange: (a: Acesso[]) => void }) {
+  const tipo = tipoDeAcesso(acesso)
+  const adminOn = acesso.includes('admin')
+  const opcoes: [Tipo, string][] = [['cliente', 'Cliente'], ['fornecedor', 'Fornecedor'], ['admin', 'Somente administrador']]
+  return (
+    <div className="space-y-2">
+      <Label>Tipo de usuário</Label>
+      <div className="flex flex-wrap gap-3">
+        {opcoes.map(([t, lbl]) => (
+          <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer">
+            <input
+              type="radio"
+              name={name}
+              checked={tipo === t}
+              onChange={() => onChange(montarAcesso(t, adminOn, acesso))}
+            />
+            {lbl}
+          </label>
+        ))}
+      </div>
+      {tipo !== 'admin' && (
+        <label className="flex items-center gap-1.5 text-sm cursor-pointer pt-1">
+          <input
+            type="checkbox"
+            checked={adminOn}
+            onChange={(e) => onChange(montarAcesso(tipo, e.target.checked, acesso))}
+          />
+          Também é administrador
+        </label>
+      )}
+    </div>
+  )
 }
 
 function acolhidaBadge(expiry: string) {
@@ -76,7 +108,10 @@ function acolhidaBadge(expiry: string) {
 }
 
 // Formato: exportação do Google Forms (Timestamp,Nome,e-mail,Whatsapp,Logradouro,Complemento,Bairro,CEP,Retirada,Frequência,...,Tamanho Cota)
-function parseGoogleFormCsv(text: string): ParsedRow[] {
+function parseGoogleFormCsv(text: string, tiers: QuotaTier[]): ParsedRow[] {
+  // "meia" → 2º tier (se houver); senão o 1º. Mapeia o texto legado do form aos tiers do tenant.
+  const tierInteira = tiers[0]?.name
+  const tierMeia = tiers[1]?.name ?? tiers[0]?.name
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
   return lines.slice(1).map(line => {
     const c = parseCsvLine(line)
@@ -92,7 +127,7 @@ function parseGoogleFormCsv(text: string): ParsedRow[] {
       neighborhood: c[6]?.trim() ?? '',
       deliveryType: (retirada.includes('entrega') ? 'entrega' : 'retirada') as 'retirada' | 'entrega',
       frequency: (freq.includes('quinzenal') ? 'quinzenal' : 'semanal') as 'semanal' | 'quinzenal',
-      quota: (cota.includes('meia') ? 'Meia cota' : 'Cota inteira') as 'Cota inteira' | 'Meia cota',
+      quota: cota.includes('meia') ? tierMeia : tierInteira,
       acesso: ['consumidor'] as Acesso[],
     }
   }).filter(r => r.name && r.email)
@@ -109,9 +144,17 @@ export function AdminPage() {
   const [showNewRoleInput, setShowNewRoleInput] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Configurações de cota e agendamento
-  const [quotaInteira, setQuotaInteira] = useState(String(tenant?.quotaInteira ?? 65))
-  const [quotaMeia, setQuotaMeia] = useState(String(tenant?.quotaMeia ?? 40))
+  // Tiers de cota efetivos do tenant (deriva do legado quando `quotas` ausente).
+  const quotaTiers: QuotaTier[] = tenant?.quotas?.length
+    ? tenant.quotas
+    : [{ name: 'Cota inteira', price: tenant?.quotaInteira ?? 65 }, { name: 'Meia cota', price: tenant?.quotaMeia ?? 40 }]
+  const quotaTerm = tenant?.quotaTerm || 'Cota'
+
+  // Configurações de cota e agendamento. Linha de tier carrega `originalName` p/ cascata ao renomear.
+  const [quotaTermInput, setQuotaTermInput] = useState(quotaTerm)
+  const [tierRows, setTierRows] = useState<Array<{ id: string; name: string; price: string; originalName?: string }>>(
+    () => quotaTiers.map((q, i) => ({ id: `${i}-${q.name}`, name: q.name, price: String(q.price), originalName: q.name }))
+  )
   const [freteDelivery, setFreteDelivery] = useState(String(tenant?.freteDelivery ?? 0))
   const [dueDay, setDueDay] = useState(String(tenant?.dueDay ?? 10))
   const [orderSendDay, setOrderSendDay] = useState(String(tenant?.orderSendDay ?? 2))
@@ -147,6 +190,9 @@ export function AdminPage() {
   const [memberError, setMemberError] = useState('')
   const [memberSuccess, setMemberSuccess] = useState<{ password: string; contact: string } | null>(null)
   const [inAcolhida, setInAcolhida] = useState(true)
+  // Foco inicial explícito dos modais (senão o Radix pode não pousar num campo do modal).
+  const memberFirstFieldRef = useRef<HTMLInputElement>(null)
+  const editFirstFieldRef = useRef<HTMLInputElement>(null)
 
   // Filtros de usuários
   const [filterName, setFilterName] = useState('')
@@ -176,6 +222,13 @@ export function AdminPage() {
   }, [tenant])
 
   useEffect(() => { load() }, [load])
+
+  // Ressincroniza o editor de cotas quando o tenant carrega/muda (evita estado inicial defasado).
+  useEffect(() => {
+    setQuotaTermInput(tenant?.quotaTerm || 'Cota')
+    setTierRows(quotaTiers.map((q, i) => ({ id: `${i}-${q.name}`, name: q.name, price: String(q.price), originalName: q.name })))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.id])
 
   // --- Organizações ---
   async function handleCreateTenant() {
@@ -259,8 +312,23 @@ export function AdminPage() {
     if (!editingUser || !tenant) return
     setSavingEdit(true)
     try {
-      const producerId = resolveProducerId(acessos(editForm), editForm.producerId)
-      await usersApi.update(editingUser.id, { ...editForm, producerId }, tenant.id)
+      const acesso = acessos(editForm)
+      const producerId = resolveProducerId(acesso, editForm.producerId)
+      let updates: Record<string, unknown>
+      if (tipoDeAcesso(acesso) === 'cliente') {
+        updates = { ...editForm, producerId }
+      } else {
+        // Converteu p/ fornecedor/admin: zera campos de consumo (senão a fatura de cota/frete
+        // continuaria sendo gerada por resíduo). null limpa o campo no Firestore.
+        const { address: _a, neighborhood: _n, frequency: _f, deliveryType: _d, quinzenalParity: _q,
+          quota: _c, isentoCotas: _i, acolhidaExpiry: _e, freteDelivery: _fr, ...rest } = editForm
+        updates = {
+          ...rest, producerId,
+          address: null, neighborhood: null, frequency: null, deliveryType: null, quinzenalParity: null,
+          quota: null, isentoCotas: null, acolhidaExpiry: null, freteDelivery: null,
+        }
+      }
+      await usersApi.update(editingUser.id, updates as Partial<User>, tenant.id)
       setEditDialog(false)
       await load()
       await refreshUser()
@@ -290,9 +358,9 @@ export function AdminPage() {
     await load()
   }
 
-  // --- Novo cliente ---
-  function openCreateMember() {
-    setMemberForm(emptyMemberForm)
+  // --- Novo usuário ---
+  function openCreateMember(tipo: Tipo = 'cliente') {
+    setMemberForm({ ...emptyMemberForm, acesso: montarAcesso(tipo, false, []), quota: quotaTiers[0]?.name })
     setMemberError('')
     setMemberSuccess(null)
     setInAcolhida(true)
@@ -304,17 +372,23 @@ export function AdminPage() {
     setSavingMember(true)
     setMemberError('')
     try {
-      const acolhidaExpiry = inAcolhida
+      const isCliente = tipoDeAcesso(memberForm.acesso) === 'cliente'
+      const acolhidaExpiry = isCliente && inAcolhida
         ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         : undefined
+      // Fornecedor/admin não carregam campos de consumo — enviar só o que faz sentido para o tipo.
+      const { address, neighborhood, frequency, deliveryType, quota, isentoCotas, ...common } = memberForm
+      const consumo = isCliente
+        ? { address, neighborhood, frequency, deliveryType, quota, isentoCotas, ...(acolhidaExpiry ? { acolhidaExpiry } : {}) }
+        : {}
       const result = await usersApi.createMember(
-        { ...memberForm, producerId: resolveProducerId(memberForm.acesso, memberForm.producerId), tenantId: tenant.id, ...(acolhidaExpiry ? { acolhidaExpiry } : {}) },
+        { ...common, ...consumo, producerId: resolveProducerId(memberForm.acesso, memberForm.producerId), tenantId: tenant.id } as Omit<User, 'id'> & { password?: string },
         tenant.id
       )
       await load()
       setMemberSuccess({ password: result.password ?? memberForm.password, contact: memberForm.contact })
     } catch (err) {
-      setMemberError(err instanceof Error ? err.message : 'Erro ao criar cliente')
+      setMemberError(err instanceof Error ? err.message : 'Erro ao criar usuário')
     } finally {
       setSavingMember(false)
     }
@@ -325,7 +399,7 @@ export function AdminPage() {
     const reader = new FileReader()
     reader.onload = (e) => {
       const text = e.target?.result as string
-      setCsvRows(parseGoogleFormCsv(text))
+      setCsvRows(parseGoogleFormCsv(text, quotaTiers))
       setCsvResults(null)
     }
     reader.readAsText(file, 'UTF-8')
@@ -354,25 +428,30 @@ export function AdminPage() {
     setMemberForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  // Liga/desliga uma categoria (checkboxes). Regra: fornecedor e consumidor são exclusivos.
-  function nextAcesso(cur: Acesso[], role: Acesso): Acesso[] {
-    const has = cur.includes(role)
-    let next = has ? cur.filter((a) => a !== role) : [...cur, role]
-    if (!has && role === 'fornecedor') next = next.filter((a) => a !== 'consumidor')
-    if (!has && role === 'consumidor') next = next.filter((a) => a !== 'fornecedor')
-    return next
-  }
   // Resolve o vínculo fornecedor↔entidade: fornecedor com 1 fornecedor no catálogo → auto;
   // não-fornecedor → limpa (undefined). Salvo em User.producerId.
   function resolveProducerId(acesso: Acesso[], atual?: string): string | undefined {
     if (!acesso.includes('fornecedor')) return undefined
     return atual || (producers.length === 1 ? producers[0].id : undefined)
   }
-  function toggleMemberAcesso(role: Acesso) {
-    setMemberForm((prev) => ({ ...prev, acesso: nextAcesso(prev.acesso, role) }))
+
+  // --- Editor de cotas ---
+  function quantosUsam(name?: string): number {
+    return name ? users.filter((u) => !u.deleted && u.quota === name).length : 0
   }
-  function toggleEditAcesso(role: Acesso) {
-    setEditForm((prev) => ({ ...prev, acesso: nextAcesso(acessos(prev), role) }))
+  function addTier() {
+    setTierRows((prev) => [...prev, { id: `new-${Date.now()}`, name: '', price: '0' }])
+  }
+  function updateTier(id: string, field: 'name' | 'price', value: string) {
+    setTierRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)))
+  }
+  function removeTier(row: { id: string; originalName?: string }) {
+    const emUso = quantosUsam(row.originalName)
+    if (emUso > 0) {
+      alert(`Não é possível remover: ${emUso} usuário(s) ainda usam essa cota. Reatribua-os primeiro.`)
+      return
+    }
+    setTierRows((prev) => prev.filter((r) => r.id !== row.id))
   }
 
   async function handleSaveQuota() {
@@ -380,9 +459,19 @@ export function AdminPage() {
     setSavingQuota(true)
     setQuotaMessage('')
     try {
+      const quotas: QuotaTier[] = tierRows
+        .map((r) => ({ name: r.name.trim(), price: parseFloat(r.price) || 0 }))
+        .filter((q) => q.name)
+      // Cascata: para cada tier renomeado, migra os usuários do nome antigo para o novo.
+      for (const r of tierRows) {
+        const novo = r.name.trim()
+        if (r.originalName && novo && r.originalName !== novo) {
+          await usersApi.renameQuota(r.originalName, novo, tenant.id)
+        }
+      }
       await tenantsApi.update(tenant.id, {
-        quotaInteira: parseFloat(quotaInteira) || 0,
-        quotaMeia: parseFloat(quotaMeia) || 0,
+        quotas,
+        quotaTerm: quotaTermInput.trim() || 'Cota',
         freteDelivery: parseFloat(freteDelivery) || 0,
         dueDay: parseInt(dueDay) || 10,
         orderSendDay: parseInt(orderSendDay),
@@ -390,6 +479,9 @@ export function AdminPage() {
         weekChangeDay: parseInt(weekChangeDay),
       })
       await refreshUser()
+      await load()
+      // Reancora originalName nos nomes salvos (renome seguinte não recascateia o já aplicado).
+      setTierRows(quotas.map((q, i) => ({ id: `${i}-${q.name}`, name: q.name, price: String(q.price), originalName: q.name })))
       setQuotaMessage('Salvo!')
     } catch (err) {
       setQuotaMessage(err instanceof Error ? err.message : 'Erro ao salvar')
@@ -409,6 +501,10 @@ export function AdminPage() {
   const admins = baseUsers.filter((u) => isAdmin(u))
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) // admin sempre em ordem alfabética (#46)
 
+  // Só clientes têm campos de consumo (endereço, cota, frequência, retirada...).
+  const memberIsCliente = tipoDeAcesso(memberForm.acesso) === 'cliente'
+  const editIsCliente = tipoDeAcesso(acessos(editForm)) === 'cliente'
+
   // Tabela de usuários (desktop + mobile), reusada nas abas Clientes e Admins.
   function renderUserTable(list: User[]) {
     return (
@@ -420,7 +516,7 @@ export function AdminPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Frequência</TableHead>
                 <TableHead>Semana</TableHead>
-                <TableHead>Cota</TableHead>
+                <TableHead>{quotaTerm}</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead className="w-20"></TableHead>
               </TableRow>
@@ -531,11 +627,11 @@ export function AdminPage() {
   // Ação principal de cada aba.
   const acaoPrincipalDaAba =
     tab === 'usuarios' ? (
-      <Button onClick={openCreateMember}>
+      <Button onClick={() => openCreateMember('cliente')}>
         <Plus className="mr-2 h-4 w-4" /> Novo Cliente
       </Button>
     ) : tab === 'admins' ? (
-      <Button onClick={openCreateMember}>
+      <Button onClick={() => openCreateMember('admin')}>
         <Plus className="mr-2 h-4 w-4" /> Novo Usuário
       </Button>
     ) : tab === 'produtores' ? (
@@ -669,28 +765,45 @@ export function AdminPage() {
         <TabsContent value="configuracoes">
           <Card>
             <CardContent className="pt-6 space-y-4">
-              <h2 className="font-semibold">Valores de Cota Semanal</h2>
+              <h2 className="font-semibold">Cotas</h2>
+              <div className="space-y-1 max-w-xs">
+                <Label>Termo da cota</Label>
+                <Input
+                  value={quotaTermInput}
+                  onChange={(e) => setQuotaTermInput(e.target.value)}
+                  placeholder="Ex: Fornada, Cota, Cesta"
+                />
+                <p className="text-xs text-muted-foreground">Rótulo exibido no lugar de "Cota".</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Tipos de cota (R$/semana)</Label>
+                {tierRows.map((r) => (
+                  <div key={r.id} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1"
+                      value={r.name}
+                      onChange={(e) => updateTier(r.id, 'name', e.target.value)}
+                      placeholder="Nome (ex: Fornada Completa)"
+                    />
+                    <Input
+                      className="w-28"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={r.price}
+                      onChange={(e) => updateTier(r.id, 'price', e.target.value)}
+                      placeholder="R$"
+                    />
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeTier(r)} title="Remover">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={addTier}>
+                  <Plus className="mr-2 h-4 w-4" /> Adicionar cota
+                </Button>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <Label>Cota inteira (R$/semana)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={quotaInteira}
-                    onChange={(e) => setQuotaInteira(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Meia cota (R$/semana)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={quotaMeia}
-                    onChange={(e) => setQuotaMeia(e.target.value)}
-                  />
-                </div>
                 <div className="space-y-1">
                   <Label>Frete por entrega (R$)</Label>
                   <Input
@@ -841,16 +954,16 @@ export function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: novo cliente */}
+      {/* Dialog: novo usuário */}
       <Dialog open={memberDialog} onOpenChange={(open) => { if (!open) { setMemberDialog(false); setMemberSuccess(null) } }}>
-        <DialogContent>
+        <DialogContent onOpenAutoFocus={(e) => { e.preventDefault(); memberFirstFieldRef.current?.focus() }}>
           <DialogHeader>
-            <DialogTitle>Novo Cliente</DialogTitle>
+            <DialogTitle>Novo Usuário</DialogTitle>
           </DialogHeader>
           {memberSuccess ? (
             <>
               <div className="py-4 space-y-2 text-sm">
-                <p className="font-medium text-green-700">Cliente criado com sucesso!</p>
+                <p className="font-medium text-green-700">Usuário criado com sucesso!</p>
                 <p>Senha temporária: <span className="font-mono font-bold">{memberSuccess.password}</span></p>
                 {memberSuccess.contact
                   ? <p className="text-muted-foreground">WhatsApp enviado para {memberSuccess.contact}.</p>
@@ -866,21 +979,11 @@ export function AdminPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Nome</Label>
-                <Input value={memberForm.name} onChange={(e) => setMember('name', e.target.value)} />
+                <Input ref={memberFirstFieldRef} value={memberForm.name} onChange={(e) => setMember('name', e.target.value)} />
               </div>
               <div className="space-y-1">
                 <Label>Contato</Label>
                 <Input value={memberForm.contact} onChange={(e) => setMember('contact', e.target.value)} placeholder="+55 11 99999-9999" />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Endereço</Label>
-                <Input value={memberForm.address} onChange={(e) => setMember('address', e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label>Bairro</Label>
-                <Input value={memberForm.neighborhood} onChange={(e) => setMember('neighborhood', e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -893,45 +996,49 @@ export function AdminPage() {
                 <Input type="password" value={memberForm.password} onChange={(e) => setMember('password', e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <TipoSelector
+              name="tipo-novo"
+              acesso={memberForm.acesso}
+              onChange={(a) => setMemberForm((p) => ({ ...p, acesso: a }))}
+            />
+            {memberForm.acesso.includes('fornecedor') && (
               <div className="space-y-1">
-                <Label>Acesso <span className="text-muted-foreground font-normal">(pode marcar mais de um)</span></Label>
-                <div className="flex flex-wrap gap-3 pt-1">
-                  {ACESSO_OPCOES.map((role) => (
-                    <label key={role} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={memberForm.acesso.includes(role)}
-                        onChange={() => toggleMemberAcesso(role)}
-                      />
-                      {ACESSO_LABEL[role]}
-                    </label>
-                  ))}
-                </div>
-                {memberForm.acesso.includes('fornecedor') && (
-                  producers.length > 1 ? (
-                    <Select value={memberForm.producerId ?? ''} onValueChange={(v) => setMember('producerId', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Vincular a um fornecedor..." /></SelectTrigger>
-                      <SelectContent>
-                        {producers.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  ) : producers[0] ? (
-                    <p className="text-xs text-muted-foreground mt-1">Vinculado a: {producers[0].name}</p>
-                  ) : null
-                )}
+                <Label>Fornecedor vinculado</Label>
+                {producers.length > 1 ? (
+                  <Select value={memberForm.producerId ?? ''} onValueChange={(v) => setMember('producerId', v)}>
+                    <SelectTrigger><SelectValue placeholder="Vincular a um fornecedor..." /></SelectTrigger>
+                    <SelectContent>
+                      {producers.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : producers[0] ? (
+                  <p className="text-xs text-muted-foreground">Vinculado a: {producers[0].name}</p>
+                ) : null}
               </div>
+            )}
+            {memberIsCliente && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Endereço</Label>
+                  <Input value={memberForm.address} onChange={(e) => setMember('address', e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Bairro</Label>
+                  <Input value={memberForm.neighborhood} onChange={(e) => setMember('neighborhood', e.target.value)} />
+                </div>
+              </div>
+            )}
+            {memberIsCliente && (
               <div className="space-y-1">
-                <Label>Cota</Label>
-                <Select value={memberForm.quota ?? 'Cota inteira'} onValueChange={(v) => setMember('quota', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Label>{quotaTerm}</Label>
+                <Select value={memberForm.quota ?? ''} onValueChange={(v) => setMember('quota', v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Cota inteira">Cota inteira</SelectItem>
-                    <SelectItem value="Meia cota">Meia cota</SelectItem>
+                    {quotaTiers.map((q) => <SelectItem key={q.name} value={q.name}>{q.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+            )}
             <div className="space-y-1">
               <Label>Função</Label>
               <Select
@@ -990,52 +1097,56 @@ export function AdminPage() {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="memberIsentoCotas"
-                checked={memberForm.isentoCotas ?? false}
-                onChange={(e) => setMemberForm((p) => ({ ...p, isentoCotas: e.target.checked }))}
-                className="h-4 w-4"
-              />
-              <Label htmlFor="memberIsentoCotas" className="font-normal cursor-pointer">
-                Isento de cota mensal
-              </Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="memberAcolhida"
-                checked={inAcolhida}
-                onChange={(e) => setInAcolhida(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <Label htmlFor="memberAcolhida" className="font-normal cursor-pointer">
-                Em acolhida (30 dias)
-              </Label>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Frequência</Label>
-                <Select value={memberForm.frequency} onValueChange={(v) => setMember('frequency', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="semanal">Semanal</SelectItem>
-                    <SelectItem value="quinzenal">Quinzenal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Retirada</Label>
-                <Select value={memberForm.deliveryType} onValueChange={(v) => setMember('deliveryType', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="retirada">Retirada na loja</SelectItem>
-                    <SelectItem value="entrega">Entrega</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            {memberIsCliente && (
+              <>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="memberIsentoCotas"
+                    checked={memberForm.isentoCotas ?? false}
+                    onChange={(e) => setMemberForm((p) => ({ ...p, isentoCotas: e.target.checked }))}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="memberIsentoCotas" className="font-normal cursor-pointer">
+                    Isento de cota mensal
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="memberAcolhida"
+                    checked={inAcolhida}
+                    onChange={(e) => setInAcolhida(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="memberAcolhida" className="font-normal cursor-pointer">
+                    Em acolhida (30 dias)
+                  </Label>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Frequência</Label>
+                    <Select value={memberForm.frequency} onValueChange={(v) => setMember('frequency', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="semanal">Semanal</SelectItem>
+                        <SelectItem value="quinzenal">Quinzenal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Retirada</Label>
+                    <Select value={memberForm.deliveryType} onValueChange={(v) => setMember('deliveryType', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="retirada">Retirada na loja</SelectItem>
+                        <SelectItem value="entrega">Entrega</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            )}
             {memberError && <p className="text-sm text-destructive">{memberError}</p>}
           </div>
           <DialogFooter>
@@ -1044,7 +1155,7 @@ export function AdminPage() {
               onClick={handleSaveMember}
               disabled={savingMember || !memberForm.name || !memberForm.email}
             >
-              {savingMember ? 'Criando...' : 'Criar cliente'}
+              {savingMember ? 'Criando...' : 'Criar usuário'}
             </Button>
           </DialogFooter>
           </>
@@ -1140,68 +1251,62 @@ export function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: editar cliente */}
+      {/* Dialog: editar usuário */}
       <Dialog open={editDialog} onOpenChange={setEditDialog}>
-        <DialogContent>
+        <DialogContent onOpenAutoFocus={(e) => { e.preventDefault(); editFirstFieldRef.current?.focus() }}>
           <DialogHeader>
             <DialogTitle>Editar — {editingUser?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
               <Label>Nome</Label>
-              <Input value={editForm.name ?? ''} onChange={(e) => setEdit('name', e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label>Endereço</Label>
-              <Input value={editForm.address ?? ''} onChange={(e) => setEdit('address', e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label>Bairro</Label>
-              <Input value={editForm.neighborhood ?? ''} onChange={(e) => setEdit('neighborhood', e.target.value)} />
+              <Input ref={editFirstFieldRef} value={editForm.name ?? ''} onChange={(e) => setEdit('name', e.target.value)} />
             </div>
             <div className="space-y-1">
               <Label>Contato</Label>
               <Input value={editForm.contact ?? ''} onChange={(e) => setEdit('contact', e.target.value)} />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <TipoSelector
+              name="tipo-editar"
+              acesso={acessos(editForm)}
+              onChange={(a) => setEditForm((p) => ({ ...p, acesso: a }))}
+            />
+            {acessos(editForm).includes('fornecedor') && (
               <div className="space-y-1">
-                <Label>Acesso <span className="text-muted-foreground font-normal">(pode marcar mais de um)</span></Label>
-                <div className="flex flex-wrap gap-3 pt-1">
-                  {ACESSO_OPCOES.map((role) => (
-                    <label key={role} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={acessos(editForm).includes(role)}
-                        onChange={() => toggleEditAcesso(role)}
-                      />
-                      {ACESSO_LABEL[role]}
-                    </label>
-                  ))}
+                <Label>Fornecedor vinculado</Label>
+                {producers.length > 1 ? (
+                  <Select value={editForm.producerId ?? ''} onValueChange={(v) => setEdit('producerId', v)}>
+                    <SelectTrigger><SelectValue placeholder="Vincular a um fornecedor..." /></SelectTrigger>
+                    <SelectContent>
+                      {producers.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : producers[0] ? (
+                  <p className="text-xs text-muted-foreground">Vinculado a: {producers[0].name}</p>
+                ) : null}
+              </div>
+            )}
+            {editIsCliente && (
+              <>
+                <div className="space-y-1">
+                  <Label>Endereço</Label>
+                  <Input value={editForm.address ?? ''} onChange={(e) => setEdit('address', e.target.value)} />
                 </div>
-                {acessos(editForm).includes('fornecedor') && (
-                  producers.length > 1 ? (
-                    <Select value={editForm.producerId ?? ''} onValueChange={(v) => setEdit('producerId', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Vincular a um fornecedor..." /></SelectTrigger>
-                      <SelectContent>
-                        {producers.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  ) : producers[0] ? (
-                    <p className="text-xs text-muted-foreground mt-1">Vinculado a: {producers[0].name}</p>
-                  ) : null
-                )}
-              </div>
-              <div className="space-y-1">
-                <Label>Cota</Label>
-                <Select value={editForm.quota ?? 'Cota inteira'} onValueChange={(v) => setEdit('quota', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Cota inteira">Cota inteira</SelectItem>
-                    <SelectItem value="Meia cota">Meia cota</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                <div className="space-y-1">
+                  <Label>Bairro</Label>
+                  <Input value={editForm.neighborhood ?? ''} onChange={(e) => setEdit('neighborhood', e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>{quotaTerm}</Label>
+                  <Select value={editForm.quota ?? ''} onValueChange={(v) => setEdit('quota', v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                    <SelectContent>
+                      {quotaTiers.map((q) => <SelectItem key={q.name} value={q.name}>{q.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
             <div className="space-y-1">
               <Label>Função</Label>
               <Select
@@ -1260,6 +1365,8 @@ export function AdminPage() {
                 </div>
               )}
             </div>
+            {editIsCliente && (
+            <>
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -1342,6 +1449,8 @@ export function AdminPage() {
                   </SelectContent>
                 </Select>
               </div>
+            )}
+            </>
             )}
           </div>
           <div className="pt-2 border-t space-y-2">

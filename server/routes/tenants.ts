@@ -4,10 +4,13 @@ import { isSuperadmin, isAdmin } from '../services/acesso.js'
 
 const router = Router()
 
+interface QuotaTier { name: string; price: number }
 interface TenantDoc {
   name: string
   adminId: string
   dateCreated: string
+  quotas?: QuotaTier[]
+  quotaTerm?: string
   quotaInteira?: number
   quotaMeia?: number
   dueDay?: number
@@ -15,6 +18,15 @@ interface TenantDoc {
   orderSendHour?: number
   weekChangeDay?: number
   extrasAberto?: boolean
+}
+
+// Valida/normaliza a lista de tiers recebida do cliente.
+function sanitizeQuotas(raw: unknown): QuotaTier[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  return raw
+    .filter((q): q is { name: unknown; price: unknown } => !!q && typeof q === 'object')
+    .map((q) => ({ name: String((q as { name: unknown }).name ?? '').trim(), price: Number((q as { price: unknown }).price) || 0 }))
+    .filter((q) => q.name)
 }
 
 router.get('/', async (req: Request, res: Response) => {
@@ -54,6 +66,8 @@ router.post('/', async (req: Request, res: Response) => {
       name,
       adminId: req.user!.uid,
       dateCreated: new Date().toISOString(),
+      quotaTerm: 'Fornada',
+      quotas: [{ name: 'Fornada Completa', price: 65 }, { name: 'Fornada Leve', price: 40 }],
       quotaInteira: 65,
       quotaMeia: 40,
       dueDay: 10,
@@ -75,12 +89,16 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (!isSuperAdmin && !isTenantAdmin) {
       res.status(403).json({ message: 'Sem permissão' }); return
     }
-    const { quotaInteira, quotaMeia, dueDay, orderSendDay, orderSendHour, weekChangeDay, extrasAberto } = req.body as {
+    const { quotas, quotaTerm, quotaInteira, quotaMeia, dueDay, orderSendDay, orderSendHour, weekChangeDay, extrasAberto } = req.body as {
+      quotas?: unknown; quotaTerm?: string
       quotaInteira?: number; quotaMeia?: number; dueDay?: number
       orderSendDay?: number; orderSendHour?: number; weekChangeDay?: number
       extrasAberto?: boolean
     }
     const updates: Partial<TenantDoc> = {}
+    const tiers = sanitizeQuotas(quotas)
+    if (tiers !== undefined) updates.quotas = tiers
+    if (quotaTerm !== undefined) updates.quotaTerm = String(quotaTerm).trim()
     if (quotaInteira !== undefined) updates.quotaInteira = quotaInteira
     if (quotaMeia !== undefined) updates.quotaMeia = quotaMeia
     if (dueDay !== undefined) updates.dueDay = dueDay
