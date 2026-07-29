@@ -33,11 +33,18 @@ Eram bugs independentes, não a mesma raiz:
 - **Header mobile empilhado + navegador sticky** (PR #53, deploy 2026-07-17, verificado no aparelho pelo usuário). Follow-up do #40.
 - **#50 — conferência das cobranças do #43** — verificado e resolvido pelo usuário.
 
+## 🚢 Mergeado na `main`, aguardando deploy + validação
+
+- **#45 — quantidade de cotas por membro** (`quotaQty`, PR #57, mergeado 2026-07-29).
+  Cobrança = `valor semanal × quotaQty × nº de entregas do mês`. Decisão: **tipo + quantidade**
+  (não mistura inteira+meia; usa 2 cadastros). 83 testes verdes (`quotaMath`, `formatQuota`,
+  amarração form→API). ⚠️ **NÃO deployado** (deploy é manual) e o elo API→Firestore→fatura
+  **não foi validado com membro real** — envolve dinheiro. Validar antes de rodar `deploy.sh`.
+- **Import de catálogo via CSV** (entrou junto no PR #57).
+
 ## P1 — feedback de usuário
 
-| # | Item | Issue | Nota |
-|---|------|-------|------|
-| 3 | Quantidade por pedido: cota cheia / meia / N cotas (padrão 1) | #45 | Hoje André precisa de 2 cadastros; Luciano recebe 2–3 meias. Muda modelo de dados. Ver #18 antes. |
+Todo o feedback priorizado está **concluído** (#45 mergeado; #46 em produção e validado).
 
 ⚠️ **#47 (fatura de frete da entrega)** — deployado em produção 2026-07-19 (PR #56), mas
 **AINDA NÃO VERIFICADO pelo usuário**. Issue #47 continua ABERTA. Envolve dinheiro (gera
@@ -66,18 +73,21 @@ cosmético.
 | # | Item | Issue |
 |---|------|-------|
 | 11 | Sanitizar mensagens de erro nos handlers | #10 |
-| 12 | Extrair PaymentService + cron job para cotas | #18 |
+| 12 | ~~Extrair PaymentService + cron job para cotas~~ — **aparentemente concluído** (`server/services/paymentService.ts` extraído + `server/jobs/quotaJob.ts` no ar); confirmar e fechar a issue | #18 |
 | 13 | Observabilidade — Sentry, Pino, métricas | #22 |
 | 14 | `npm run lint` quebrado (eslint fora das devDeps; nunca rodou) | sem issue |
 | 15 | CatalogoPage esconde o header no load (empty-state em `<TableRow>`, migrar p/ Card) | sem issue |
+| 16 | Ambiente de dev hospedado (`dev.csaparahyba.com.br`) — **prep pronta** na branch `chore/ambiente-dev` (não mergeada); falta DNS + certbot + 1º deploy. Ver `RUNBOOK-DEV.md` | sem issue |
 
-11 é segurança e barato. 12 provavelmente encosta no P1 #3 — considerar puxar para antes do
-#3 se o modelo de cotas for mexido de qualquer forma. 13 ajuda a achar bugs como o #43.
-14 é rápido e destrava um portão de qualidade. 15 é pequeno. (#40 concluído — ver acima.)
+11 é segurança e barato. **12 (#18) já foi feito** na prática — o PaymentService foi extraído
+antes do #45, por isso o #45 não teve o atrito previsto. 13 ajuda a achar bugs como o #43.
+14 é rápido e destrava um portão de qualidade. 15 é pequeno. 16 destrava validar features de
+cobrança (como #45/#47) sem risco a dado real. (#40 concluído — ver acima.)
 
 ## Perguntas em aberto
 
-- Quantidade (#3): campo livre ou enum (cheia/meia/2×meia)? Afeta cobrança automaticamente?
-- Ordem persistida (#4): por colmeia ou global? Membro novo entra onde?
 - Comprovante (#6): onde armazenar? (Firestore não guarda binário — precisa de storage.) Alguém valida ou só anexa?
-- #12 (#18) antes ou depois do #3? Se o modelo de cotas muda no #3, refatorar o PaymentService antes evita mexer duas vezes.
+- Isolamento do WhatsApp no ambiente de dev (#16): subir uma instância Evolution separada, ou aceitar o cron desligado (envios manuais na UI do dev ainda saem reais)?
+
+> Resolvidas: **quantidade (#45)** = tipo + `quotaQty` (padrão 1), afeta cobrança automaticamente
+> (`valor × qty × semanas`). **#12/#18** = PaymentService já extraído.
