@@ -82,8 +82,9 @@ cobrança (como #45/#47) sem risco a dado real. (#40 concluído — ver acima.)
 
 ## Perguntas em aberto
 
-- Comprovante (#6): onde armazenar? (Firestore não guarda binário — precisa de storage.) Alguém valida ou só anexa?
 - Isolamento do WhatsApp no ambiente de dev (#16): subir uma instância Evolution separada, ou aceitar o cron desligado (envios manuais na UI do dev ainda saem reais)?
 
 > Resolvidas: **quantidade (#45)** = tipo + `quotaQty` (padrão 1), afeta cobrança automaticamente
-> (`valor × qty × semanas`). **#12/#18** = PaymentService já extraído.
+> (`valor × qty × semanas`). **#12/#18** = PaymentService já extraído. **Comprovante (#6)** =
+> feito: upload em Firebase Storage (`comprovantes/<colmeia>/<user>/<mês>/`, máx 5 MB, `useUploadProof`),
+> membro envia/substitui em Meus Pagamentos e admin vê o link na verificação.
