@@ -33,23 +33,19 @@ Eram bugs independentes, não a mesma raiz:
 - **Header mobile empilhado + navegador sticky** (PR #53, deploy 2026-07-17, verificado no aparelho pelo usuário). Follow-up do #40.
 - **#50 — conferência das cobranças do #43** — verificado e resolvido pelo usuário.
 
-## 🚢 Mergeado na `main`, aguardando deploy + validação
+## ✅ Concluído e VALIDADO — na `main` (2026-07-29)
 
-- **#45 — quantidade de cotas por membro** (`quotaQty`, PR #57, mergeado 2026-07-29).
-  Cobrança = `valor semanal × quotaQty × nº de entregas do mês`. Decisão: **tipo + quantidade**
-  (não mistura inteira+meia; usa 2 cadastros). 83 testes verdes (`quotaMath`, `formatQuota`,
-  amarração form→API). ⚠️ **NÃO deployado** (deploy é manual) e o elo API→Firestore→fatura
-  **não foi validado com membro real** — envolve dinheiro. Validar antes de rodar `deploy.sh`.
+- **#45 — quantidade de cotas por membro** (`quotaQty`, PR #57). Cobrança = `valor semanal ×
+  quotaQty × nº de entregas do mês`. Decisão: **tipo + quantidade** (não mistura inteira+meia;
+  usa 2 cadastros). 83 testes verdes. **Validado pelo usuário 2026-07-29.** Na `main`;
+  **falta só o deploy manual** (`deploy.sh`) pra chegar à produção.
+- **#47 — fatura de frete da entrega** (PR #56). Deployado em prod desde 2026-07-19 e
+  **validado pelo usuário 2026-07-29** — pode fechar a issue #47.
 - **Import de catálogo via CSV** (entrou junto no PR #57).
 
 ## P1 — feedback de usuário
 
-Todo o feedback priorizado está **concluído** (#45 mergeado; #46 em produção e validado).
-
-⚠️ **#47 (fatura de frete da entrega)** — deployado em produção 2026-07-19 (PR #56), mas
-**AINDA NÃO VERIFICADO pelo usuário**. Issue #47 continua ABERTA. Envolve dinheiro (gera
-fatura), então validar o cálculo com membro real antes de fechar. Ver detalhes/riscos no
-handoff. Não mexer no cálculo de frete sem essa validação.
+Todo o feedback priorizado está **concluído e validado** (#45, #46, #47).
 
 Feito e validado: **#46** (drag-and-drop da lista de entrega + admin alfabético) — em
 produção, validado no mobile (PRs #54/#55). Itens 4 e 5 do feedback original.
