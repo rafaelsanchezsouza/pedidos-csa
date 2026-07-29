@@ -31,6 +31,7 @@ export interface User {
   mustChangePassword?: boolean
   quinzenalParity?: 'par' | 'impar'
   quota?: 'Cota inteira' | 'Meia cota'
+  quotaQty?: number // quantidade de cotas do tipo acima (padrão 1); ex: André = 2 inteiras, Luciano = 3 meias
   acolhidaExpiry?: string
   deliveryOrder?: number // posição manual na lista de entrega (só deliveryType 'entrega'); ausente = não ordenado
   freteDelivery?: number // override do frete deste membro; ausente = usa o padrão da colmeia

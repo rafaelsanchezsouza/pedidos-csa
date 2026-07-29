@@ -33,6 +33,30 @@ router.post('/', async (req: Request, res: Response) => {
   }
 })
 
+// Importação em lote via CSV: cria vários produtos de uma vez, um resultado por linha.
+router.post('/import-batch', async (req: Request, res: Response) => {
+  try {
+    const { products } = req.body as { products: Array<Omit<ProductDoc, 'dateUpdated'>> }
+    if (!Array.isArray(products) || products.length === 0) {
+      res.status(400).json({ message: 'products deve ser array não-vazio' }); return
+    }
+    const now = new Date().toISOString()
+    const results: Array<{ name: string; success: boolean; error?: string }> = []
+    for (const p of products) {
+      try {
+        if (!p.name || !p.producerId || !p.colmeiaId) throw new Error('nome, produtor e colmeia obrigatórios')
+        await createDoc<ProductDoc>('products', { ...p, dateUpdated: now })
+        results.push({ name: p.name, success: true })
+      } catch (err) {
+        results.push({ name: p?.name ?? '', success: false, error: String(err) })
+      }
+    }
+    res.status(200).json({ results })
+  } catch (err) {
+    res.status(500).json({ message: String(err) })
+  }
+})
+
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const updates = { ...req.body as Partial<ProductDoc>, dateUpdated: new Date().toISOString() }
