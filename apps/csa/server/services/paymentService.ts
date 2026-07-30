@@ -1,0 +1,364 @@
+import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
+import { isFixoWeekFromDate } from './weekMath.js'
+import { resolveFrete } from './freteMath.js'
+import { quotaAmount } from './quotaMath.js'
+
+interface OrderItem {
+  price: number
+  qty: number
+  producerName: string
+}
+
+interface OrderDoc {
+  userId: string
+  userName: string
+  colmeiaId: string
+  weekId: string
+  items: OrderItem[]
+  status: 'rascunho' | 'enviado'
+}
+
+interface PaymentDoc {
+  userId: string
+  userName: string
+  colmeiaId: string
+  month: string
+  producerName: string
+  amount: number
+  dueDate?: string
+  proofUrl?: string
+  verified: boolean
+  dateCreated: string
+  dateUpdated: string
+}
+
+interface UserDoc {
+  name: string
+  quota?: string
+  quotaQty?: number
+  frequency?: 'semanal' | 'quinzenal'
+  quinzenalParity?: 'par' | 'impar'
+  isentoCotas?: boolean
+  disabled?: boolean
+  deleted?: boolean
+  deliveryType?: 'colmeia' | 'entrega'
+  freteDelivery?: number
+}
+
+interface ColmeiaSettings {
+  quotaInteira?: number
+  quotaMeia?: number
+  freteDelivery?: number
+  dueDay?: number
+}
+
+// 'cota' vence no mês anterior (pré-consumo); 'extras' e 'frete' no mês seguinte (pós-consumo).
+function buildDueDate(month: string, type: 'cota' | 'extras' | 'frete', dueDay: number): string {
+  const [year, m] = month.split('-').map(Number)
+  let targetYear = year
+  let targetMonth: number
+  if (type === 'cota') {
+    targetMonth = m - 1
+    if (targetMonth === 0) { targetMonth = 12; targetYear-- }
+  } else {
+    targetMonth = m + 1
+    if (targetMonth === 13) { targetMonth = 1; targetYear++ }
+  }
+  return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`
+}
+
+
+
+function countDeliveryWeeks(
+  month: string,
+  frequency: 'semanal' | 'quinzenal',
+  quinzenalParity?: 'par' | 'impar',
+): number {
+  const [year, monthNum] = month.split('-').map(Number)
+  let count = 0
+  const firstDay = new Date(year, monthNum - 1, 1)
+  const dayOfWeek = firstDay.getDay()
+  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  const cur = new Date(year, monthNum - 1, 1 + daysToMonday)
+  while (true) {
+    const wednesday = new Date(cur)
+    wednesday.setDate(cur.getDate() + 2)
+    if (wednesday.getFullYear() > year || (wednesday.getFullYear() === year && wednesday.getMonth() + 1 > monthNum)) break
+    if (wednesday.getMonth() + 1 === monthNum) {
+      if (frequency === 'semanal') {
+        count++
+      } else {
+        const fixo = isFixoWeekFromDate(cur)
+        if (quinzenalParity === 'impar' && fixo) count++
+        else if (quinzenalParity === 'par' && !fixo) count++
+        else if (!quinzenalParity && fixo) count++ // fallback: comportamento global
+      }
+    }
+    cur.setDate(cur.getDate() + 7)
+  }
+  return count
+}
+
+export async function upsertPaymentsForOrder(
+  userId: string,
+  userName: string,
+  colmeiaId: string,
+  month: string,
+) {
+  const [orders, colmeiaDoc] = await Promise.all([
+    listDocs<OrderDoc>('orders', [
+      ['userId', '==', userId],
+      ['colmeiaId', '==', colmeiaId],
+    ]),
+    getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+  ])
+  const monthOrders = orders.filter((o) => o.status === 'enviado' && o.weekId.startsWith(month))
+
+  // Agrupar por producerName
+  const byProducer = new Map<string, number>()
+  for (const order of monthOrders) {
+    for (const item of order.items) {
+      const producer = item.producerName
+      byProducer.set(producer, (byProducer.get(producer) ?? 0) + item.price * item.qty)
+    }
+  }
+
+  const existing = await listDocs<PaymentDoc>('payments', [
+    ['userId', '==', userId],
+    ['colmeiaId', '==', colmeiaId],
+    ['month', '==', month],
+  ])
+  // Nunca tocar em 'Cota' nem 'Entrega' — faturas geradas separadamente, não vêm de pedido
+  const existingByProducer = new Map(
+    existing.filter((p) => p.producerName !== 'Cota' && p.producerName !== 'Entrega').map((p) => [p.producerName, p])
+  )
+
+  const now = new Date().toISOString()
+  const dueDay = colmeiaDoc?.dueDay ?? 10
+  const dueDate = buildDueDate(month, 'extras', dueDay)
+
+  // Upsert produtores com saldo > 0
+  await Promise.all(
+    [...byProducer.entries()].map(async ([producerName, amount]) => {
+      const prev = existingByProducer.get(producerName)
+      if (prev) {
+        await updateDoc<PaymentDoc>('payments', prev.id, { amount, dateUpdated: now })
+      } else {
+        await createDoc<PaymentDoc>('payments', {
+          userId,
+          userName,
+          colmeiaId,
+          month,
+          producerName,
+          amount,
+          dueDate,
+          verified: false,
+          dateCreated: now,
+          dateUpdated: now,
+        })
+      }
+    }),
+  )
+
+  // Zerar docs de produtores que não aparecem mais nos pedidos enviados
+  await Promise.all(
+    [...existingByProducer.entries()]
+      .filter(([producerName]) => !byProducer.has(producerName))
+      .map(([, doc]) => updateDoc<PaymentDoc>('payments', doc.id, { amount: 0, dateUpdated: now })),
+  )
+}
+
+export async function generateQuotaForUser(
+  uid: string,
+  colmeiaId: string,
+  month: string,
+): Promise<(PaymentDoc & { id: string }) | { skipped: true }> {
+  const [userDoc, colmeiaDoc] = await Promise.all([
+    getDoc<UserDoc>('users', uid),
+    getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+  ])
+  if (!userDoc?.quota) throw new Error('Usuário sem cota definida')
+  if (userDoc.isentoCotas) return { skipped: true }
+
+  const weeklyRate = userDoc.quota === 'Meia cota'
+    ? (colmeiaDoc?.quotaMeia ?? 40)
+    : (colmeiaDoc?.quotaInteira ?? 65)
+
+  const weeks = countDeliveryWeeks(month, userDoc.frequency ?? 'semanal', userDoc.quinzenalParity)
+  const amount = quotaAmount(weeklyRate, userDoc.quotaQty, weeks)
+  const dueDay = colmeiaDoc?.dueDay ?? 10
+  const dueDate = buildDueDate(month, 'cota', dueDay)
+
+  const existing = await listDocs<PaymentDoc>('payments', [
+    ['userId', '==', uid],
+    ['colmeiaId', '==', colmeiaId],
+    ['month', '==', month],
+    ['producerName', '==', 'Cota'],
+  ])
+
+  const now = new Date().toISOString()
+  if (existing.length > 0) {
+    const prev = existing[0]
+    await updateDoc<PaymentDoc>('payments', prev.id, { amount, dueDate, dateUpdated: now })
+    return { ...prev, amount, dueDate, dateUpdated: now }
+  }
+
+  return createDoc<PaymentDoc>('payments', {
+    userId: uid,
+    userName: userDoc.name,
+    colmeiaId,
+    month,
+    producerName: 'Cota',
+    amount,
+    dueDate,
+    verified: false,
+    dateCreated: now,
+    dateUpdated: now,
+  })
+}
+
+export async function generateQuotaForAll(colmeiaId: string, month: string): Promise<{ generated: number }> {
+  const [users, colmeiaDoc] = await Promise.all([
+    listDocs<UserDoc>('users', [['colmeiaId', '==', colmeiaId]]),
+    getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+  ])
+
+  const eligible = users.filter((u) => u.quota && !u.isentoCotas && !u.disabled && !u.deleted)
+  const dueDay = colmeiaDoc?.dueDay ?? 10
+  const dueDate = buildDueDate(month, 'cota', dueDay)
+  const now = new Date().toISOString()
+  let generated = 0
+
+  for (const u of eligible) {
+    const weeklyRate = u.quota === 'Meia cota'
+      ? (colmeiaDoc?.quotaMeia ?? 40)
+      : (colmeiaDoc?.quotaInteira ?? 65)
+    const weeks = countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
+    const amount = quotaAmount(weeklyRate, u.quotaQty, weeks)
+
+    const existing = await listDocs<PaymentDoc>('payments', [
+      ['userId', '==', u.id],
+      ['colmeiaId', '==', colmeiaId],
+      ['month', '==', month],
+      ['producerName', '==', 'Cota'],
+    ])
+
+    if (existing.length > 0) {
+      await updateDoc<PaymentDoc>('payments', existing[0].id, { amount, dueDate, dateUpdated: now })
+    } else {
+      await createDoc<PaymentDoc>('payments', {
+        userId: u.id,
+        userName: u.name,
+        colmeiaId,
+        month,
+        producerName: 'Cota',
+        amount,
+        dueDate,
+        verified: false,
+        dateCreated: now,
+        dateUpdated: now,
+      })
+      generated++
+    }
+  }
+
+  return { generated }
+}
+
+// Fatura de frete (producerName 'Entrega'), mensal, por membro que recebe por entrega.
+// Espelha a cota: valor = frete efetivo × nº de entregas do mês (respeita quinzenal).
+export async function generateFreteForUser(
+  uid: string,
+  colmeiaId: string,
+  month: string,
+): Promise<(PaymentDoc & { id: string }) | { skipped: true }> {
+  const [userDoc, colmeiaDoc] = await Promise.all([
+    getDoc<UserDoc>('users', uid),
+    getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+  ])
+  if (!userDoc) throw new Error('Usuário não encontrado')
+  const frete = resolveFrete(userDoc, colmeiaDoc)
+  // Só gera para quem recebe por entrega e tem frete > 0.
+  if (userDoc.deliveryType !== 'entrega' || frete <= 0) return { skipped: true }
+
+  const entregas = countDeliveryWeeks(month, userDoc.frequency ?? 'semanal', userDoc.quinzenalParity)
+  const amount = frete * entregas
+  const dueDay = colmeiaDoc?.dueDay ?? 10
+  const dueDate = buildDueDate(month, 'frete', dueDay)
+
+  const existing = await listDocs<PaymentDoc>('payments', [
+    ['userId', '==', uid],
+    ['colmeiaId', '==', colmeiaId],
+    ['month', '==', month],
+    ['producerName', '==', 'Entrega'],
+  ])
+
+  const now = new Date().toISOString()
+  if (existing.length > 0) {
+    const prev = existing[0]
+    await updateDoc<PaymentDoc>('payments', prev.id, { amount, dueDate, dateUpdated: now })
+    return { ...prev, amount, dueDate, dateUpdated: now }
+  }
+
+  return createDoc<PaymentDoc>('payments', {
+    userId: uid,
+    userName: userDoc.name,
+    colmeiaId,
+    month,
+    producerName: 'Entrega',
+    amount,
+    dueDate,
+    verified: false,
+    dateCreated: now,
+    dateUpdated: now,
+  })
+}
+
+export async function generateFreteForAll(colmeiaId: string, month: string): Promise<{ generated: number }> {
+  const [users, colmeiaDoc] = await Promise.all([
+    listDocs<UserDoc>('users', [['colmeiaId', '==', colmeiaId]]),
+    getDoc<ColmeiaSettings>('colmeias', colmeiaId),
+  ])
+
+  const dueDay = colmeiaDoc?.dueDay ?? 10
+  const dueDate = buildDueDate(month, 'frete', dueDay)
+  const now = new Date().toISOString()
+  let generated = 0
+
+  const eligible = users.filter(
+    (u) => u.deliveryType === 'entrega' && !u.disabled && !u.deleted && resolveFrete(u, colmeiaDoc) > 0,
+  )
+
+  for (const u of eligible) {
+    const frete = resolveFrete(u, colmeiaDoc)
+    const entregas = countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
+    const amount = frete * entregas
+
+    const existing = await listDocs<PaymentDoc>('payments', [
+      ['userId', '==', u.id],
+      ['colmeiaId', '==', colmeiaId],
+      ['month', '==', month],
+      ['producerName', '==', 'Entrega'],
+    ])
+
+    if (existing.length > 0) {
+      await updateDoc<PaymentDoc>('payments', existing[0].id, { amount, dueDate, dateUpdated: now })
+    } else {
+      await createDoc<PaymentDoc>('payments', {
+        userId: u.id,
+        userName: u.name,
+        colmeiaId,
+        month,
+        producerName: 'Entrega',
+        amount,
+        dueDate,
+        verified: false,
+        dateCreated: now,
+        dateUpdated: now,
+      })
+      generated++
+    }
+  }
+
+  return { generated }
+}
