@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* As cores abaixo são FALLBACK pré-JS. A fonte real da paleta é src/lib/brand.ts,
+   aplicada por applyBrand() no boot. Para trocar as cores do tenant, edite brand.ts
+   (estes valores só evitam um flash antes do JS rodar). */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 22 83% 14%;
+    --primary-foreground: 25 67% 90%;
+    --secondary: 25 67% 81%;
+    --secondary-foreground: 22 83% 14%;
+    --muted: 28 50% 94%;
+    --muted-foreground: 22 25% 35%;
+    --accent: 25 67% 81%;
+    --accent-foreground: 22 83% 14%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 26 40% 84%;
+    --input: 26 40% 84%;
+    --ring: 22 83% 14%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 22 40% 7%;
+    --foreground: 25 67% 90%;
+    --card: 22 40% 9%;
+    --card-foreground: 25 67% 90%;
+    --popover: 22 40% 9%;
+    --popover-foreground: 25 67% 90%;
+    --primary: 25 67% 81%;
+    --primary-foreground: 22 83% 14%;
+    --secondary: 22 30% 18%;
+    --secondary-foreground: 25 67% 90%;
+    --muted: 22 30% 16%;
+    --muted-foreground: 25 30% 65%;
+    --accent: 22 30% 20%;
+    --accent-foreground: 25 67% 90%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 22 30% 20%;
+    --input: 22 30% 20%;
+    --ring: 25 67% 81%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

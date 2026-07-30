@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+dist-server/
+vite.config.js
+vite.config.d.ts
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+deploy.env
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Firebase
+.firebase/
+firebase-debug.log
+*-firebase-adminsdk-*.json
+
+# Claude Code
+.claude/
+
+# Ambientes separados
+.env.development
+.env.production
+
+# Misc
+coverage/
+mensagem_produtor_*.txt
+users/
+
+# Scripts com dados pessoais de membros
+scripts/create-users-form.ts
+scripts/create-owner-user.ts
+scripts/seed-catalogo-jucy.ts
+*.csv
+
