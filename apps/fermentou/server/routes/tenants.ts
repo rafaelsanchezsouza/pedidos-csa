@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { listDocs, createDoc, getDoc, updateDoc, db } from '../repositories/firestore.js'
-import { isSuperadmin, isAdmin } from '../services/acesso.js'
+import { isSuperadmin, isAdmin } from '@pedidos/core'
 
 const router = Router()
 

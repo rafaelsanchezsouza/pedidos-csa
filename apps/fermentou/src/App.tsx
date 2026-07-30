@@ -12,7 +12,7 @@ import { EntregasPage } from '@/pages/EntregasPage'
 import { ConsolidadoGeralPage } from '@/pages/ConsolidadoGeralPage'
 import { VerificarPagamentosPage } from '@/pages/VerificarPagamentosPage'
 import { DefinirSenhaPage } from '@/pages/DefinirSenhaPage'
-import { isAdmin, isFornecedor } from '@/lib/acesso'
+import { isAdmin, isFornecedor } from '@pedidos/core'
 import { ReactNode } from 'react'
 
 function ProtectedRoute({ children, adminOnly = false, fornecedorOk = false }: { children: ReactNode; adminOnly?: boolean; fornecedorOk?: boolean }) {

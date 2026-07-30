@@ -3,7 +3,7 @@ import { listDocs, createDoc, updateDoc, getDoc, db } from '../repositories/fire
 import { upsertPaymentsForOrder } from '../services/paymentService.js'
 import { sendWhatsAppMessage } from '../services/whatsapp/index.js'
 import { buildConsolidatedText, normalizePhone } from '../services/ordersService.js'
-import { isAdmin as checkAdmin } from '../services/acesso.js'
+import { isAdmin as checkAdmin } from '@pedidos/core'
 
 const router = Router()
 

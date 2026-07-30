@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
-import { isAdmin as checkAdmin, isFornecedor } from '@/lib/acesso'
+import { isAdmin as checkAdmin, isFornecedor } from '@pedidos/core'
 
 const memberItems = [
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart },

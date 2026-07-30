@@ -1,4 +1,4 @@
-import type { Acesso } from '@/lib/acesso'
+import type { Acesso } from '@pedidos/core'
 
 // Um "tier" de cota: nome exibido (também é o valor gravado em User.quota) + preço semanal.
 export interface QuotaTier { name: string; price: number }

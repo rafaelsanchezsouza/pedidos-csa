@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Pencil, Trash2, Upload } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { isAdmin, isFornecedor } from '@/lib/acesso'
+import { isAdmin, isFornecedor } from '@pedidos/core'
 import { productsApi, producersApi } from '@/services/api'
 import type { ProductBatchResult } from '@/services/api'
 import type { Product, Producer } from '@/types'
