@@ -2,7 +2,7 @@
 // User.quota guarda o NOME do tier; o preço vem de Tenant.quotas (ou do legado inteira/meia).
 // quotaAmount fecha o cálculo mensal: taxa semanal × nº de cotas × nº de entregas.
 
-import type { QuotaTier } from '../types'
+import type { QuotaTier } from '../types.js'
 
 export interface QuotaSettings {
   quotas?: QuotaTier[]

@@ -1,7 +1,7 @@
 import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
-import { isFixoWeekFromDate } from './weekMath.js'
-import { resolveFrete } from './freteMath.js'
-import { weeklyRate } from './quotaMath.js'
+import { isFixoWeekFromDate } from '@pedidos/core'
+import { resolveFrete } from '@pedidos/core'
+import { weeklyRate } from '@pedidos/core'
 
 interface OrderItem {
   price: number

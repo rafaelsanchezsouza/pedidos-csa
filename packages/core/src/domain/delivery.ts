@@ -1,4 +1,4 @@
-import type { User } from '../types'
+import type { User } from '../types.js'
 
 // Ordena a lista de entrega: quem tem deliveryOrder vem primeiro (crescente); quem não tem
 // (membro novo) cai no fim, em ordem alfabética. Nome desempata em qualquer caso.
