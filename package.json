@@ -1,0 +1,20 @@
+{
+  "name": "pedidos-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "test:tz": "npm run test:tz --workspaces --if-present",
+    "test:core": "npm run test:tz -w @pedidos/core"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.10"
+  }
+}
