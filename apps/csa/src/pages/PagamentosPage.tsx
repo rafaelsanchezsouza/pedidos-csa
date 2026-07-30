@@ -3,13 +3,13 @@ import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi, ordersApi } from '@/services/api'
 import { useUploadProof } from '@/hooks/useUploadProof'
 import type { Payment, User, Order, OrderItem } from '@/types'
-import { statusLabel, statusVariant } from '@/lib/statusPagamento'
+import { statusLabel, statusVariant } from '@pedidos/core'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MonthNavigator } from '@/components/MonthNavigator'
 import { PageHeader } from '@/components/PageHeader'
-import { getWeekDelivery } from '@/lib/weekUtils'
+import { getWeekDelivery } from '@pedidos/core'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)

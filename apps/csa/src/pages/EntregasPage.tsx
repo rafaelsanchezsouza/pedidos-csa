@@ -7,11 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { StickyNote, Ban, MapPin, GripVertical } from 'lucide-react'
-import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@/lib/weekUtils'
+import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@pedidos/core'
 import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@/components/PageHeader'
 import { EstadoLista } from '@/components/EstadoLista'
-import { sortByDeliveryOrder, mergeReorder } from '@/lib/deliveryOrder'
+import { sortByDeliveryOrder, mergeReorder } from '@pedidos/core'
 import {
   DndContext,
   closestCenter,

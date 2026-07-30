@@ -1,4 +1,5 @@
 import cron from 'node-cron'
+import { getWeekStart } from '@pedidos/core'
 import { listDocs, db } from '../repositories/firestore.js'
 import { getProducerMessages } from '../services/ordersService.js'
 import { sendWhatsAppMessage } from '../services/whatsapp/index.js'
@@ -7,17 +8,6 @@ interface ColmeiaDoc {
   name: string
   orderSendDay?: number   // 0-6, default 2 (terça)
   orderSendHour?: number  // 0-23, default 6
-}
-
-function getWeekStart(date = new Date()): string {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${dd}`
 }
 
 async function enviarParaColmeia(colmeia: ColmeiaDoc & { id: string }, weekId: string) {
