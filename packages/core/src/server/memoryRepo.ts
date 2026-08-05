@@ -38,10 +38,20 @@ export function createMemoryRepo(seed: Record<string, Record<string, object>> = 
       col(c).set(id, { ...d })
       return { id, ...d }
     },
+    async setDoc(c, id, d) {
+      col(c).set(id, { ...d })
+    },
     async updateDoc(c, id, d) {
       const cur = col(c).get(id)
       if (!cur) throw new Error(`updateDoc: ${c}/${id} não existe`)
       col(c).set(id, { ...cur, ...d })
+    },
+    async updateMany(c, updates) {
+      for (const [id, d] of updates) {
+        const cur = col(c).get(id)
+        if (!cur) throw new Error(`updateMany: ${c}/${id} não existe`)
+        col(c).set(id, { ...cur, ...d })
+      }
     },
     async deleteDoc(c, id) {
       col(c).delete(id)

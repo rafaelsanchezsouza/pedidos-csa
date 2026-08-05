@@ -3,14 +3,14 @@ import express from 'express'
 import cors from 'cors'
 import {
   createTenantMiddleware, createTenantsRouter, createRolesRouter,
-  createProducersRouter, createProductsRouter, createIssuesRouter,
+  createProducersRouter, createProductsRouter, createIssuesRouter, createUsersRouter,
 } from '@pedidos/core/server'
 import { config } from '../src/config.js'
+import { firebaseAuth, whatsapp } from './adapters.js'
 import { authMiddleware } from './middleware/auth.js'
 import offeringsRouter from './routes/offerings.js'
 import ordersRouter from './routes/orders.js'
 import paymentsRouter from './routes/payments.js'
-import usersRouter from './routes/users.js'
 import whatsappAuthRouter from './routes/whatsappAuth.js'
 import { db, repo } from './repositories/firestore.js'
 import { startQuotaJob } from './jobs/quotaJob.js'
@@ -92,7 +92,7 @@ app.use('/api/producers', createProducersRouter({ repo }))
 app.use('/api/offerings', offeringsRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/payments', paymentsRouter)
-app.use('/api/users', usersRouter)
+app.use('/api/users', createUsersRouter({ repo, auth: firebaseAuth, whatsapp, appUrl: process.env.APP_URL }, config))
 app.use('/api/issues', createIssuesRouter(github))
 app.use('/api/roles', createRolesRouter({ repo }, config))
 

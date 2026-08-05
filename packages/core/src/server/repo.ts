@@ -13,8 +13,25 @@ export interface Repo {
   getDoc<T>(collection: string, id: string): Promise<WithId<T> | null>
   listDocs<T>(collection: string, filters?: WhereFilter[]): Promise<WithId<T>[]>
   createDoc<T extends object>(collection: string, data: T): Promise<WithId<T>>
+  setDoc<T extends object>(collection: string, id: string, data: T): Promise<void>
   updateDoc<T extends object>(collection: string, id: string, data: Partial<T>): Promise<void>
+  updateMany(collection: string, updates: Array<[id: string, data: object]>): Promise<void>
   deleteDoc(collection: string, id: string): Promise<void>
+}
+
+// Porta de contas de login (adapter concreto: Firebase Auth). Só o que o engine precisa.
+export interface AuthGateway {
+  createUser(email: string, password: string): Promise<{ uid: string }>
+  updateUser(uid: string, updates: { disabled?: boolean }): Promise<void>
+  getUserEmail(uid: string): Promise<string | null>
+  generatePasswordResetLink(email: string): Promise<string>
+  deleteUser(uid: string): Promise<void>
+}
+
+// Porta de mensagem ao membro (adapter concreto: WhatsApp/Evolution). O adapter normaliza o
+// telefone — o engine passa o contato como está no doc.
+export interface WhatsAppGateway {
+  sendMessage(phone: string, message: string): Promise<void>
 }
 
 export interface EngineDeps {
