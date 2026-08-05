@@ -114,3 +114,37 @@ export function getWeekIndexFromDate(date: Date): number {
 export function isFixoWeekFromDate(date: Date): boolean {
   return parProtegido(getWeekIndexFromDate(date))
 }
+
+// Nº de entregas do mês para a frequência do membro (semanal = toda semana; quinzenal =
+// semanas do seu ciclo). Uma semana conta se a QUARTA (dia de entrega, segunda+2 — mesma
+// convenção de getWeekDelivery) cai dentro do mês. Vivia duplicado no paymentService dos
+// dois apps; é a base da cobrança mensal (cota e frete).
+export function countDeliveryWeeks(
+  month: string, // 'YYYY-MM'
+  frequency: 'semanal' | 'quinzenal',
+  quinzenalParity?: 'par' | 'impar',
+): number {
+  const [year, monthNum] = month.split('-').map(Number) as [number, number]
+  let count = 0
+  const firstDay = new Date(year, monthNum - 1, 1)
+  const dayOfWeek = firstDay.getDay()
+  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  const cur = new Date(year, monthNum - 1, 1 + daysToMonday)
+  while (true) {
+    const wednesday = new Date(cur)
+    wednesday.setDate(cur.getDate() + 2)
+    if (wednesday.getFullYear() > year || (wednesday.getFullYear() === year && wednesday.getMonth() + 1 > monthNum)) break
+    if (wednesday.getMonth() + 1 === monthNum) {
+      if (frequency === 'semanal') {
+        count++
+      } else {
+        const fixo = isFixoWeekFromDate(cur)
+        if (quinzenalParity === 'impar' && fixo) count++
+        else if (quinzenalParity === 'par' && !fixo) count++
+        else if (!quinzenalParity && fixo) count++ // fallback: comportamento global
+      }
+    }
+    cur.setDate(cur.getDate() + 7)
+  }
+  return count
+}

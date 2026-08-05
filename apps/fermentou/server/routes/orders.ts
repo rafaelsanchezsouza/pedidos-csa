@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { listDocs, createDoc, updateDoc, getDoc, db } from '../repositories/firestore.js'
-import { upsertPaymentsForOrder } from '../services/paymentService.js'
+import { paymentService } from '../services/payments.js'
 import { sendWhatsAppMessage } from '../services/whatsapp/index.js'
 import { buildConsolidatedText, normalizePhone } from '../services/ordersService.js'
 import { isAdmin as checkAdmin } from '@pedidos/core'
@@ -211,7 +211,7 @@ router.post('/', async (req: Request, res: Response) => {
     const now = new Date().toISOString()
     const order = await createDoc<OrderDoc>('orders', { ...data, dateCreated: now, dateUpdated: now })
     if (order.status === 'enviado') {
-      await upsertPaymentsForOrder(order.userId, order.userName, order.tenantId, order.weekId.slice(0, 7))
+      await paymentService.upsertPaymentsForOrder(order.userId, order.userName, order.tenantId, order.weekId.slice(0, 7))
     }
     res.status(201).json(order)
   } catch (err) {
@@ -238,7 +238,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     await updateDoc<OrderDoc>('orders', req.params['id'] as string, updates)
     const updatedStatus = (req.body as Partial<OrderDoc>).status
     if ((updatedStatus === 'enviado' || updatedStatus === 'rascunho') && existing) {
-      await upsertPaymentsForOrder(existing.userId, existing.userName, existing.tenantId, existing.weekId.slice(0, 7))
+      await paymentService.upsertPaymentsForOrder(existing.userId, existing.userName, existing.tenantId, existing.weekId.slice(0, 7))
     }
     res.json({ id: req.params['id'], ...updates })
   } catch (err) {

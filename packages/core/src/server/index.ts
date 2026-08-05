@@ -10,3 +10,8 @@ export { createProducersRouter, type ProducerDoc } from './routes/producers.js'
 export { createProductsRouter, type ProductDoc } from './routes/products.js'
 export { createIssuesRouter, type GithubIssuesIntegration } from './routes/issues.js'
 export { createUsersRouter, type UsersDeps, type UserDoc } from './routes/users.js'
+export {
+  createPaymentService, PRODUCER_COTA, PRODUCER_FRETE,
+  type PaymentService, type PaymentDoc,
+} from './services/payments.js'
+export { createPaymentsRouter, type PaymentsDeps } from './routes/payments.js'

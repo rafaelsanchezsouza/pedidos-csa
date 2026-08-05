@@ -1,6 +1,6 @@
 import cron from 'node-cron'
 import { listDocs } from '../repositories/firestore.js'
-import { generateQuotaForAll, generateFreteForAll } from '../services/paymentService.js'
+import { paymentService } from '../services/payments.js'
 
 interface TenantDoc {
   name: string
@@ -17,8 +17,8 @@ export function startQuotaJob(): void {
     await Promise.all(
       tenants.map(async (c) => {
         try {
-          const cotas = await generateQuotaForAll(c.id, month)
-          const fretes = await generateFreteForAll(c.id, month)
+          const cotas = await paymentService.generateQuotaForAll(c.id, month)
+          const fretes = await paymentService.generateFreteForAll(c.id, month)
           console.log(`[quotaJob] ${c.name}: ${cotas.generated} cotas, ${fretes.generated} fretes gerados`)
         } catch (err) {
           console.error(`[quotaJob] Erro na tenant ${c.name}:`, err)
