@@ -1,6 +1,6 @@
 import { listDocs, createDoc, updateDoc, getDoc } from '../repositories/firestore.js'
 import { isFixoWeekFromDate } from '@pedidos/core'
-import { resolveFrete } from '@pedidos/core'
+import { resolveFrete, isEntrega } from '@pedidos/core'
 import { weeklyRate } from '@pedidos/core'
 
 interface OrderItem {
@@ -273,7 +273,7 @@ export async function generateFreteForUser(
   if (!userDoc) throw new Error('Usuário não encontrado')
   const frete = resolveFrete(userDoc, tenantDoc)
   // Só gera para quem recebe por entrega e tem frete > 0.
-  if (userDoc.deliveryType !== 'entrega' || frete <= 0) return { skipped: true }
+  if (!isEntrega(userDoc) || frete <= 0) return { skipped: true }
 
   const entregas = countDeliveryWeeks(month, userDoc.frequency ?? 'semanal', userDoc.quinzenalParity)
   const amount = frete * entregas
@@ -320,7 +320,7 @@ export async function generateFreteForAll(tenantId: string, month: string): Prom
   let generated = 0
 
   const eligible = users.filter(
-    (u) => u.deliveryType === 'entrega' && !u.disabled && !u.deleted && resolveFrete(u, tenantDoc) > 0,
+    (u) => isEntrega(u) && !u.disabled && !u.deleted && resolveFrete(u, tenantDoc) > 0,
   )
 
   for (const u of eligible) {

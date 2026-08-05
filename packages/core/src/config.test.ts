@@ -15,7 +15,6 @@ const base: AppConfig = {
     orderSendDay: 2,
     orderSendHour: 6,
     weekChangeDay: 0,
-    pickupValue: 'retirada',
   },
 }
 

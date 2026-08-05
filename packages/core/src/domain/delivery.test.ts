@@ -1,9 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import type { User } from '../types'
-import { sortByDeliveryOrder, mergeReorder } from './delivery'
+import { sortByDeliveryOrder, mergeReorder, isEntrega } from './delivery'
 
 type U = Pick<User, 'id' | 'name' | 'deliveryOrder'>
 const u = (id: string, name: string, deliveryOrder?: number): U => ({ id, name, deliveryOrder })
+
+describe('isEntrega', () => {
+  it("só 'entrega' é entrega — qualquer token de não-entrega (retirada, colmeia legado, ausente) não é", () => {
+    expect(isEntrega({ deliveryType: 'entrega' })).toBe(true)
+    expect(isEntrega({ deliveryType: 'retirada' })).toBe(false)
+    expect(isEntrega({ deliveryType: 'colmeia' })).toBe(false)
+    expect(isEntrega({})).toBe(false)
+  })
+})
 
 describe('sortByDeliveryOrder', () => {
   it('ordena por deliveryOrder crescente', () => {

@@ -117,7 +117,7 @@ interface AppConfig {
   vocabulary:   { pickupLabel; otpAppName }
   capabilities: { offeringSource: 'parse-message'|'from-catalog'; messageParser?; multiTenant; paymentStrategy }
   tenantDefaults: { quotaTerm; quotas[]; quotaInteira; quotaMeia; roleDefaults[];
-                    dueDay; orderSendDay; orderSendHour; weekChangeDay; pickupValue }
+                    dueDay; orderSendDay; orderSendHour; weekChangeDay }
 }
 ```
 **Integrações/env** (Firebase, WhatsApp instance, OpenAI key) **não** entram no `AppConfig` — são
@@ -129,7 +129,8 @@ runtime do server e injetadas no boot do engine (task 5). É o que separa identi
 | `offeringSource` | `parse-message` (+`messageParser`) | `from-catalog` |
 | `tenantDefaults.quotaTerm` | `Cota` | `Fornada` |
 | `tenantDefaults.roleDefaults` | `['colmeia','coagricultor']` | `[]` |
-| `pickupValue` | `retirada` (após migração) | `retirada` |
+> `pickupValue` foi **removido** do contrato (task 5): nenhuma regra usa o token de
+> não-entrega — o engine só testa `isEntrega(u)` e grava o canônico `'retirada'`.
 | `vocabulary.pickupLabel` | `Colmeia` | `Retirada` |
 
 ### 4.3 Ports & Adapters (DIP, já exigido no CLAUDE.md)
@@ -165,9 +166,27 @@ compatibilidade — só nomes canônicos.
   server injeta integrações do `.env`; reintroduz `parseMessage`; CSA adota acesso-lista.
   *Sugestão de fatiamento:* boot + injeção de config/integrações + **1 rota piloto** (`tenants`)
   verde ponta-a-ponta antes de mover o resto.
+  **Inclui (decidido 2026-08-04): `deliveryType` binário no engine.** Nenhuma regra dos dois
+  apps lê o token de não-entrega (só `=== 'entrega'` decide frete/rota; achado da revisão) —
+  o engine passa a usar só o predicado `isEntrega(u)` e grava sempre o canônico `'retirada'`;
+  **remover `tenantDefaults.pickupValue` e o tipo `PickupValue`** do `AppConfig`
+  (`vocabulary.pickupLabel` cobre a UI). Anfitriã ("colmeia") fica **fora do motor**: não muda
+  regra (não paga frete, não entra na rota); se a UI da CSA quiser distinguir, é dado do
+  app/tenant (ex.: `hostUserId`). O badge "retira na colmeia" errado para a anfitriã se resolve
+  no app.
 - **Task 6 — ui kit + apps finos + migração**: extrair `PageHeader`/primitives/`applyBrand` para
   `core/ui`; `config-csa.ts`; script de migração canônica da CSA; validar em cópia; deploy
   independente dos dois apps.
+
+### Questões em aberto (decidir antes/durante as tasks 5–6)
+
+1. **Migração da CSA: janela ou zero-downtime?** Janela curta de manutenção permite o script
+   simples (uma passada, backup antes). Zero-downtime ressuscitaria a fase transitória lendo os
+   dois nomes (`MERGE.md` §7.2) — que a decisão 2 quis evitar. Definir antes de escrever
+   `migrate-csa-canonico.ts`.
+2. **Port-backs do `MERGE.md` §6** (setup robusto, correções de deploy que consertam bugs
+   latentes da CSA): aplicar explicitamente durante a task 5 ou assumir que chegam de graça com
+   o engine único? A task 5 decide isso implicitamente — melhor decidir explícito.
 
 ---
 

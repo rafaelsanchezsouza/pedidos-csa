@@ -1,5 +1,11 @@
 import type { User } from '../types.js'
 
+// A ÚNICA pergunta que o motor faz sobre deliveryType: recebe em casa? Frete e rota de entrega
+// existem só para 'entrega'. O token de não-entrega ('retirada'; 'colmeia' no dado legado da
+// CSA) é vocabulário de UI e nunca decide regra — por isso o parâmetro é string solta e o
+// predicado testa só o canônico 'entrega'.
+export const isEntrega = (u: { deliveryType?: string }): boolean => u.deliveryType === 'entrega'
+
 // Ordena a lista de entrega: quem tem deliveryOrder vem primeiro (crescente); quem não tem
 // (membro novo) cai no fim, em ordem alfabética. Nome desempata em qualquer caso.
 export function sortByDeliveryOrder<T extends Pick<User, 'name' | 'deliveryOrder'>>(users: T[]): T[] {

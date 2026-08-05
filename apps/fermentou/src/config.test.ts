@@ -15,6 +15,5 @@ describe('config do Fermentou', () => {
   it('vocabulário de padaria', () => {
     expect(config.tenantDefaults.quotaTerm).toBe('Fornada')
     expect(config.tenantDefaults.roleDefaults).toEqual([])
-    expect(config.tenantDefaults.pickupValue).toBe('retirada')
   })
 })

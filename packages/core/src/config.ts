@@ -19,9 +19,6 @@ export interface Brand {
 export type OfferingSource = 'parse-message' | 'from-catalog'
 export type MessageParser = 'fuzzy' | 'openai'
 export type PaymentStrategy = 'monthly-post' | 'per-order-pix'
-// Valor gravado de deliveryType para "retirada". Canônico 'retirada'; 'colmeia' é o legado da
-// CSA até a migração — o app configura o seu enquanto o dado não migra.
-export type PickupValue = 'retirada' | 'colmeia'
 
 // Rótulos de UI que NÃO são por-tenant (os por-tenant, como quotaTerm, vivem no doc do tenant).
 export interface AppVocabulary {
@@ -48,7 +45,6 @@ export interface TenantDefaults {
   orderSendDay: number
   orderSendHour: number
   weekChangeDay: number
-  pickupValue: PickupValue
 }
 
 export interface AppConfig {

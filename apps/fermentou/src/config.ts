@@ -30,6 +30,5 @@ export const config = defineAppConfig({
     orderSendDay: 2, // terça
     orderSendHour: 6,
     weekChangeDay: 0, // domingo
-    pickupValue: 'retirada',
   },
 })

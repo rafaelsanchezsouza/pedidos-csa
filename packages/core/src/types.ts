@@ -4,6 +4,9 @@
 
 export type Frequency = 'semanal' | 'quinzenal'
 export type QuinzenalParity = 'par' | 'impar'
+// Canônico. O legado 'colmeia' da CSA (até a migração) não entra no tipo: nenhuma regra lê o
+// token de não-entrega — o motor só pergunta isEntrega(u).
+export type DeliveryType = 'entrega' | 'retirada'
 
 export interface QuotaTier {
   name: string
@@ -13,6 +16,7 @@ export interface QuotaTier {
 export interface User {
   id: string
   name: string
+  deliveryType?: DeliveryType
   deliveryOrder?: number
   frequency?: Frequency
   quinzenalParity?: QuinzenalParity
