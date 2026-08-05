@@ -4,9 +4,9 @@ Monorepo com um **motor único** (`packages/core`) consumido por **apps separado
 independentemente deployáveis** (`apps/csa`, `apps/fermentou`). As diferenças entre clientes
 são **configuração**, não fork de código.
 
-> Estado: **tasks 1–4 concluídas e verdes**; **task 5 em andamento** (piloto `tenants` verde:
-> engine `core/server` com porta `Repo`, middleware e route factory injetados no boot do
-> fermentou); task 6 pendente. Branch
+> Estado: **tasks 1–4 concluídas e verdes**; **task 5 quase concluída** — engine `core/server`
+> com portas (`Repo`, `AuthGateway`, `WhatsAppGateway`) e todas as rotas do fermentou como
+> factories, **exceto `offerings`** (falta reintroduzir `parseMessage`); task 6 pendente. Branch
 > `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
 > `~/repos/pedidos-app`) seguem **intactos** como fonte da verdade até este monorepo substituí-los.
 
@@ -43,7 +43,7 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 | **3. Acesso** | `packages/core/acesso.ts`: modelo de permissão como **lista** (predicados + `tipoDeAcesso`/`montarAcesso`), entrada **dual-mode** (aceita `User` ou campo cru), **normaliza rótulos legados** da CSA (`user`→`consumidor`, `produtor`→`fornecedor`) — leitura retrocompatível sem migração. Fermentou consome | core 82, fermentou 19 |
 | **4. Config** | `packages/core/config.ts`: contrato **`AppConfig`** + `validateAppConfig`. `apps/fermentou/src/config.ts` tipada e validada | core 89, fermentou 22, build front |
 
-**Placar atual:** `@pedidos/core` **103 testes**, `apps/csa` **25**, `apps/fermentou` **22** — todos
+**Placar atual:** `@pedidos/core` **135 testes**, `apps/csa` **25**, `apps/fermentou` **22** — todos
 × 3 fusos (BR/UTC/UTC+14). Builds front + backend dos dois apps verdes.
 
 ### Task 5 — progresso (em andamento)
@@ -74,9 +74,19 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   `quotaAmount(weeklyRate(tier), quotaQty, weeks)` cobre fork e CSA (#45); fallbacks 65/40/10 →
   `config.tenantDefaults`; sentinelas `'Cota'`/`'Entrega'` = constantes canônicas;
   `countDeliveryWeeks` subiu para `domain/week` (era duplicado; testado ×3 fusos).
-- **Falta na task 5:** `offerings` (reintroduzir `parseMessage` como capacidade), `orders` +
-  `ordersService`, `whatsappAuth` + serviço whatsapp, `sendOrdersJob`/`quotaJob` como factories,
-  `middleware/auth`, `types/` canônico completo, CSA adota acesso-lista.
+- **`orders` movido** (fatia 5): `createOrdersService` (consolidado por produtor, `lockWeek`,
+  `isWeekLocked`) + `createOrdersRouter` (gate de extras, upsert de pagamentos ao enviar).
+  `normalizePhone` no core com a regra **normalizar uma vez, no adapter que envia** (dupla
+  normalização corrompia números curtos); serviços repassam contato cru. `sendOrdersJob`
+  perdeu a cópia inline de `getWeekStart` e os `?? 2/6` (vêm da config); jobs continuam no
+  app (o cron é infra do app; o core expõe a lógica).
+- **`whatsappAuth` (OTP) movido** (fatia 6): rota pública com rate-limit e uso único;
+  `AuthGateway` ganha `createCustomToken`; mensagem usa nome do tenant com fallback
+  `vocabulary.otpAppName` (fim do "Pedidos CSA" hardcoded).
+- **Falta na task 5:** `offerings` (última rota — reintroduzir `parseMessage` como capacidade,
+  dep `openai` só no app CSA); `types/` canônico completo; CSA adota acesso-lista.
+  *Decisão de fronteira:* `middleware/auth` (verificação de token Firebase) e o serviço
+  `whatsapp/` **ficam no app** — são adapters das portas, não engine.
 - ⚠️ **Deploy do fermentou está quebrado desde a task 1** (não é regressão): `deploy.sh` copia
   só o `package.json` do app e roda `npm ci` na VM — `@pedidos/core` não resolve fora do
   workspace. Resolver na task 6 (empacotar o core no artefato ou `npm pack`).
