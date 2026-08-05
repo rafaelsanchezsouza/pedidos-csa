@@ -4,15 +4,15 @@ import cors from 'cors'
 import {
   createTenantMiddleware, createTenantsRouter, createRolesRouter,
   createProducersRouter, createProductsRouter, createIssuesRouter, createUsersRouter,
-  createPaymentsRouter,
+  createPaymentsRouter, createOrdersRouter,
 } from '@pedidos/core/server'
 import { config } from '../src/config.js'
 import { firebaseAuth, whatsapp } from './adapters.js'
 import { authMiddleware } from './middleware/auth.js'
 import offeringsRouter from './routes/offerings.js'
-import ordersRouter from './routes/orders.js'
 import whatsappAuthRouter from './routes/whatsappAuth.js'
 import { paymentService } from './services/payments.js'
+import { ordersService } from './services/orders.js'
 import { db, repo } from './repositories/firestore.js'
 import { startQuotaJob } from './jobs/quotaJob.js'
 import { startSendOrdersJob } from './jobs/sendOrdersJob.js'
@@ -91,7 +91,7 @@ app.use('/api/tenants', createTenantsRouter({ repo }, config))
 app.use('/api/products', createProductsRouter({ repo }))
 app.use('/api/producers', createProducersRouter({ repo }))
 app.use('/api/offerings', offeringsRouter)
-app.use('/api/orders', ordersRouter)
+app.use('/api/orders', createOrdersRouter({ repo, payments: paymentService, orders: ordersService, whatsapp }))
 app.use('/api/payments', createPaymentsRouter({ repo, payments: paymentService }))
 app.use('/api/users', createUsersRouter({ repo, auth: firebaseAuth, whatsapp, appUrl: process.env.APP_URL }, config))
 app.use('/api/issues', createIssuesRouter(github))

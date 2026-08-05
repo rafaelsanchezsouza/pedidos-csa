@@ -1,7 +1,6 @@
 import admin from 'firebase-admin'
-import type { AuthGateway, WhatsAppGateway } from '@pedidos/core/server'
+import { normalizePhone, type AuthGateway, type WhatsAppGateway } from '@pedidos/core/server'
 import { sendWhatsAppMessage } from './services/whatsapp/index.js'
-import { normalizePhone } from './services/ordersService.js'
 
 // Adapters concretos das portas do engine. O engine fala com os contratos; as tecnologias
 // (Firebase Auth, Evolution API) ficam confinadas aqui.

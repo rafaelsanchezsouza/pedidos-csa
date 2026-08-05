@@ -1,45 +1,30 @@
 import cron from 'node-cron'
-import { listDocs, db } from '../repositories/firestore.js'
-import { getProducerMessages } from '../services/ordersService.js'
-import { sendWhatsAppMessage } from '../services/whatsapp/index.js'
+import { getWeekStart } from '@pedidos/core'
+import { listDocs } from '../repositories/firestore.js'
+import { ordersService } from '../services/orders.js'
+import { whatsapp } from '../adapters.js'
+import { config } from '../../src/config.js'
 
 interface TenantDoc {
   name: string
-  orderSendDay?: number   // 0-6, default 2 (terça)
-  orderSendHour?: number  // 0-23, default 6
-}
-
-function getWeekStart(date = new Date()): string {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${dd}`
+  orderSendDay?: number   // 0-6
+  orderSendHour?: number  // 0-23
 }
 
 async function enviarParaTenant(tenant: TenantDoc & { id: string }, weekId: string) {
-  const messages = await getProducerMessages(tenant.id, weekId)
+  const messages = await ordersService.getProducerMessages(tenant.id, weekId)
   if (messages.length === 0) {
     console.log(`[sendOrdersJob] ${tenant.name}: sem pedidos, ignorando`)
     return
   }
   for (const { contact, text } of messages) {
     try {
-      await sendWhatsAppMessage(contact, text)
+      await whatsapp.sendMessage(contact, text)
     } catch (err) {
       console.error(`[sendOrdersJob] ${tenant.name}: erro ao enviar para ${contact}:`, err)
     }
   }
-  const now = new Date().toISOString()
-  await db.collection('week_locks').doc(`${tenant.id}_${weekId}`).set({
-    tenantId: tenant.id,
-    weekId,
-    lockedAt: now,
-  })
-  await db.collection('tenants').doc(tenant.id).update({ extrasAberto: false })
+  await ordersService.lockWeek(tenant.id, weekId)
   console.log(`[sendOrdersJob] ${tenant.name}: ${messages.length} produtor(es) notificado(s), semana bloqueada`)
 }
 
@@ -53,12 +38,11 @@ export function startSendOrdersJob(): void {
 
     const tenants = await listDocs<TenantDoc>('tenants')
     for (const tenant of tenants) {
-      const sendDay = tenant.orderSendDay ?? 2   // default: terça (2)
-      const sendHour = tenant.orderSendHour ?? 6  // default: 6h
+      const sendDay = tenant.orderSendDay ?? config.tenantDefaults.orderSendDay
+      const sendHour = tenant.orderSendHour ?? config.tenantDefaults.orderSendHour
       if (currentDay !== sendDay || currentHour !== sendHour) continue
 
-      const lockSnap = await db.collection('week_locks').doc(`${tenant.id}_${weekId}`).get()
-      if (lockSnap.exists) {
+      if (await ordersService.isWeekLocked(tenant.id, weekId)) {
         console.log(`[sendOrdersJob] ${tenant.name}: semana já bloqueada, ignorando`)
         continue
       }

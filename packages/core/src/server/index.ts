@@ -15,3 +15,6 @@ export {
   type PaymentService, type PaymentDoc,
 } from './services/payments.js'
 export { createPaymentsRouter, type PaymentsDeps } from './routes/payments.js'
+export { createOrdersService, type OrdersService } from './services/orders.js'
+export { createOrdersRouter, type OrdersDeps, type OrderDoc, type OrderItem } from './routes/orders.js'
+export { normalizePhone } from './phone.js'

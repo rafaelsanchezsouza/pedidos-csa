@@ -64,6 +64,19 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
     pelo tsc do server — `rootDir: '..'`; **emissão mudou** para `dist-server/server/index.js`,
     `start` e `deploy.sh` atualizados). `routes/tenants.ts` e `middleware/tenant.ts` do app
     **removidos**.
+- **Rotas pequenas movidas** (fatia 2): `roles` (defaults de `config.tenantDefaults.roleDefaults`),
+  `producers`, `products`, `issues` (integração GitHub injetada no boot — engine não lê env).
+- **Rota `users` movida** (fatia 3): portas **`AuthGateway`** (Firebase Auth) e
+  **`WhatsAppGateway`** (adapter normaliza telefone); `Repo` ganha `setDoc`/`updateMany`;
+  mensagem de reset usa `vocabulary.otpAppName` (fim do "App da CSA" hardcoded — no fork
+  estava até errado); adapters do fermentou confinados em `server/adapters.ts`.
+- **`paymentService` unificado + rota `payments`** (fatia 4): fórmula única
+  `quotaAmount(weeklyRate(tier), quotaQty, weeks)` cobre fork e CSA (#45); fallbacks 65/40/10 →
+  `config.tenantDefaults`; sentinelas `'Cota'`/`'Entrega'` = constantes canônicas;
+  `countDeliveryWeeks` subiu para `domain/week` (era duplicado; testado ×3 fusos).
+- **Falta na task 5:** `offerings` (reintroduzir `parseMessage` como capacidade), `orders` +
+  `ordersService`, `whatsappAuth` + serviço whatsapp, `sendOrdersJob`/`quotaJob` como factories,
+  `middleware/auth`, `types/` canônico completo, CSA adota acesso-lista.
 - ⚠️ **Deploy do fermentou está quebrado desde a task 1** (não é regressão): `deploy.sh` copia
   só o `package.json` do app e roda `npm ci` na VM — `@pedidos/core` não resolve fora do
   workspace. Resolver na task 6 (empacotar o core no artefato ou `npm pack`).
