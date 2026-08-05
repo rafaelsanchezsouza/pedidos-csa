@@ -1,9 +1,9 @@
 import './env.js'
 import express from 'express'
 import cors from 'cors'
+import { createTenantMiddleware, createTenantsRouter } from '@pedidos/core/server'
+import { config } from '../src/config.js'
 import { authMiddleware } from './middleware/auth.js'
-import { tenantMiddleware } from './middleware/tenant.js'
-import tenantsRouter from './routes/tenants.js'
 import productsRouter from './routes/products.js'
 import producersRouter from './routes/producers.js'
 import offeringsRouter from './routes/offerings.js'
@@ -13,16 +13,10 @@ import usersRouter from './routes/users.js'
 import issuesRouter from './routes/issues.js'
 import rolesRouter from './routes/roles.js'
 import whatsappAuthRouter from './routes/whatsappAuth.js'
-import { db } from './repositories/firestore.js'
+import { db, repo } from './repositories/firestore.js'
 import { startQuotaJob } from './jobs/quotaJob.js'
 import { startSendOrdersJob } from './jobs/sendOrdersJob.js'
-
-declare module 'express' {
-  interface Request {
-    user?: { uid: string; email: string }
-    tenantId?: string
-  }
-}
+// req.user/req.tenantId vêm da augmentation de @pedidos/core/server (importado acima).
 
 const app = express()
 const PORT = process.env.PORT ?? 3004
@@ -85,9 +79,9 @@ app.post('/api/setup', async (req, res) => {
 app.use('/api/auth/whatsapp', whatsappAuthRouter)
 
 app.use('/api', authMiddleware)
-app.use('/api', tenantMiddleware)
+app.use('/api', createTenantMiddleware({ repo }))
 
-app.use('/api/tenants', tenantsRouter)
+app.use('/api/tenants', createTenantsRouter({ repo }, config))
 app.use('/api/products', productsRouter)
 app.use('/api/producers', producersRouter)
 app.use('/api/offerings', offeringsRouter)

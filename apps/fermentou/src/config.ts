@@ -2,9 +2,11 @@
 // Integrações/env (Firebase, WhatsApp instance, OpenAI) NÃO ficam aqui — entram no boot do
 // server a partir do .env.
 
+// Extensão .js nos relativos: este arquivo também é compilado pelo tsc node16 do server
+// (o boot injeta a config no engine); o Vite resolve .js → .ts normalmente.
 import { defineAppConfig } from '@pedidos/core'
-import { BRAND } from './lib/brand'
-import { MULTI_TENANT } from './lib/features'
+import { BRAND } from './lib/brand.js'
+import { MULTI_TENANT } from './lib/features.js'
 
 export const config = defineAppConfig({
   brand: BRAND,

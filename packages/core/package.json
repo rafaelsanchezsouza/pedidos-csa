@@ -17,6 +17,10 @@
     "./types": {
       "types": "./dist/types.d.ts",
       "default": "./dist/types.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "default": "./dist/server/index.js"
     }
   },
   "files": ["dist"],
@@ -25,7 +29,11 @@
     "test": "cross-env TZ=America/Sao_Paulo vitest run",
     "test:tz": "npm test && cross-env TZ=UTC vitest run && cross-env TZ=Pacific/Kiritimati vitest run"
   },
+  "dependencies": {
+    "express": "^4.21.0"
+  },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "cross-env": "^7.0.3",
     "vitest": "^4.1.10"
   }

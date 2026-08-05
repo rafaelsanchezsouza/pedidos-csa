@@ -39,7 +39,7 @@ $SSH "cd $VM_DIR && npm ci --omit=dev"
 
 echo "==> [5/5] Reiniciando servidor (NODE_ENV=production)..."
 $SSH "cd $VM_DIR && export NODE_ENV=production && \
-  (pm2 restart pedidos-app --update-env || pm2 start dist-server/index.js --name pedidos-app --update-env) && pm2 save"
+  (pm2 restart pedidos-app --update-env || pm2 start dist-server/server/index.js --name pedidos-app --update-env) && pm2 save"
 
 echo ""
 echo "Deploy concluído! App disponível em https://$VM_HOST"

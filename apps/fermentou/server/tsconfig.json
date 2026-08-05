@@ -4,11 +4,11 @@
     "module": "Node16",
     "moduleResolution": "node16",
     "outDir": "../dist-server",
-    "rootDir": ".",
+    "rootDir": "..",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["./**/*.ts"],
+  "include": ["./**/*.ts", "../src/config.ts"],
   "exclude": ["node_modules", "dist", "./**/*.test.ts"]
 }

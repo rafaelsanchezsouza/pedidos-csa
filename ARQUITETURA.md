@@ -4,7 +4,9 @@ Monorepo com um **motor único** (`packages/core`) consumido por **apps separado
 independentemente deployáveis** (`apps/csa`, `apps/fermentou`). As diferenças entre clientes
 são **configuração**, não fork de código.
 
-> Estado: **tasks 1–4 concluídas e verdes**; tasks 5–6 pendentes. Branch
+> Estado: **tasks 1–4 concluídas e verdes**; **task 5 em andamento** (piloto `tenants` verde:
+> engine `core/server` com porta `Repo`, middleware e route factory injetados no boot do
+> fermentou); task 6 pendente. Branch
 > `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
 > `~/repos/pedidos-app`) seguem **intactos** como fonte da verdade até este monorepo substituí-los.
 
@@ -41,8 +43,30 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 | **3. Acesso** | `packages/core/acesso.ts`: modelo de permissão como **lista** (predicados + `tipoDeAcesso`/`montarAcesso`), entrada **dual-mode** (aceita `User` ou campo cru), **normaliza rótulos legados** da CSA (`user`→`consumidor`, `produtor`→`fornecedor`) — leitura retrocompatível sem migração. Fermentou consome | core 82, fermentou 19 |
 | **4. Config** | `packages/core/config.ts`: contrato **`AppConfig`** + `validateAppConfig`. `apps/fermentou/src/config.ts` tipada e validada | core 89, fermentou 22, build front |
 
-**Placar atual:** `@pedidos/core` **89 testes**, `apps/csa` **25**, `apps/fermentou` **22** — todos
+**Placar atual:** `@pedidos/core` **103 testes**, `apps/csa` **25**, `apps/fermentou` **22** — todos
 × 3 fusos (BR/UTC/UTC+14). Builds front + backend dos dois apps verdes.
+
+### Task 5 — progresso (em andamento)
+- **`isEntrega` + fim do `pickupValue`** (decisão registrada acima): predicado no domínio;
+  apps adotaram nos pontos de regra.
+- **`packages/core/server` criado (piloto `tenants` verde ponta-a-ponta no fermentou):**
+  - `repo.ts` — **porta `Repo`** (getDoc/listDocs/createDoc/updateDoc/deleteDoc + `WhereOp`
+    enxuto); assinatura idêntica ao repositório Firestore dos apps de propósito (adoção =
+    montar um objeto). `memoryRepo.ts` — adapter de memória para testes (do core e dos apps).
+  - `middleware/tenant.ts` — `createTenantMiddleware(deps)` (header `x-tenant-id` vence;
+    fallback doc do usuário).
+  - `routes/tenants.ts` — `createTenantsRouter(deps, config)`: seeds do POST vêm de
+    `config.tenantDefaults` (fim do 'Fornada'/65/40/10 hardcoded); fornecedor-loja é semeado
+    **sse** `offeringSource='from-catalog'`. Testado como servidor http real (porta efêmera +
+    memoryRepo): permissões GET/PUT, seeds, sanitização de quotas.
+  - Export `@pedidos/core/server` **separado do barrel raiz** (front não arrasta express).
+  - Boot do fermentou injeta `repo` + `config` (de `src/config.ts`, agora compilado também
+    pelo tsc do server — `rootDir: '..'`; **emissão mudou** para `dist-server/server/index.js`,
+    `start` e `deploy.sh` atualizados). `routes/tenants.ts` e `middleware/tenant.ts` do app
+    **removidos**.
+- ⚠️ **Deploy do fermentou está quebrado desde a task 1** (não é regressão): `deploy.sh` copia
+  só o `package.json` do app e roda `npm ci` na VM — `@pedidos/core` não resolve fora do
+  workspace. Resolver na task 6 (empacotar o core no artefato ou `npm pack`).
 
 ### Como o server consome o core (o ponto que exigia decisão)
 `@pedidos/core` **builda para `dist`** (`tsc` NodeNext → `.js` + `.d.ts`); imports internos com
@@ -65,6 +89,8 @@ pedidos/
 │       ├── tsconfig.build.json  # emite dist (.js + .d.ts)
 │       └── src/
 │           ├── domain/          # week, quota, frete, status, delivery, csv (+ testes)
+│           ├── server/          # ENGINE (em construção): repo.ts (porta), memoryRepo,
+│           │                    #   middleware/tenant, routes/tenants (factories)
 │           ├── acesso.ts        # modelo de permissão (lista) + predicados
 │           ├── config.ts        # AppConfig + validateAppConfig
 │           ├── types.ts         # tipos canônicos (mínimos por enquanto)

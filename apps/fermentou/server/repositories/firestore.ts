@@ -1,4 +1,5 @@
 import admin from 'firebase-admin'
+import type { Repo } from '@pedidos/core/server'
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -49,3 +50,6 @@ export async function updateDoc<T extends object>(
 export async function deleteDoc(collection: string, id: string): Promise<void> {
   await db.collection(collection).doc(id).delete()
 }
+
+// Adapter concreto da porta Repo do engine — é só o repositório acima visto pelo contrato.
+export const repo: Repo = { getDoc, listDocs, createDoc, updateDoc, deleteDoc }
