@@ -1,17 +1,16 @@
 import './env.js'
 import express from 'express'
 import cors from 'cors'
-import { createTenantMiddleware, createTenantsRouter } from '@pedidos/core/server'
+import {
+  createTenantMiddleware, createTenantsRouter, createRolesRouter,
+  createProducersRouter, createProductsRouter, createIssuesRouter,
+} from '@pedidos/core/server'
 import { config } from '../src/config.js'
 import { authMiddleware } from './middleware/auth.js'
-import productsRouter from './routes/products.js'
-import producersRouter from './routes/producers.js'
 import offeringsRouter from './routes/offerings.js'
 import ordersRouter from './routes/orders.js'
 import paymentsRouter from './routes/payments.js'
 import usersRouter from './routes/users.js'
-import issuesRouter from './routes/issues.js'
-import rolesRouter from './routes/roles.js'
 import whatsappAuthRouter from './routes/whatsappAuth.js'
 import { db, repo } from './repositories/firestore.js'
 import { startQuotaJob } from './jobs/quotaJob.js'
@@ -81,15 +80,21 @@ app.use('/api/auth/whatsapp', whatsappAuthRouter)
 app.use('/api', authMiddleware)
 app.use('/api', createTenantMiddleware({ repo }))
 
+// Integração GitHub (report de bug): lida do .env aqui no boot — o engine não lê env.
+const { GITHUB_OWNER, GITHUB_REPO, GITHUB_TOKEN } = process.env
+const github = GITHUB_OWNER && GITHUB_REPO && GITHUB_TOKEN
+  ? { owner: GITHUB_OWNER, repo: GITHUB_REPO, token: GITHUB_TOKEN }
+  : undefined
+
 app.use('/api/tenants', createTenantsRouter({ repo }, config))
-app.use('/api/products', productsRouter)
-app.use('/api/producers', producersRouter)
+app.use('/api/products', createProductsRouter({ repo }))
+app.use('/api/producers', createProducersRouter({ repo }))
 app.use('/api/offerings', offeringsRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/payments', paymentsRouter)
 app.use('/api/users', usersRouter)
-app.use('/api/issues', issuesRouter)
-app.use('/api/roles', rolesRouter)
+app.use('/api/issues', createIssuesRouter(github))
+app.use('/api/roles', createRolesRouter({ repo }, config))
 
 app.listen(Number(PORT), HOST, () => {
   console.log(`Servidor rodando em http://${HOST}:${PORT}`)
