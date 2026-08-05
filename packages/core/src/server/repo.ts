@@ -25,6 +25,7 @@ export interface AuthGateway {
   updateUser(uid: string, updates: { disabled?: boolean }): Promise<void>
   getUserEmail(uid: string): Promise<string | null>
   generatePasswordResetLink(email: string): Promise<string>
+  createCustomToken(uid: string): Promise<string>
   deleteUser(uid: string): Promise<void>
 }
 

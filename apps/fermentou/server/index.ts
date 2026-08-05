@@ -4,13 +4,12 @@ import cors from 'cors'
 import {
   createTenantMiddleware, createTenantsRouter, createRolesRouter,
   createProducersRouter, createProductsRouter, createIssuesRouter, createUsersRouter,
-  createPaymentsRouter, createOrdersRouter,
+  createPaymentsRouter, createOrdersRouter, createWhatsappAuthRouter,
 } from '@pedidos/core/server'
 import { config } from '../src/config.js'
 import { firebaseAuth, whatsapp } from './adapters.js'
 import { authMiddleware } from './middleware/auth.js'
 import offeringsRouter from './routes/offerings.js'
-import whatsappAuthRouter from './routes/whatsappAuth.js'
 import { paymentService } from './services/payments.js'
 import { ordersService } from './services/orders.js'
 import { db, repo } from './repositories/firestore.js'
@@ -76,7 +75,7 @@ app.post('/api/setup', async (req, res) => {
 })
 
 // Rotas públicas (sem auth)
-app.use('/api/auth/whatsapp', whatsappAuthRouter)
+app.use('/api/auth/whatsapp', createWhatsappAuthRouter({ repo, auth: firebaseAuth, whatsapp }, config))
 
 app.use('/api', authMiddleware)
 app.use('/api', createTenantMiddleware({ repo }))

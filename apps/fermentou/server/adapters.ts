@@ -19,6 +19,9 @@ export const firebaseAuth: AuthGateway = {
   generatePasswordResetLink(email) {
     return admin.auth().generatePasswordResetLink(email)
   },
+  createCustomToken(uid) {
+    return admin.auth().createCustomToken(uid)
+  },
   async deleteUser(uid) {
     await admin.auth().deleteUser(uid)
   },

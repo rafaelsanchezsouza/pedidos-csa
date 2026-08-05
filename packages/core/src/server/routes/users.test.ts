@@ -25,6 +25,7 @@ function fakes() {
     async updateUser(uid, u) { authCalls.disabled!.push({ uid, ...u }) },
     async getUserEmail() { return 'a@b.c' },
     async generatePasswordResetLink(email) { return `https://reset/${email}` },
+    async createCustomToken(uid) { return `token-${uid}` },
     async deleteUser(uid) { authCalls.deleted!.push(uid) },
   }
   const whatsapp: WhatsAppGateway = {
