@@ -83,8 +83,13 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 - **`whatsappAuth` (OTP) movido** (fatia 6): rota pública com rate-limit e uso único;
   `AuthGateway` ganha `createCustomToken`; mensagem usa nome do tenant com fallback
   `vocabulary.otpAppName` (fim do "Pedidos CSA" hardcoded).
-- **Falta na task 5:** `offerings` (última rota — reintroduzir `parseMessage` como capacidade,
-  dep `openai` só no app CSA); `types/` canônico completo; CSA adota acesso-lista.
+- **Porta `MessageParser` + parser fuzzy no core** (fatia 7a): `server/parseMessage.ts`
+  (contrato `MessageParser`/`ExistingProduct`/`ParsedProduct`) e `server/fuzzyParser.ts`
+  (implementação pura, default de `messageParser='fuzzy'`, agora com testes — não tinha).
+  O adapter `openai` fica **no app CSA** (dep e chave injetadas no boot); o barrel
+  `parseMessage/index.ts` morre na adoção — a seleção vem de `config.capabilities.messageParser`.
+- **Falta na task 5:** `offerings` (última rota — `createOfferingsRouter` consumindo a porta
+  `MessageParser`); `types/` canônico completo; CSA adota acesso-lista.
   *Decisão de fronteira:* `middleware/auth` (verificação de token Firebase) e o serviço
   `whatsapp/` **ficam no app** — são adapters das portas, não engine.
 
