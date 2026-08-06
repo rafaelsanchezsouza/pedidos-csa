@@ -1,17 +1,9 @@
 import { Router, type Request, type Response } from 'express'
 import type { EngineDeps } from '../repo.js'
+import type { ProductDoc } from '../../types.js'
 import '../types.js'
 
-export interface ProductDoc {
-  name: string
-  unit: string
-  price: number
-  producerId: string
-  tenantId: string
-  dateUpdated: string
-  type?: 'fixo' | 'extra'
-  ativo?: boolean
-}
+export type { ProductDoc }
 
 export function createProductsRouter({ repo }: EngineDeps): Router {
   const router = Router()

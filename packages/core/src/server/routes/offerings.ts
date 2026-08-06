@@ -3,33 +3,10 @@ import type { AppConfig } from '../../config.js'
 import type { EngineDeps, Repo, WhereFilter } from '../repo.js'
 import type { MessageParser } from '../parseMessage.js'
 import { fuzzyMessageParser } from '../fuzzyParser.js'
-import type { ProductDoc } from './products.js'
+import type { OfferingDoc, OfferingItem, OrderDoc, ProductDoc } from '../../types.js'
 import '../types.js'
 
-export interface OfferingItem {
-  productId: string
-  productName: string
-  unit: string
-  price: number
-  type: 'fixo' | 'extra'
-}
-
-export interface OfferingDoc {
-  producerId: string
-  producerName: string
-  tenantId: string
-  items: OfferingItem[]
-  weekStart: string
-  rawMessage?: string // só na capacidade parse-message (texto original do produtor)
-  dateCreated: string
-}
-
-interface OrderDoc {
-  tenantId: string
-  weekId: string
-  items: Array<{ productId: string; offeringId: string; [key: string]: unknown }>
-  dateUpdated: string
-}
+export type { OfferingDoc, OfferingItem }
 
 export interface OfferingsDeps extends EngineDeps {
   // Obrigatório sse capabilities.messageParser='openai' (o adapter vive no app;

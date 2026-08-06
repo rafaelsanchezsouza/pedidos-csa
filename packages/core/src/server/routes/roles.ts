@@ -1,14 +1,12 @@
 import { Router, type Request, type Response } from 'express'
 import type { AppConfig } from '../../config.js'
 import type { EngineDeps } from '../repo.js'
+import type { RoleDoc } from '../../types.js'
 import '../types.js'
 
 // Funções no coletivo (campo livre do membro). Os defaults são vocabulário do cliente
 // (CSA: colmeia/coagricultor; padaria: nenhum) — vêm de config.tenantDefaults.roleDefaults.
-export interface RoleDoc {
-  name: string
-  tenantId: string
-}
+export type { RoleDoc }
 
 export function createRolesRouter({ repo }: EngineDeps, config: AppConfig): Router {
   const router = Router()

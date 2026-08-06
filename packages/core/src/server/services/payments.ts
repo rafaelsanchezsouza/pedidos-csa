@@ -2,64 +2,19 @@ import { countDeliveryWeeks } from '../../domain/week.js'
 import { weeklyRate, quotaAmount } from '../../domain/quota.js'
 import { resolveFrete } from '../../domain/frete.js'
 import { isEntrega } from '../../domain/delivery.js'
-import type { QuotaTier } from '../../types.js'
+import type { OrderDoc, PaymentDoc, UserDoc, TenantDoc } from '../../types.js'
 import type { AppConfig } from '../../config.js'
 import type { EngineDeps } from '../repo.js'
+
+export type { PaymentDoc }
 
 // Sentinelas de producerName nas faturas geradas (não vêm de pedido). São TOKENS DE DADO
 // canônicos, iguais nos dois apps — o rótulo que o membro vê é vocabulário da UI.
 export const PRODUCER_COTA = 'Cota'
 export const PRODUCER_FRETE = 'Entrega'
 
-interface OrderItem {
-  price: number
-  qty: number
-  producerName: string
-}
-
-interface OrderDoc {
-  userId: string
-  userName: string
-  tenantId: string
-  weekId: string
-  items: OrderItem[]
-  status: 'rascunho' | 'enviado'
-}
-
-export interface PaymentDoc {
-  userId: string
-  userName: string
-  tenantId: string
-  month: string
-  producerName: string
-  amount: number
-  dueDate?: string
-  proofUrl?: string
-  verified: boolean
-  dateCreated: string
-  dateUpdated: string
-}
-
-interface UserDoc {
-  name: string
-  quota?: string
-  quotaQty?: number
-  frequency?: 'semanal' | 'quinzenal'
-  quinzenalParity?: 'par' | 'impar'
-  isentoCotas?: boolean
-  disabled?: boolean
-  deleted?: boolean
-  deliveryType?: string
-  freteDelivery?: number
-}
-
-interface TenantSettings {
-  quotas?: QuotaTier[]
-  quotaInteira?: number
-  quotaMeia?: number
-  freteDelivery?: number
-  dueDay?: number
-}
+// Visão de configuração financeira do tenant (subconjunto do TenantDoc canônico).
+type TenantSettings = Pick<TenantDoc, 'quotas' | 'quotaInteira' | 'quotaMeia' | 'freteDelivery' | 'dueDay'>
 
 // 'cota' vence no mês anterior (pré-consumo); 'extras' e 'frete' no mês seguinte (pós-consumo).
 function buildDueDate(month: string, type: 'cota' | 'extras' | 'frete', dueDay: number): string {

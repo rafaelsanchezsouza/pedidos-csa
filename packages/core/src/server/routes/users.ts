@@ -2,27 +2,10 @@ import { Router, type Request, type Response } from 'express'
 import crypto from 'node:crypto'
 import type { AppConfig } from '../../config.js'
 import type { Repo, AuthGateway, WhatsAppGateway } from '../repo.js'
+import type { UserDoc } from '../../types.js'
 import '../types.js'
 
-export interface UserDoc {
-  name: string
-  email: string
-  address: string
-  contact: string
-  frequency: 'semanal' | 'quinzenal'
-  deliveryType: 'retirada' | 'entrega'
-  tenantId: string
-  acesso: string[]
-  producerId?: string
-  role?: string
-  isentoCotas?: boolean
-  disabled?: boolean
-  deleted?: boolean
-  quota?: string
-  acolhidaExpiry?: string
-  deliveryOrder?: number
-  freteDelivery?: number
-}
+export type { UserDoc }
 
 export interface UsersDeps {
   repo: Repo

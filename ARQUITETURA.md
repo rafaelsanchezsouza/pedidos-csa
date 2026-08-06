@@ -6,8 +6,8 @@ são **configuração**, não fork de código.
 
 > Estado: **tasks 1–4 concluídas e verdes**; **task 5 quase concluída** — engine `core/server`
 > com portas (`Repo`, `AuthGateway`, `WhatsAppGateway`, `MessageParser`) e **todas as rotas do
-> fermentou como factories** (inclusive `offerings`); faltam `types/` canônico e CSA adotar
-> acesso-lista; task 6 pendente. Branch
+> fermentou como factories** (inclusive `offerings`) e modelo canônico em `types.ts`; falta
+> CSA adotar acesso-lista; task 6 pendente. Branch
 > `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
 > `~/repos/pedidos-app`) seguem **intactos** como fonte da verdade até este monorepo substituí-los.
 
@@ -98,17 +98,22 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   fluxo parse) e o fallback o descarta ao copiar. Fermentou adotou; `server/routes/` do app
   **esvaziou**. Dead code não portado: `producerFilter` construído e nunca usado no /fallback
   dos dois apps.
-- **Falta na task 5:** `types/` canônico completo; CSA adota acesso-lista.
+- **Modelo canônico consolidado em `packages/core/src/types.ts`** (fatia 8): docs
+  `Tenant/User/Producer/Product/Role/Offering/Order/Payment` num lugar só (supersets
+  reconciliados — ex.: `UserDoc` ganha `quotaQty`/`quinzenalParity` que só o paymentService
+  declarava). Rotas/serviços importam de lá e **re-exportam os mesmos nomes** (API do
+  `@pedidos/core/server` inalterada); as visões locais viram projeções
+  (`TenantSettings = Pick<TenantDoc, …>`). Ficou em `types.ts` (arquivo único) em vez de
+  `types/` — os docs são só interfaces, não justificam diretório.
+- **Falta na task 5:** CSA adota acesso-lista.
   *Decisão de fronteira:* `middleware/auth` (verificação de token Firebase) e o serviço
   `whatsapp/` **ficam no app** — são adapters das portas, não engine.
 
 ### Roteiro da próxima sessão — fechar a task 5
-1. `types/` canônico completo (User/Tenant/Offering/Order/Payment/Producer) — hoje cada
-   rota do engine declara os docs localmente; consolidar em `packages/core/src/types/`.
-2. CSA adota acesso-lista (checagens `acesso === 'admin'` inline em `colmeias.ts`,
+1. CSA adota acesso-lista (checagens `acesso === 'admin'` inline em `colmeias.ts`,
    `orders.ts`, `Sidebar`, `BottomNav`, `PedidosPage` da CSA); predicados do core
    normalizam, leitura retrocompatível.
-3. Lembrete: `apps/csa` só adota o engine (rotas `tenants`, `offerings` etc.) **depois da
+2. Lembrete: `apps/csa` só adota o engine (rotas `tenants`, `offerings` etc.) **depois da
    migração canônica** (task 6) — até lá segue com as rotas próprias `colmeia*` e o
    `parseMessage/` local (o adapter `openai` do app nasce na adoção; a porta já existe).
 - ⚠️ **Deploy do fermentou está quebrado desde a task 1** (não é regressão): `deploy.sh` copia
@@ -140,7 +145,7 @@ pedidos/
 │           │                    #   middleware/tenant, routes/tenants (factories)
 │           ├── acesso.ts        # modelo de permissão (lista) + predicados
 │           ├── config.ts        # AppConfig + validateAppConfig
-│           ├── types.ts         # tipos canônicos (mínimos por enquanto)
+│           ├── types.ts         # modelo canônico (docs Tenant/User/Order/Payment/Offering…)
 │           └── index.ts         # barrel
 └── apps/
     ├── csa/                     # app CSA (consome o core no domínio)

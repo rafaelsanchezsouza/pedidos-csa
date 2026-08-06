@@ -1,13 +1,9 @@
 import { Router, type Request, type Response } from 'express'
 import type { EngineDeps } from '../repo.js'
+import type { ProducerDoc } from '../../types.js'
 import '../types.js'
 
-export interface ProducerDoc {
-  name: string
-  contact: string
-  tenantId: string
-  pixKey?: string
-}
+export type { ProducerDoc }
 
 export function createProducersRouter({ repo }: EngineDeps): Router {
   const router = Router()

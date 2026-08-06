@@ -1,25 +1,11 @@
 import { Router, type Request, type Response } from 'express'
 import { isSuperadmin, isAdmin } from '../../acesso.js'
 import type { AppConfig } from '../../config.js'
-import type { QuotaTier } from '../../types.js'
+import type { QuotaTier, TenantDoc } from '../../types.js'
 import type { EngineDeps } from '../repo.js'
 import '../types.js'
 
-// Doc do tenant como está no banco. Vai para o modelo canônico completo na task de types.
-export interface TenantDoc {
-  name: string
-  adminId: string
-  dateCreated: string
-  quotas?: QuotaTier[]
-  quotaTerm?: string
-  quotaInteira?: number
-  quotaMeia?: number
-  dueDay?: number
-  orderSendDay?: number
-  orderSendHour?: number
-  weekChangeDay?: number
-  extrasAberto?: boolean
-}
+export type { TenantDoc }
 
 interface UserAccessDoc {
   tenantId?: string

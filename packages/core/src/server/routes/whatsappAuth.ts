@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { normalizePhone } from '../phone.js'
 import type { AppConfig } from '../../config.js'
 import type { Repo, AuthGateway, WhatsAppGateway } from '../repo.js'
+import type { UserDoc } from '../../types.js'
 
 // Login por OTP no WhatsApp (rota PÚBLICA — montada antes do authMiddleware).
 // O doc de OTP é chaveado pelo número JÁ normalizado; o gateway normaliza de novo ao enviar,
@@ -22,12 +23,6 @@ interface OtpDoc {
   code: string
   expiresAt: string
   lastRequestAt: string
-}
-
-interface UserDoc {
-  email?: string
-  contact?: string
-  tenantId?: string
 }
 
 export function createWhatsappAuthRouter({ repo, auth, whatsapp }: WhatsappAuthDeps, config: AppConfig): Router {

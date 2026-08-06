@@ -3,33 +3,10 @@ import { isAdmin } from '../../acesso.js'
 import type { EngineDeps, WhatsAppGateway } from '../repo.js'
 import type { PaymentService } from '../services/payments.js'
 import type { OrdersService } from '../services/orders.js'
+import type { OrderDoc, OrderItem } from '../../types.js'
 import '../types.js'
 
-export interface OrderItem {
-  productId: string
-  productName: string
-  unit: string
-  price: number
-  qty: number
-  offeringId: string
-  producerName: string
-}
-
-export interface OrderDoc {
-  userId: string
-  userName: string
-  tenantId: string
-  weekId: string
-  items: OrderItem[]
-  status: 'rascunho' | 'enviado'
-  doacao?: boolean
-  recebido?: boolean
-  weeklyNote?: string
-  weeklyAddress?: string
-  suspensa?: boolean
-  dateCreated: string
-  dateUpdated: string
-}
+export type { OrderDoc, OrderItem }
 
 export interface OrdersDeps extends EngineDeps {
   payments: PaymentService

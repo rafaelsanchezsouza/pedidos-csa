@@ -1,22 +1,6 @@
 import type { AppConfig } from '../../config.js'
 import type { EngineDeps } from '../repo.js'
-
-interface OrderItem {
-  productId: string
-  qty: number
-  unit: string
-  productName: string
-  [key: string]: unknown
-}
-
-interface OrderDoc {
-  userId: string
-  userName: string
-  tenantId: string
-  weekId: string
-  items: OrderItem[]
-  status: 'rascunho' | 'enviado'
-}
+import type { OrderDoc } from '../../types.js'
 
 export type OrdersService = ReturnType<typeof createOrdersService>
 
