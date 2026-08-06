@@ -21,3 +21,7 @@ export { normalizePhone } from './phone.js'
 export { createWhatsappAuthRouter, type WhatsappAuthDeps } from './routes/whatsappAuth.js'
 export type { MessageParser, ExistingProduct, ParsedProduct } from './parseMessage.js'
 export { fuzzyMessageParser } from './fuzzyParser.js'
+export {
+  createOfferingsRouter,
+  type OfferingsDeps, type OfferingDoc, type OfferingItem,
+} from './routes/offerings.js'

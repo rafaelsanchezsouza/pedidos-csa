@@ -5,8 +5,9 @@ independentemente deployáveis** (`apps/csa`, `apps/fermentou`). As diferenças 
 são **configuração**, não fork de código.
 
 > Estado: **tasks 1–4 concluídas e verdes**; **task 5 quase concluída** — engine `core/server`
-> com portas (`Repo`, `AuthGateway`, `WhatsAppGateway`) e todas as rotas do fermentou como
-> factories, **exceto `offerings`** (falta reintroduzir `parseMessage`); task 6 pendente. Branch
+> com portas (`Repo`, `AuthGateway`, `WhatsAppGateway`, `MessageParser`) e **todas as rotas do
+> fermentou como factories** (inclusive `offerings`); faltam `types/` canônico e CSA adotar
+> acesso-lista; task 6 pendente. Branch
 > `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
 > `~/repos/pedidos-app`) seguem **intactos** como fonte da verdade até este monorepo substituí-los.
 
@@ -88,26 +89,28 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   (implementação pura, default de `messageParser='fuzzy'`, agora com testes — não tinha).
   O adapter `openai` fica **no app CSA** (dep e chave injetadas no boot); o barrel
   `parseMessage/index.ts` morre na adoção — a seleção vem de `config.capabilities.messageParser`.
-- **Falta na task 5:** `offerings` (última rota — `createOfferingsRouter` consumindo a porta
-  `MessageParser`); `types/` canônico completo; CSA adota acesso-lista.
+- **`offerings` movido — última rota** (fatia 7b): `createOfferingsRouter(deps, config)` com
+  `upsertOffering` único (normaliza pelo catálogo, dedup, substitui oferta da semana, descarta
+  produtos removidos dos pedidos, auto-desbloqueio de extras — via `Repo`, sem `db` direto).
+  Rotas por capacidade: `POST /parse` montada **sse** `offeringSource='parse-message'`
+  (fuzzy vem do core; `openai` exige `deps.parseMessage` e falha **no boot** se faltar);
+  `POST /from-catalog` **sse** `'from-catalog'`. `rawMessage` é opcional no doc (só existe no
+  fluxo parse) e o fallback o descarta ao copiar. Fermentou adotou; `server/routes/` do app
+  **esvaziou**. Dead code não portado: `producerFilter` construído e nunca usado no /fallback
+  dos dois apps.
+- **Falta na task 5:** `types/` canônico completo; CSA adota acesso-lista.
   *Decisão de fronteira:* `middleware/auth` (verificação de token Firebase) e o serviço
   `whatsapp/` **ficam no app** — são adapters das portas, não engine.
 
-### Roteiro da próxima sessão — `offerings` + `parseMessage`
-1. **Ler lado a lado**: `apps/fermentou/server/routes/offerings.ts` (from-catalog, base
-   canônica) × `apps/csa/server/routes/offerings.ts` (tem `POST /parse`) — divergem ~285
-   linhas — e `~/repos/pedidos-csa/server/services/parseMessage/` (`fuzzy.ts` 5K, `openai.ts`
-   2.2K, `types.ts`, `index.ts` = barrel troca-implementação).
-2. **Porta `MessageParser`** no core; `fuzzy` é puro (pode viver no core); `openai` vira
-   adapter **no app CSA** (dep `openai` só lá, chave injetada no boot). O barrel morre — a
-   seleção vem de `config.capabilities.messageParser`.
-3. `createOfferingsRouter(deps, config)`: rotas comuns + `POST /parse` montada **sse**
-   `offeringSource='parse-message'`; from-catalog segue em paralelo; ambos `upsertOffering`.
-4. Depois: `types/` canônico completo (User/Tenant/Offering); CSA adota acesso-lista
-   (checagens `acesso === 'admin'` inline em `colmeias.ts`, `orders.ts`, `Sidebar`,
-   `BottomNav`, `PedidosPage` da CSA).
-5. Lembrete: `apps/csa` só adota o engine (rotas `tenants` etc.) **depois da migração
-   canônica** (task 6) — até lá segue com as rotas próprias `colmeia*`.
+### Roteiro da próxima sessão — fechar a task 5
+1. `types/` canônico completo (User/Tenant/Offering/Order/Payment/Producer) — hoje cada
+   rota do engine declara os docs localmente; consolidar em `packages/core/src/types/`.
+2. CSA adota acesso-lista (checagens `acesso === 'admin'` inline em `colmeias.ts`,
+   `orders.ts`, `Sidebar`, `BottomNav`, `PedidosPage` da CSA); predicados do core
+   normalizam, leitura retrocompatível.
+3. Lembrete: `apps/csa` só adota o engine (rotas `tenants`, `offerings` etc.) **depois da
+   migração canônica** (task 6) — até lá segue com as rotas próprias `colmeia*` e o
+   `parseMessage/` local (o adapter `openai` do app nasce na adoção; a porta já existe).
 - ⚠️ **Deploy do fermentou está quebrado desde a task 1** (não é regressão): `deploy.sh` copia
   só o `package.json` do app e roda `npm ci` na VM — `@pedidos/core` não resolve fora do
   workspace. Resolver na task 6 (empacotar o core no artefato ou `npm pack`).
