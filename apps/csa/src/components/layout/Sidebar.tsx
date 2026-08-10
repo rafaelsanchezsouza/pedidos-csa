@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, UserCircle, Truck, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { isAdmin as checkAdmin, isFornecedor, isSuperadmin } from '@pedidos/core'
 import { ReportarProblema } from '@/components/ReportarProblema'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -19,9 +20,9 @@ const navItems = [
 
 export function Sidebar() {
   const { user, colmeia, colmeias, selectColmeia } = useAuth()
-  const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
-  const isProdutor = user?.acesso === 'produtor'
-  const isSuperAdmin = user?.acesso === 'superadmin'
+  const isAdmin = checkAdmin(user)
+  const isProdutor = isFornecedor(user)
+  const isSuperAdmin = isSuperadmin(user)
 
   return (
     <aside className="w-56 border-r bg-background flex flex-col">

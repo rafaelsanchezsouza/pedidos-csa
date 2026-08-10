@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi } from '@/services/api'
 import type { Payment } from '@/types'
-import { statusLabel, statusVariant } from '@pedidos/core'
+import { statusLabel, statusVariant, isAdmin, isFornecedor } from '@pedidos/core'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -23,10 +23,10 @@ export function VerificarPagamentosPage() {
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState<string | null>(null)
 
-  const isAllowed = user?.acesso === 'admin' || user?.acesso === 'superadmin' || user?.acesso === 'produtor'
+  const isAllowed = isAdmin(user) || isFornecedor(user)
   if (user && !isAllowed) return <Navigate to="/pedidos" replace />
 
-  const isProdutor = user?.acesso === 'produtor'
+  const isProdutor = isFornecedor(user)
 
   const load = useCallback(async () => {
     setLoading(true)

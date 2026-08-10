@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { isAdmin as checkAdmin } from '@pedidos/core'
 import { listDocs, createDoc, updateDoc, getDoc, db } from '../repositories/firestore.js'
 import { upsertPaymentsForOrder } from '../services/paymentService.js'
 import { sendWhatsAppMessage } from '../services/whatsapp/index.js'
@@ -202,7 +203,7 @@ router.post('/', async (req: Request, res: Response) => {
       db.collection('colmeias').doc(data.colmeiaId).get(),
     ])
     const acesso = (userSnap.data() as { acesso?: string } | undefined)?.acesso
-    const isAdmin = acesso === 'admin' || acesso === 'superadmin'
+    const isAdmin = checkAdmin(acesso)
     const extrasAberto = (colmeiaSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
     if (!extrasAberto && !isAdmin) {
       res.status(403).json({ message: 'Pedidos de extras estão encerrados no momento' }); return
@@ -227,7 +228,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         db.collection('colmeias').doc(existing.colmeiaId).get(),
       ])
       const userData = userSnap.data() as { acesso?: string } | undefined
-      const isAdmin = userData?.acesso === 'admin' || userData?.acesso === 'superadmin'
+      const isAdmin = checkAdmin(userData?.acesso)
       const extrasAberto = (colmeiaSnap.data() as { extrasAberto?: boolean } | undefined)?.extrasAberto ?? true
       if (!extrasAberto && !isAdmin) {
         res.status(403).json({ message: 'Pedidos de extras estão encerrados no momento' }); return

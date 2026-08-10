@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Pencil, StickyNote } from 'lucide-react'
-import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@pedidos/core'
+import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek, isFornecedor } from '@pedidos/core'
 import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@/components/PageHeader'
 
@@ -62,7 +62,7 @@ export function ConsolidadoGeralPage() {
 
   const activeUsers = users.filter((u) => {
     if (u.disabled || u.deleted) return false
-    if (u.acesso === 'produtor') return false
+    if (isFornecedor(u)) return false
     if (!isUserDeliveryWeek(u, weekId)) return false
     return true
   })

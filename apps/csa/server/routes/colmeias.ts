@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { isAdmin, isSuperadmin } from '@pedidos/core'
 import { listDocs, createDoc, getDoc, updateDoc, db } from '../repositories/firestore.js'
 
 const router = Router()
@@ -22,7 +23,7 @@ router.get('/', async (req: Request, res: Response) => {
     const userSnap = await import('../repositories/firestore.js').then(m => m.db.collection('users').doc(uid).get())
     const userData = userSnap.data() as { colmeiaId?: string; acesso?: string; role?: string } | undefined
 
-    if (userData?.acesso === 'superadmin' || userData?.role === 'superadmin') {
+    if (isSuperadmin(userData?.acesso) || userData?.role === 'superadmin') {
       const colmeias = await listDocs<ColmeiaDoc>('colmeias')
       res.json(colmeias)
     } else if (userData?.colmeiaId) {
@@ -67,8 +68,8 @@ router.put('/:id', async (req: Request, res: Response) => {
   try {
     const userSnap = await db.collection('users').doc(req.user!.uid).get()
     const userData = userSnap.data() as { acesso?: string; colmeiaId?: string } | undefined
-    const isSuperAdmin = userData?.acesso === 'superadmin'
-    const isColmeiaAdmin = userData?.acesso === 'admin' && userData?.colmeiaId === req.params['id']
+    const isSuperAdmin = isSuperadmin(userData?.acesso)
+    const isColmeiaAdmin = isAdmin(userData?.acesso) && userData?.colmeiaId === req.params['id']
     if (!isSuperAdmin && !isColmeiaAdmin) {
       res.status(403).json({ message: 'Sem permissão' }); return
     }

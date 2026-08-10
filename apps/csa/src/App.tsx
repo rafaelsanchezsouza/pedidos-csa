@@ -13,6 +13,7 @@ import { ConsolidadoGeralPage } from '@/pages/ConsolidadoGeralPage'
 import { VerificarPagamentosPage } from '@/pages/VerificarPagamentosPage'
 import { DefinirSenhaPage } from '@/pages/DefinirSenhaPage'
 import { ReactNode } from 'react'
+import { isAdmin } from '@pedidos/core'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
   const { firebaseUser, user, colmeia, loading } = useAuth()
@@ -20,7 +21,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>
   if (!firebaseUser || !colmeia) return <Navigate to="/login" replace />
   if (user?.mustChangePassword) return <Navigate to="/definir-senha" replace />
-  if (adminOnly && user?.acesso !== 'admin' && user?.acesso !== 'superadmin') {
+  if (adminOnly && !isAdmin(user)) {
     return <Navigate to="/pedidos" replace />
   }
   return <>{children}</>

@@ -11,7 +11,7 @@ import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@
 import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@/components/PageHeader'
 import { EstadoLista } from '@/components/EstadoLista'
-import { sortByDeliveryOrder, mergeReorder, isEntrega } from '@pedidos/core'
+import { sortByDeliveryOrder, mergeReorder, isEntrega, isFornecedor } from '@pedidos/core'
 import {
   DndContext,
   closestCenter,
@@ -68,7 +68,7 @@ export function EntregasPage() {
 
   const activeUsers = users.filter((u) => {
     if (u.disabled || u.deleted) return false
-    if (u.acesso === 'produtor') return false
+    if (isFornecedor(u)) return false
     if (!isUserDeliveryWeek(u, weekId)) return false
     if (orderByUser.get(u.id)?.doacao) return false
     return true
@@ -80,7 +80,7 @@ export function EntregasPage() {
   // Conjunto completo de entrega (todas as semanas) — base do merge que preserva a posição
   // de quem não aparece nesta semana. Só atributos de membro, não flags semanais (doacao).
   const todosEntrega = users.filter(
-    (u) => isEntrega(u) && !u.disabled && !u.deleted && u.acesso !== 'produtor',
+    (u) => isEntrega(u) && !u.disabled && !u.deleted && !isFornecedor(u),
   )
 
   const sensors = useSensors(

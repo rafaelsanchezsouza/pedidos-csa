@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { isAdmin as checkAdmin, isFornecedor } from '@pedidos/core'
 
 const memberItems = [
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart },
@@ -40,8 +41,8 @@ export function BottomNav() {
   const location = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
 
-  const isAdmin = user?.acesso === 'admin' || user?.acesso === 'superadmin'
-  const isProdutor = user?.acesso === 'produtor'
+  const isAdmin = checkAdmin(user)
+  const isProdutor = isFornecedor(user)
 
   const mainItems = isAdmin ? adminMainItems : isProdutor ? produtorItems : memberItems
   const moreActive = isAdmin && adminMoreItems.some((i) => location.pathname === i.to)

@@ -6,7 +6,7 @@ import { usersApi, producersApi, colmeiasApi, rolesApi } from '@/services/api'
 import type { BatchResult } from '@/services/api'
 import type { User, Producer, ColmeiaRole } from '@/types'
 import { formatQuota } from '@/lib/quota'
-import { parseCsvLine } from '@pedidos/core'
+import { parseCsvLine, isSuperadmin } from '@pedidos/core'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/PageHeader'
 import { Input } from '@/components/ui/input'
@@ -418,7 +418,7 @@ export function AdminPage() {
           <TabsTrigger value="usuarios">Usuários</TabsTrigger>
           <TabsTrigger value="produtores">Produtores</TabsTrigger>
           <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
-          {user?.acesso === 'superadmin' && (
+          {isSuperadmin(user) && (
             <TabsTrigger value="colmeias">Colmeias</TabsTrigger>
           )}
         </TabsList>
@@ -486,7 +486,7 @@ export function AdminPage() {
                           <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)} title={u.disabled ? 'Habilitar' : 'Desabilitar'}>
                             {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
                           </Button>
-                          {user?.acesso === 'superadmin' && (
+                          {isSuperadmin(user) && (
                             <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)} title="Excluir">
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -540,7 +540,7 @@ export function AdminPage() {
                       <Button variant="ghost" size="icon" onClick={() => handleToggleDisable(u)}>
                         {u.disabled ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Ban className="h-4 w-4 text-amber-500" />}
                       </Button>
-                      {user?.acesso === 'superadmin' && (
+                      {isSuperadmin(user) && (
                         <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -719,7 +719,7 @@ export function AdminPage() {
           </Card>
         </TabsContent>
 
-        {user?.acesso === 'superadmin' && (
+        {isSuperadmin(user) && (
           <TabsContent value="colmeias">
             <Card>
               <CardContent className="p-0">

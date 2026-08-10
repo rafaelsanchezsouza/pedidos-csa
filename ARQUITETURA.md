@@ -6,8 +6,8 @@ são **configuração**, não fork de código.
 
 > Estado: **tasks 1–4 concluídas e verdes**; **task 5 quase concluída** — engine `core/server`
 > com portas (`Repo`, `AuthGateway`, `WhatsAppGateway`, `MessageParser`) e **todas as rotas do
-> fermentou como factories** (inclusive `offerings`) e modelo canônico em `types.ts`; falta
-> CSA adotar acesso-lista; task 6 pendente. Branch
+> fermentou como factories** (inclusive `offerings`), modelo canônico em `types.ts` e CSA
+> usando acesso-lista; **task 6 é a próxima**. Branch
 > `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
 > `~/repos/pedidos-app`) seguem **intactos** como fonte da verdade até este monorepo substituí-los.
 
@@ -44,10 +44,12 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 | **3. Acesso** | `packages/core/acesso.ts`: modelo de permissão como **lista** (predicados + `tipoDeAcesso`/`montarAcesso`), entrada **dual-mode** (aceita `User` ou campo cru), **normaliza rótulos legados** da CSA (`user`→`consumidor`, `produtor`→`fornecedor`) — leitura retrocompatível sem migração. Fermentou consome | core 82, fermentou 19 |
 | **4. Config** | `packages/core/config.ts`: contrato **`AppConfig`** + `validateAppConfig`. `apps/fermentou/src/config.ts` tipada e validada | core 89, fermentou 22, build front |
 
-**Placar atual:** `@pedidos/core` **135 testes**, `apps/csa` **25**, `apps/fermentou` **22** — todos
+| **5. Engine** | `packages/core/server`: portas (`Repo`, `AuthGateway`, `WhatsAppGateway`, `MessageParser`) + **todas as rotas/serviços como factories `(deps, config)`**; modelo canônico em `types.ts`; CSA usando acesso-lista. Detalhe fatia a fatia abaixo | core 150, csa 25, fermentou 22 + 4 builds |
+
+**Placar atual:** `@pedidos/core` **150 testes**, `apps/csa` **25**, `apps/fermentou` **22** — todos
 × 3 fusos (BR/UTC/UTC+14). Builds front + backend dos dois apps verdes.
 
-### Task 5 — progresso (em andamento)
+### Task 5 — fatia a fatia (concluída)
 - **`isEntrega` + fim do `pickupValue`** (decisão registrada acima): predicado no domínio;
   apps adotaram nos pontos de regra.
 - **`packages/core/server` criado (piloto `tenants` verde ponta-a-ponta no fermentou):**
@@ -105,17 +107,27 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   `@pedidos/core/server` inalterada); as visões locais viram projeções
   (`TenantSettings = Pick<TenantDoc, …>`). Ficou em `types.ts` (arquivo único) em vez de
   `types/` — os docs são só interfaces, não justificam diretório.
-- **Falta na task 5:** CSA adota acesso-lista.
+- **CSA adotou acesso-lista** (fatia 9 — fecha a task 5): as 20 checagens inline
+  (`acesso === 'admin' || === 'superadmin'`, `=== 'produtor'`) viraram `isAdmin`/`isSuperadmin`/
+  `isFornecedor` do core em `App`, `Sidebar`, `BottomNav`, `PedidosPage`,
+  `VerificarPagamentosPage`, `EntregasPage`, `ConsolidadoGeralPage`, `AdminPage` e, no server,
+  `colmeias.ts`/`orders.ts`. Os predicados normalizam os rótulos legados (`user`→`consumidor`,
+  `produtor`→`fornecedor`) e aceitam o campo como string única — **leitura retrocompatível com a
+  produção, sem migração de dados** (os testes da CSA seguem montando `acesso: 'user'`/`'admin'`
+  como string e passam). Nenhuma mudança de comportamento: em `colmeias.ts` PUT o
+  `isColmeiaAdmin` passou a incluir superadmin, que já entrava pelo `isSuperAdmin` ao lado.
   *Decisão de fronteira:* `middleware/auth` (verificação de token Firebase) e o serviço
   `whatsapp/` **ficam no app** — são adapters das portas, não engine.
 
-### Roteiro da próxima sessão — fechar a task 5
-1. CSA adota acesso-lista (checagens `acesso === 'admin'` inline em `colmeias.ts`,
-   `orders.ts`, `Sidebar`, `BottomNav`, `PedidosPage` da CSA); predicados do core
-   normalizam, leitura retrocompatível.
-2. Lembrete: `apps/csa` só adota o engine (rotas `tenants`, `offerings` etc.) **depois da
-   migração canônica** (task 6) — até lá segue com as rotas próprias `colmeia*` e o
-   `parseMessage/` local (o adapter `openai` do app nasce na adoção; a porta já existe).
+### Roteiro da próxima sessão — task 6
+1. **Decidir a janela da migração da CSA** (questão em aberto 1, abaixo) antes de escrever
+   `migrate-csa-canonico.ts` — é ela que define se o script é uma passada só.
+2. `config-csa.ts` (`AppConfig` da CSA) + script de migração canônica; validar **em cópia**
+   antes de produção.
+3. Só **depois** da migração a CSA adota o engine (rotas `tenants`, `offerings` etc.) — até lá
+   segue com as rotas próprias `colmeia*` e o `parseMessage/` local. O adapter `openai` do app
+   nasce nessa adoção (a porta e o parser fuzzy já existem no core).
+4. `core/ui`: extrair `PageHeader`/primitives/`applyBrand`.
 - ⚠️ **Deploy do fermentou está quebrado desde a task 1** (não é regressão): `deploy.sh` copia
   só o `package.json` do app e roda `npm ci` na VM — `@pedidos/core` não resolve fora do
   workspace. Resolver na task 6 (empacotar o core no artefato ou `npm pack`).
@@ -136,31 +148,34 @@ pedidos/
 ├── package.json                 # workspaces: packages/*, apps/*
 ├── tsconfig.base.json
 ├── packages/
-│   └── core/                    # @pedidos/core — o MOTOR (por ora: domínio + acesso + config)
+│   └── core/                    # @pedidos/core — o MOTOR (domínio + acesso + config + engine)
 │       ├── package.json         # exports → dist; build = tsc NodeNext
 │       ├── tsconfig.build.json  # emite dist (.js + .d.ts)
 │       └── src/
 │           ├── domain/          # week, quota, frete, status, delivery, csv (+ testes)
-│           ├── server/          # ENGINE (em construção): repo.ts (porta), memoryRepo,
-│           │                    #   middleware/tenant, routes/tenants (factories)
+│           ├── server/          # ENGINE: repo.ts (portas), memoryRepo, testutil, phone,
+│           │                    #   parseMessage (porta) + fuzzyParser, middleware/tenant,
+│           │                    #   routes/* e services/* — todos factories (deps, config)
 │           ├── acesso.ts        # modelo de permissão (lista) + predicados
 │           ├── config.ts        # AppConfig + validateAppConfig
 │           ├── types.ts         # modelo canônico (docs Tenant/User/Order/Payment/Offering…)
-│           └── index.ts         # barrel
+│           └── index.ts         # barrel (front); engine = '@pedidos/core/server'
 └── apps/
-    ├── csa/                     # app CSA (consome o core no domínio)
+    ├── csa/                     # app CSA — domínio/acesso do core; rotas ainda próprias
     │   ├── src/lib/             # SÓ o que é específico: quota.ts (formatQuota), utils.ts
     │   └── server/              # routes/{colmeias,offerings,...}, services/{paymentService,
     │                            #   ordersService, parseMessage/, whatsapp/}
-    └── fermentou/               # app Fermentou (consome domínio + acesso + config)
+    └── fermentou/               # app Fermentou — consome o ENGINE inteiro
         ├── src/config.ts        # AppConfig do app
         ├── src/lib/             # brand.ts, features.ts, utils.ts
-        └── server/              # routes/{tenants,offerings,...}, services/{paymentService,...}
+        └── server/              # entrypoint fino: index.ts + adapters.ts, middleware/auth,
+                                 #   repositories/firestore, services/whatsapp, jobs/
 ```
 
-Ainda **duplicado entre os apps** (alvo das tasks 5–6): `paymentService.ts`, `ordersService.ts`,
-`server/routes/*`, `server/middleware`, `whatsapp/`, jobs. E **divergente por enquanto**:
-`colmeias.ts`↔`tenants.ts`, `parseMessage/` (só CSA), tipos `User`/`Tenant`.
+O fermentou **não tem mais `server/routes/`** — tudo vem do engine. O que ainda vive nos dois
+apps é adapter ou infra (auth Firebase, Firestore, whatsapp, cron). A CSA segue com as rotas
+próprias `colmeia*` e o `parseMessage/` local **até a migração canônica** (task 6) — é a última
+duplicação, e é proposital.
 
 ---
 
@@ -172,9 +187,10 @@ packages/core/
   domain/    cálculo puro (feito)               → week, quota, frete, status, delivery, csv
   acesso     permissão (feito)
   config     AppConfig (feito)
-  types/     modelo canônico completo (task 5)  → Tenant, User, Order, Payment, Offering, Producer…
-  server/    ENGINE parametrizado (task 5)      → route factories, services, middleware,
-             repositories (portas), jobs — recebem (deps, config)
+  types.ts   modelo canônico (feito)            → Tenant, User, Order, Payment, Offering, Producer…
+  server/    ENGINE parametrizado (feito)       → route factories, services, middleware,
+             portas (Repo/Auth/WhatsApp/MessageParser) — recebem (deps, config).
+             Jobs ficaram no app: cron é infra, o core expõe a lógica
   ui/        design-system kit (task 6)         → PageHeader, primitives, applyBrand/Brand
 apps/<app>/
   src/       páginas + vocabulário próprios (consomem core + config)
@@ -212,22 +228,25 @@ runtime do server e injetadas no boot do engine (task 5). É o que separa identi
 | `vocabulary.pickupLabel` | `Colmeia` | `Retirada` |
 
 ### 4.3 Ports & Adapters (DIP, já exigido no CLAUDE.md)
-O motor depende de **interfaces**; cada app pluga **adapters** concretos e injeta a config:
-- **Portas:** `WhatsAppGateway` (existe), `MessageParser` (existe), repositório Firestore.
-- **Adapters:** Evolution API, fuzzy/OpenAI parser, Firestore.
-- Os *barrels* `parseMessage/index.ts` e `whatsapp/index.ts` (hoje trocam implementação por
-  edição de import) passam a **selecionar por `AppConfig.capabilities`/integrações**.
+O motor depende de **interfaces**; cada app pluga **adapters** concretos e injeta a config.
+Portas em `core/src/server`: `Repo`, `AuthGateway`, `WhatsAppGateway` (`repo.ts`) e
+`MessageParser` (`parseMessage.ts`). Adapters: Firestore, Firebase Auth, Evolution API
+(todos no app) e o parser — `fuzzy` mora no core (é puro), `openai` no app CSA (dep e chave lá).
+O barrel `parseMessage/index.ts` **morreu no core**: a seleção vem de
+`config.capabilities.messageParser` + injeção. O `whatsapp/index.ts` do app segue como está —
+é escolha de infra do app, não do motor.
 
-### 4.4 Reconciliação de comportamento no engine (task 5)
+### 4.4 Reconciliação de comportamento no engine (feito na task 5)
 - **Route factories** `createXRouter(deps, config)` para todas as rotas (base = fork: `tenant`/
   `tenantId`/`x-tenant-id`).
-- `paymentService`/`ordersService`/`quotaJob`/`sendOrdersJob` movidos ao core; fallbacks mágicos
-  (`?? 40/65/10`, `?? 'CSA'`, `'Flor de Quilombo'`) passam a vir de `config.tenantDefaults`.
+- `paymentService`/`ordersService` movidos ao core; fallbacks mágicos (`?? 40/65/10`, `?? 'CSA'`,
+  `'Flor de Quilombo'`) vêm de `config.tenantDefaults`. `quotaJob`/`sendOrdersJob` ficaram no app
+  (cron = infra) chamando os serviços do core.
 - **`parseMessage` reintroduzido** como capacidade opcional (ativo sse
   `offeringSource='parse-message'`); dep `openai` só no app CSA. `from-catalog` do fork segue em
   paralelo — ambos chamam `upsertOffering`.
-- **Acesso lista adotado na CSA** (hoje checagens `acesso === 'admin'` inline); predicados do core
-  normalizam, então a leitura é retrocompatível.
+- **Acesso lista adotado na CSA**; predicados do core normalizam os rótulos legados, então a
+  leitura é retrocompatível e a produção não precisou de migração de dados.
 
 ### 4.5 Migração única da produção CSA (task 6)
 Script `migrate-csa-canonico.ts` (rodar **uma vez**, com backup + em cópia antes de prod):
@@ -239,32 +258,21 @@ compatibilidade — só nomes canônicos.
 
 ## 5. O que falta
 
-- **Task 5 — engine de servidor parametrizado** (a maior): mover routes/services/middleware/jobs
-  ao `packages/core/server` como factories `(deps, config)`; `types/` canônico completo; boot do
-  server injeta integrações do `.env`; reintroduz `parseMessage`; CSA adota acesso-lista.
-  *Sugestão de fatiamento:* boot + injeção de config/integrações + **1 rota piloto** (`tenants`)
-  verde ponta-a-ponta antes de mover o resto.
-  **Inclui (decidido 2026-08-04): `deliveryType` binário no engine.** Nenhuma regra dos dois
-  apps lê o token de não-entrega (só `=== 'entrega'` decide frete/rota; achado da revisão) —
-  o engine passa a usar só o predicado `isEntrega(u)` e grava sempre o canônico `'retirada'`;
-  **remover `tenantDefaults.pickupValue` e o tipo `PickupValue`** do `AppConfig`
-  (`vocabulary.pickupLabel` cobre a UI). Anfitriã ("colmeia") fica **fora do motor**: não muda
-  regra (não paga frete, não entra na rota); se a UI da CSA quiser distinguir, é dado do
-  app/tenant (ex.: `hostUserId`). O badge "retira na colmeia" errado para a anfitriã se resolve
-  no app.
-- **Task 6 — ui kit + apps finos + migração**: extrair `PageHeader`/primitives/`applyBrand` para
-  `core/ui`; `config-csa.ts`; script de migração canônica da CSA; validar em cópia; deploy
-  independente dos dois apps.
+- **Task 6 — ui kit + apps finos + migração** (a única restante): `config-csa.ts`; script de
+  migração canônica da CSA + validação em cópia; CSA adota o engine (incluindo o adapter
+  `openai` do `MessageParser`); extrair `PageHeader`/primitives/`applyBrand` para `core/ui`;
+  consertar o `deploy.sh` do fermentou (⚠️ acima) e deployar os dois apps independentemente.
 
-### Questões em aberto (decidir antes/durante as tasks 5–6)
+### Questões em aberto (decidir na task 6)
 
 1. **Migração da CSA: janela ou zero-downtime?** Janela curta de manutenção permite o script
    simples (uma passada, backup antes). Zero-downtime ressuscitaria a fase transitória lendo os
    dois nomes (`MERGE.md` §7.2) — que a decisão 2 quis evitar. Definir antes de escrever
    `migrate-csa-canonico.ts`.
 2. **Port-backs do `MERGE.md` §6** (setup robusto, correções de deploy que consertam bugs
-   latentes da CSA): aplicar explicitamente durante a task 5 ou assumir que chegam de graça com
-   o engine único? A task 5 decide isso implicitamente — melhor decidir explícito.
+   latentes da CSA): a task 5 os trouxe **de graça no engine** — a CSA os herda no momento em
+   que adota as rotas do core (task 6), não antes. Resta conferir §6 item a item na adoção
+   para ver se sobrou algo que não veio junto.
 
 ---
 
