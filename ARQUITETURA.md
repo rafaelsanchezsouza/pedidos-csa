@@ -32,6 +32,10 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
    `tenants`, header `x-tenant-id`, `deliveryType` `'colmeia'`→`'retirada'`). Motor **sem** camada
    de mapeamento.
 3. **Extração completa** do motor (não fatiada por feature).
+4. **Migração da CSA com janela de manutenção** (decidido 2026-08-10): script de **uma passada
+   só**, com backup antes e ensaio em cópia. Zero-downtime exigiria ressuscitar a fase
+   transitória lendo os dois nomes (`MERGE.md` §7.2) — código que nasce para morrer, que é
+   justamente o que a decisão 2 quis evitar. O custo aceito é alguns minutos fora do ar.
 
 ---
 
@@ -120,6 +124,22 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   `whatsapp/` **ficam no app** — são adapters das portas, não engine.
 
 ### Task 6 — progresso
+- **`core/ui` criado (piloto `PageHeader` verde nos dois apps)** (2ª fatia):
+  - Export `@pedidos/core/ui`, **separado do barrel raiz e do `/server`** — o server importa
+    `@pedidos/core` e não pode arrastar React, como já valia para o express.
+  - **Build próprio**: `tsconfig.ui.json` (`jsx: react-jsx`, `module ESNext`/`bundler`) porque o
+    `tsconfig.build.json` é NodeNext e não compila TSX; este passou a **excluir `src/ui`** e
+    `src/test`. `npm run build -w @pedidos/core` roda os dois tsc.
+  - `react` é **peerDependency opcional** — quem instala é o app; o core só a usa em `ui/`.
+  - **Tailwind**: `../../packages/core/src/ui/**/*.tsx` entrou no `content` dos dois apps —
+    sem isso as classes do componente não são geradas e o layout quebra **em silêncio** (build
+    passa). Verificado no CSS emitido dos dois apps, não só no build.
+  - Vitest do core ganhou jsdom + Testing Library (`src/test/setup.ts`, igual ao dos apps) e
+    passou a incluir `.tsx`; os 9 testes do `PageHeader`, que eram **cópia idêntica nos dois
+    apps**, viraram 9 no core.
+  - *Fronteira do kit:* entra só o que não conhece o app. `ReportarProblema` **fica no app**
+    apesar de quase idêntico — depende de `useAuth`/`issuesApi` e diverge no vocabulário
+    (`colmeia` × `tenant`).
 - **`apps/csa/src/config.ts` criada** (1ª fatia): `AppConfig` da CSA com os valores que já
   estavam hardcoded — paleta do `index.css`, seeds do `POST /colmeias` (65/40/10),
   defaults dos jobs (terça 6h, semana vira domingo), `roleDefaults` `['colmeia','coagricultor']`,
@@ -131,13 +151,15 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   tsconfig do front custa mais do que a trava vale (`?raw` volta vazio no Vitest).
 
 ### Roteiro da próxima sessão — task 6
-1. **Decidir a janela da migração da CSA** (questão em aberto 1, abaixo) antes de escrever
-   `migrate-csa-canonico.ts` — é ela que define se o script é uma passada só.
-2. Script de migração canônica; validar **em cópia** antes de produção.
+1. Seguir o `core/ui` pelo caminho já pavimentado pelo piloto: primitives shadcn (`ui/*`, os 10
+   são **idênticos** nos dois apps) + `cn`, depois `EstadoLista`/`WeekNavigator`/`MonthNavigator`
+   (também idênticos), e por fim `applyBrand` — que **encerra a duplicação da paleta** da CSA
+   (hoje espelhada em `config.ts` e `index.css`).
+2. `migrate-csa-canonico.ts` (janela de manutenção — ver decisão 4); validar **em cópia** antes
+   de produção.
 3. Só **depois** da migração a CSA adota o engine (rotas `tenants`, `offerings` etc.) — até lá
    segue com as rotas próprias `colmeia*` e o `parseMessage/` local. O adapter `openai` do app
    nasce nessa adoção (a porta e o parser fuzzy já existem no core).
-4. `core/ui`: extrair `PageHeader`/primitives/`applyBrand` — encerra a duplicação da paleta.
 - ⚠️ **Deploy do fermentou está quebrado desde a task 1** (não é regressão): `deploy.sh` copia
   só o `package.json` do app e roda `npm ci` na VM — `@pedidos/core` não resolve fora do
   workspace. Resolver na task 6 (empacotar o core no artefato ou `npm pack`).
@@ -201,7 +223,8 @@ packages/core/
   server/    ENGINE parametrizado (feito)       → route factories, services, middleware,
              portas (Repo/Auth/WhatsApp/MessageParser) — recebem (deps, config).
              Jobs ficaram no app: cron é infra, o core expõe a lógica
-  ui/        design-system kit (task 6)         → PageHeader, primitives, applyBrand/Brand
+  ui/        design-system kit (em curso)       → PageHeader (feito); faltam primitives,
+             build próprio (tsconfig.ui.json)      EstadoLista/Navigators e applyBrand
 apps/<app>/
   src/       páginas + vocabulário próprios (consomem core + config)
   server/    entrypoint fino: monta integrações do .env + injeta AppConfig no engine
@@ -275,10 +298,7 @@ compatibilidade — só nomes canônicos.
 
 ### Questões em aberto (decidir na task 6)
 
-1. **Migração da CSA: janela ou zero-downtime?** Janela curta de manutenção permite o script
-   simples (uma passada, backup antes). Zero-downtime ressuscitaria a fase transitória lendo os
-   dois nomes (`MERGE.md` §7.2) — que a decisão 2 quis evitar. Definir antes de escrever
-   `migrate-csa-canonico.ts`.
+1. ~~Migração da CSA: janela ou zero-downtime?~~ **Decidido: janela de manutenção** (decisão 4).
 2. **Port-backs do `MERGE.md` §6** (setup robusto, correções de deploy que consertam bugs
    latentes da CSA): a task 5 os trouxe **de graça no engine** — a CSA os herda no momento em
    que adota as rotas do core (task 6), não antes. Resta conferir §6 item a item na adoção

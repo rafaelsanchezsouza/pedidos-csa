@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatDeliveryDate, getPresentWeekId, isUserDeliveryWeek } from '@pedidos/core'
 import { isAdmin as checkAdmin } from '@pedidos/core'
 import { WeekNavigator } from '@/components/WeekNavigator'
-import { PageHeader } from '@/components/PageHeader'
+import { PageHeader } from '@pedidos/core/ui'
 import { EstadoLista } from '@/components/EstadoLista'
 
 export function PedidosPage() {

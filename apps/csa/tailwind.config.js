@@ -4,6 +4,8 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
+    // Componentes de @pedidos/core/ui: sem isto o Tailwind não gera as classes deles.
+    "../../packages/core/src/ui/**/*.tsx",
   ],
   theme: {
     extend: {

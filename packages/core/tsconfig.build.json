@@ -10,5 +10,10 @@
     "types": []
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/server/testutil.ts"]
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/server/testutil.ts",
+    "src/test",
+    "src/ui"
+  ]
 }

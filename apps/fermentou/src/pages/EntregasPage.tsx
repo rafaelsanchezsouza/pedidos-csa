@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { StickyNote, Ban, MapPin, GripVertical } from 'lucide-react'
 import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@pedidos/core'
 import { WeekNavigator } from '@/components/WeekNavigator'
-import { PageHeader } from '@/components/PageHeader'
+import { PageHeader } from '@pedidos/core/ui'
 import { EstadoLista } from '@/components/EstadoLista'
 import { sortByDeliveryOrder, mergeReorder, isEntrega } from '@pedidos/core'
 import {

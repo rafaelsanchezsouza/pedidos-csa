@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MonthNavigator } from '@/components/MonthNavigator'
-import { PageHeader } from '@/components/PageHeader'
+import { PageHeader } from '@pedidos/core/ui'
 import { EstadoLista } from '@/components/EstadoLista'
 
 function currentMonth(): string {

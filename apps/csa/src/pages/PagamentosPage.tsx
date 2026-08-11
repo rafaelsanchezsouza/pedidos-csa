@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MonthNavigator } from '@/components/MonthNavigator'
-import { PageHeader } from '@/components/PageHeader'
+import { PageHeader } from '@pedidos/core/ui'
 import { getWeekDelivery } from '@pedidos/core'
 
 function currentMonth(): string {

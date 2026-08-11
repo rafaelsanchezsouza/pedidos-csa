@@ -9,7 +9,7 @@ import { isAdmin, isConsumidor, isSuperadmin, acessos, tipoDeAcesso, montarAcess
 import { MULTI_TENANT } from '@/lib/features'
 import { parseCsvLine } from '@pedidos/core'
 import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/PageHeader'
+import { PageHeader } from '@pedidos/core/ui'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'

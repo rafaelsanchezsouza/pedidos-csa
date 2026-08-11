@@ -1,9 +1,13 @@
 import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   test: {
-    // Domínio é cálculo puro (sem DOM): node basta.
+    // node é o padrão: domínio e engine são cálculo/http puro e não pagam o custo do jsdom.
+    // Teste de componente (src/ui) declara `// @vitest-environment jsdom` no topo do arquivo.
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+    setupFiles: ['./src/test/setup.ts'],
   },
+  plugins: [react()],
 })

@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Pencil, StickyNote } from 'lucide-react'
 import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek, isFornecedor } from '@pedidos/core'
 import { WeekNavigator } from '@/components/WeekNavigator'
-import { PageHeader } from '@/components/PageHeader'
+import { PageHeader } from '@pedidos/core/ui'
 
 export function ConsolidadoGeralPage() {
   const { colmeia } = useAuth()
