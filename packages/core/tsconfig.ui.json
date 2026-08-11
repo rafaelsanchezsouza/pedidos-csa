@@ -12,5 +12,5 @@
     "types": []
   },
   "include": ["src/ui"],
-  "exclude": ["src/ui/**/*.test.tsx"]
+  "exclude": ["src/ui/**/*.test.ts", "src/ui/**/*.test.tsx"]
 }

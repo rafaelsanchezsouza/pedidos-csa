@@ -3,3 +3,7 @@ dist/
 dist-server/
 *.tsbuildinfo
 .DS_Store
+
+# Tarball do core gerado pelo deploy.sh (npm pack) — artefato, não fonte
+pedidos-core-*.tgz
+package.deploy.json

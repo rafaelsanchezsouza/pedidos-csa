@@ -184,10 +184,27 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 2. Só **depois** da migração a CSA adota o engine (rotas `tenants`, `offerings` etc.) — até lá
    segue com as rotas próprias `colmeia*` e o `parseMessage/` local. O adapter `openai` do app
    nasce nessa adoção (a porta e o parser fuzzy já existem no core).
-3. Consertar o `deploy.sh` do fermentou (⚠️ abaixo) e deployar os dois apps.
-- ⚠️ **Deploy do fermentou está quebrado desde a task 1** (não é regressão): `deploy.sh` copia
-  só o `package.json` do app e roda `npm ci` na VM — `@pedidos/core` não resolve fora do
-  workspace. Resolver na task 6 (empacotar o core no artefato ou `npm pack`).
+3. Deployar os dois apps (o `deploy.sh` já foi consertado, mas **nunca rodou de verdade** —
+   o primeiro deploy é o teste).
+- ✅ **Deploy consertado** (5ª fatia da task 6) — estava quebrado **nos dois apps** desde a
+  task 1 (a CSA tinha o mesmo defeito, ainda não notado): o `deploy.sh` mandava
+  `package.json` + `package-lock.json` e rodava `npm ci` na VM, mas `"@pedidos/core": "*"` é
+  um workspace e não resolve fora do monorepo.
+  **Solução:** `npm pack` do core (o `files: ["dist"]` já limita o tarball ao artefato) →
+  o tarball vai junto e um `package.deploy.json` gerado na hora aponta a dep para
+  `file:./pedidos-core-0.1.0.tgz`; a VM roda `npm install --omit=dev` (não `ci`: o lock não
+  cobre a substituição) e o `package-lock.json` obsoleto do app deixou de ser enviado —
+  ele é resquício de quando cada app era repo próprio; no monorepo o lock válido é o da raiz.
+  Pegadinha: **`npm pack <caminho>`**, não `npm --prefix … pack` — com `--prefix` ele empacota
+  o app, não o core.
+  *Verificado localmente sem tocar na VM:* etapas locais rodadas de ponta a ponta, install num
+  diretório limpo fora do workspace (411 pacotes, ok) e `import()` do
+  `dist-server/server/index.js` resolvendo **todos** os módulos — para só no
+  `Service account object must contain a string "project_id"`, que é falta de credencial, não
+  de módulo. **O deploy de verdade (scp/ssh/pm2) continua não testado** — exige a VM.
+  Efeito colateral do mesmo achado: `npm run build -w @pedidos/core` agora faz `rm -rf dist`
+  antes (o `tsc` não limpa o `outDir`, e testes de builds antigos estavam indo para o tarball),
+  e o `tsconfig.ui.json` passou a excluir também `*.test.ts` (só excluía `.tsx`).
 
 ### Como o server consome o core (o ponto que exigia decisão)
 `@pedidos/core` **builda para `dist`** (`tsc` NodeNext → `.js` + `.d.ts`); imports internos com
@@ -318,8 +335,8 @@ compatibilidade — só nomes canônicos.
 
 - **Task 6 — ui kit + apps finos + migração** (a única restante): ~~`config-csa.ts`~~ e
   ~~`core/ui`~~ (feitos); falta o script de migração canônica da CSA + validação em cópia; CSA
-  adota o engine (incluindo o adapter `openai` do `MessageParser`); consertar o `deploy.sh` do
-  fermentou (⚠️ acima) e deployar os dois apps independentemente.
+  adota o engine (incluindo o adapter `openai` do `MessageParser`); ~~consertar o `deploy.sh`~~
+  (feito, falta rodar) e deployar os dois apps independentemente.
 
 ### Questões em aberto (decidir na task 6)
 

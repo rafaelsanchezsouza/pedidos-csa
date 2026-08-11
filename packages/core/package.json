@@ -31,7 +31,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.ui.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && tsc -p tsconfig.ui.json",
     "test": "cross-env TZ=America/Sao_Paulo vitest run",
     "test:tz": "npm test && cross-env TZ=UTC vitest run && cross-env TZ=Pacific/Kiritimati vitest run"
   },
