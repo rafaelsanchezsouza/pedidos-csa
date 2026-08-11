@@ -7,26 +7,7 @@ import { formatDeliveryDate, getPresentWeekId } from '@pedidos/core'
 import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@pedidos/core/ui'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-
+import { Button, Card, CardContent, CardHeader, CardTitle, Textarea, Label, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
 
 export function OfertasPage() {
   const { colmeia } = useAuth()

@@ -8,27 +8,8 @@ import type { User, Producer, TenantRole, QuotaTier } from '@/types'
 import { isAdmin, isConsumidor, isSuperadmin, acessos, tipoDeAcesso, montarAcesso, type Acesso, type Tipo } from '@pedidos/core'
 import { MULTI_TENANT } from '@/lib/features'
 import { parseCsvLine } from '@pedidos/core'
-import { Button } from '@/components/ui/button'
+import { Button, Input, Label, Card, CardContent, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
 interface ProducerForm { name: string; contact: string; pixKey: string }
 const emptyProducerForm: ProducerForm = { name: '', contact: '', pixKey: '' }

@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@pedidos/core/ui'
 
 function shiftMonth(month: string, delta: number): string {
   const [y, m] = month.split('-').map(Number)

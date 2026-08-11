@@ -2,18 +2,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { usersApi } from '@/services/api'
 import type { User } from '@/types'
-import { Button } from '@/components/ui/button'
+import { Button, Input, Label, Card, CardContent, CardHeader, CardTitle, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
 export function PerfilPage() {
   const { user, tenant, refreshUser } = useAuth()

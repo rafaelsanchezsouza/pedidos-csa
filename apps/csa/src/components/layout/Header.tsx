@@ -1,5 +1,5 @@
 import { LogOut, Leaf } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@pedidos/core/ui'
 import { useAuth } from '@/hooks/useAuth'
 
 export function Header() {

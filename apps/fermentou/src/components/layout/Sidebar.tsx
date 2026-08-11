@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { isAdmin as checkAdmin, isFornecedor, isSuperadmin } from '@pedidos/core'
 import { MULTI_TENANT } from '@/lib/features'
 import { ReportarProblema } from '@/components/ReportarProblema'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
 
 // fornecedorVisible: item visível também para fornecedor (gerencia/vê só o que é dele)
 const navItems = [

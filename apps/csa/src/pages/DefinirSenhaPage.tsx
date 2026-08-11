@@ -4,10 +4,7 @@ import { Leaf } from 'lucide-react'
 import { updatePassword } from 'firebase/auth'
 import { useAuth } from '@/hooks/useAuth'
 import { usersApi } from '@/services/api'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button, Input, Label, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@pedidos/core/ui'
 
 export function DefinirSenhaPage() {
   const { firebaseUser, user, loading, refreshUser } = useAuth()

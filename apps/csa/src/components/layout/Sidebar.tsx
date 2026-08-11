@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { isAdmin as checkAdmin, isFornecedor, isSuperadmin } from '@pedidos/core'
 import { ReportarProblema } from '@/components/ReportarProblema'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
 
 const navItems = [
   { to: '/pedidos', label: 'Meus Pedidos', icon: ShoppingCart, adminOnly: false, produtorVisible: false },

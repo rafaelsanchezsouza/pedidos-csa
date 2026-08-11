@@ -6,26 +6,8 @@ import { productsApi, producersApi } from '@/services/api'
 import type { ProductBatchResult } from '@/services/api'
 import type { Product, Producer } from '@/types'
 import { parseCsvLine, parsePrice } from '@pedidos/core'
-import { Button } from '@/components/ui/button'
+import { Button, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Card, CardContent, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Card, CardContent } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
 interface ProductForm {
   name: string

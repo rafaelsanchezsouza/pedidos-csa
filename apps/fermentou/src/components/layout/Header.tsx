@@ -1,5 +1,5 @@
 import { LogOut } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@pedidos/core/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { BRAND } from '@/lib/brand'
 

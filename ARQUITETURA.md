@@ -140,6 +140,16 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   - *Fronteira do kit:* entra só o que não conhece o app. `ReportarProblema` **fica no app**
     apesar de quase idêntico — depende de `useAuth`/`issuesApi` e diverge no vocabulário
     (`colmeia` × `tenant`).
+- **Primitives shadcn + `cn` movidos** (3ª fatia): os **10** componentes de `components/ui/`
+  (badge, button, card, dialog, input, label, select, table, tabs, textarea) eram **cópia byte a
+  byte** nos dois apps e agora vivem em `core/src/ui/primitives/`; `cn` (clsx + tailwind-merge)
+  virou `core/src/ui/cn.ts` e o `lib/utils.ts` dos apps só o **reexporta** (os imports
+  `@/lib/utils` espalhados continuam válidos). radix/lucide/cva/clsx/tailwind-merge entraram
+  como **peerDependencies opcionais** do core. 34 arquivos trocaram
+  `@/components/ui/*` por um único import de `@pedidos/core/ui`; `components/ui/` **sumiu** dos
+  dois apps.
+  *Prova de que nada mudou visualmente:* o CSS emitido pelo Vite tem **hash idêntico**
+  (`index-JHq-dmPc.css`) antes e depois da extração — byte a byte o mesmo.
 - **`apps/csa/src/config.ts` criada** (1ª fatia): `AppConfig` da CSA com os valores que já
   estavam hardcoded — paleta do `index.css`, seeds do `POST /colmeias` (65/40/10),
   defaults dos jobs (terça 6h, semana vira domingo), `roleDefaults` `['colmeia','coagricultor']`,
@@ -151,10 +161,10 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   tsconfig do front custa mais do que a trava vale (`?raw` volta vazio no Vitest).
 
 ### Roteiro da próxima sessão — task 6
-1. Seguir o `core/ui` pelo caminho já pavimentado pelo piloto: primitives shadcn (`ui/*`, os 10
-   são **idênticos** nos dois apps) + `cn`, depois `EstadoLista`/`WeekNavigator`/`MonthNavigator`
-   (também idênticos), e por fim `applyBrand` — que **encerra a duplicação da paleta** da CSA
-   (hoje espelhada em `config.ts` e `index.css`).
+1. Terminar o `core/ui`: `EstadoLista`/`WeekNavigator`/`MonthNavigator` (idênticos nos dois
+   apps) e por fim `applyBrand` — que **encerra a duplicação da paleta** da CSA (hoje espelhada
+   em `config.ts` e `index.css`). O `Layout`/`Sidebar`/`BottomNav` ficam no app: divergem em
+   itens de menu e vocabulário.
 2. `migrate-csa-canonico.ts` (janela de manutenção — ver decisão 4); validar **em cópia** antes
    de produção.
 3. Só **depois** da migração a CSA adota o engine (rotas `tenants`, `offerings` etc.) — até lá
@@ -223,8 +233,8 @@ packages/core/
   server/    ENGINE parametrizado (feito)       → route factories, services, middleware,
              portas (Repo/Auth/WhatsApp/MessageParser) — recebem (deps, config).
              Jobs ficaram no app: cron é infra, o core expõe a lógica
-  ui/        design-system kit (em curso)       → PageHeader (feito); faltam primitives,
-             build próprio (tsconfig.ui.json)      EstadoLista/Navigators e applyBrand
+  ui/        design-system kit (em curso)       → cn, PageHeader, 10 primitives shadcn (feito);
+             build próprio (tsconfig.ui.json)      faltam EstadoLista/Navigators e applyBrand
 apps/<app>/
   src/       páginas + vocabulário próprios (consomem core + config)
   server/    entrypoint fino: monta integrações do .env + injeta AppConfig no engine
