@@ -4,8 +4,7 @@ import { Plus, Wand2, Check, X, History, Pencil, Lock, Unlock } from 'lucide-rea
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi, colmeiasApi } from '@/services/api'
 import { formatDeliveryDate, getPresentWeekId } from '@pedidos/core'
-import { WeekNavigator } from '@/components/WeekNavigator'
-import { PageHeader } from '@pedidos/core/ui'
+import { PageHeader, WeekNavigator } from '@pedidos/core/ui'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
 import { Button, Card, CardContent, CardHeader, CardTitle, Textarea, Label, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
 

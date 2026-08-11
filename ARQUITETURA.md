@@ -150,6 +150,24 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   dois apps.
   *Prova de que nada mudou visualmente:* o CSS emitido pelo Vite tem **hash idêntico**
   (`index-JHq-dmPc.css`) antes e depois da extração — byte a byte o mesmo.
+- **`EstadoLista`/`WeekNavigator`/`MonthNavigator` + `applyBrand`** (4ª fatia, fecha o kit):
+  os três componentes eram idênticos nos dois apps e subiram junto com o teste do
+  `EstadoLista` (era cópia dupla, agora é uma). `applyBrand` saiu do `lib/brand.ts` do
+  fermentou para `core/ui`; o `brand.ts` do app ficou **só com o dado** e o tipo `Brand` passou
+  a vir do core. `Layout`/`Sidebar`/`BottomNav` ficam no app — divergem em itens de menu e
+  vocabulário.
+  ⚠️ **Achado que mudaria a aparência da CSA em produção:** o `applyBrand` do fork escolhia a
+  paleta por `prefers-color-scheme`, mas o Tailwind dos dois apps usa `darkMode: ['class']` e
+  **ninguém adiciona a classe `.dark`** — ou seja, as telas são sempre claras e o bloco `.dark`
+  do `index.css` nunca ativou. Ligar o `applyBrand` na CSA como estava teria dado tema escuro a
+  quem usa o SO em dark mode. Por isso o **tema virou parâmetro obrigatório**
+  (`applyBrand(brand, 'light'|'dark'|'auto')`) e os dois apps passam `'light'` explicitamente —
+  preservando o comportamento atual. Travado por teste (`brand.test.ts` mostra 'light' × 'auto'
+  com o sistema em escuro). Ativar dark mode de verdade = passar `'auto'` **e** ajustar o
+  Tailwind.
+  A paleta da CSA **segue espelhada** em `config.ts` e `index.css`: o CSS continua sendo o
+  fallback que evita o flash antes do JS rodar. Tirar as cores de lá é decisão à parte, com
+  esse custo.
 - **`apps/csa/src/config.ts` criada** (1ª fatia): `AppConfig` da CSA com os valores que já
   estavam hardcoded — paleta do `index.css`, seeds do `POST /colmeias` (65/40/10),
   defaults dos jobs (terça 6h, semana vira domingo), `roleDefaults` `['colmeia','coagricultor']`,
@@ -161,15 +179,12 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   tsconfig do front custa mais do que a trava vale (`?raw` volta vazio no Vitest).
 
 ### Roteiro da próxima sessão — task 6
-1. Terminar o `core/ui`: `EstadoLista`/`WeekNavigator`/`MonthNavigator` (idênticos nos dois
-   apps) e por fim `applyBrand` — que **encerra a duplicação da paleta** da CSA (hoje espelhada
-   em `config.ts` e `index.css`). O `Layout`/`Sidebar`/`BottomNav` ficam no app: divergem em
-   itens de menu e vocabulário.
-2. `migrate-csa-canonico.ts` (janela de manutenção — ver decisão 4); validar **em cópia** antes
+1. `migrate-csa-canonico.ts` (janela de manutenção — ver decisão 4); validar **em cópia** antes
    de produção.
-3. Só **depois** da migração a CSA adota o engine (rotas `tenants`, `offerings` etc.) — até lá
+2. Só **depois** da migração a CSA adota o engine (rotas `tenants`, `offerings` etc.) — até lá
    segue com as rotas próprias `colmeia*` e o `parseMessage/` local. O adapter `openai` do app
    nasce nessa adoção (a porta e o parser fuzzy já existem no core).
+3. Consertar o `deploy.sh` do fermentou (⚠️ abaixo) e deployar os dois apps.
 - ⚠️ **Deploy do fermentou está quebrado desde a task 1** (não é regressão): `deploy.sh` copia
   só o `package.json` do app e roda `npm ci` na VM — `@pedidos/core` não resolve fora do
   workspace. Resolver na task 6 (empacotar o core no artefato ou `npm pack`).
@@ -233,8 +248,8 @@ packages/core/
   server/    ENGINE parametrizado (feito)       → route factories, services, middleware,
              portas (Repo/Auth/WhatsApp/MessageParser) — recebem (deps, config).
              Jobs ficaram no app: cron é infra, o core expõe a lógica
-  ui/        design-system kit (em curso)       → cn, PageHeader, 10 primitives shadcn (feito);
-             build próprio (tsconfig.ui.json)      faltam EstadoLista/Navigators e applyBrand
+  ui/        design-system kit (feito)          → cn, applyBrand, PageHeader, EstadoLista,
+             build próprio (tsconfig.ui.json)      Week/MonthNavigator, 10 primitives shadcn
 apps/<app>/
   src/       páginas + vocabulário próprios (consomem core + config)
   server/    entrypoint fino: monta integrações do .env + injeta AppConfig no engine
@@ -301,10 +316,10 @@ compatibilidade — só nomes canônicos.
 
 ## 5. O que falta
 
-- **Task 6 — ui kit + apps finos + migração** (a única restante): ~~`config-csa.ts`~~ (feito);
-  script de migração canônica da CSA + validação em cópia; CSA adota o engine (incluindo o adapter
-  `openai` do `MessageParser`); extrair `PageHeader`/primitives/`applyBrand` para `core/ui`;
-  consertar o `deploy.sh` do fermentou (⚠️ acima) e deployar os dois apps independentemente.
+- **Task 6 — ui kit + apps finos + migração** (a única restante): ~~`config-csa.ts`~~ e
+  ~~`core/ui`~~ (feitos); falta o script de migração canônica da CSA + validação em cópia; CSA
+  adota o engine (incluindo o adapter `openai` do `MessageParser`); consertar o `deploy.sh` do
+  fermentou (⚠️ acima) e deployar os dois apps independentemente.
 
 ### Questões em aberto (decidir na task 6)
 

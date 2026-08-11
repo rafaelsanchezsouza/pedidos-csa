@@ -3,12 +3,10 @@ import { useAuth } from '@/hooks/useAuth'
 import { ordersApi, usersApi } from '@/services/api'
 import type { Order, User } from '@/types'
 import { formatQuota } from '@/lib/quota'
-import { Card, CardContent, CardHeader, CardTitle, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@pedidos/core/ui'
+import { Card, CardContent, CardHeader, CardTitle, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, EstadoLista, WeekNavigator } from '@pedidos/core/ui'
 import { StickyNote, Ban, MapPin, GripVertical } from 'lucide-react'
 import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@pedidos/core'
-import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@pedidos/core/ui'
-import { EstadoLista } from '@/components/EstadoLista'
 import { sortByDeliveryOrder, mergeReorder, isEntrega, isFornecedor } from '@pedidos/core'
 import {
   DndContext,

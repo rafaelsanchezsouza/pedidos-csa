@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button } from '@pedidos/core/ui'
-import { getPresentWeekId, shiftWeek, formatDeliveryDate, weekOptions } from '@pedidos/core'
+import { Button } from './primitives/button.js'
+import { getPresentWeekId, shiftWeek, formatDeliveryDate, weekOptions } from '../domain/index.js'
 
 interface WeekNavigatorProps {
   weekId: string

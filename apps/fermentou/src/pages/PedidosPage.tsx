@@ -3,12 +3,10 @@ import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, ordersApi, tenantsApi } from '@/services/api'
 import type { WeeklyOffering, Order, OrderItem } from '@/types'
 import { Minus, Plus, Heart } from 'lucide-react'
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@pedidos/core/ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, EstadoLista, WeekNavigator } from '@pedidos/core/ui'
 import { formatDeliveryDate, getPresentWeekId, isUserDeliveryWeek } from '@pedidos/core'
 import { isAdmin as checkAdmin } from '@pedidos/core'
-import { WeekNavigator } from '@/components/WeekNavigator'
 import { PageHeader } from '@pedidos/core/ui'
-import { EstadoLista } from '@/components/EstadoLista'
 
 export function PedidosPage() {
   const { user, tenant } = useAuth()

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Card, CardContent } from '@pedidos/core/ui'
+import { Card, CardContent } from './primitives/card.js'
 
 interface EstadoListaProps {
   loading: boolean

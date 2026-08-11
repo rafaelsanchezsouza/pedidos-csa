@@ -4,10 +4,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi } from '@/services/api'
 import type { Payment } from '@/types'
 import { statusLabel, statusVariant, isAdmin, isFornecedor } from '@pedidos/core'
-import { Button, Card, CardContent, Badge } from '@pedidos/core/ui'
-import { MonthNavigator } from '@/components/MonthNavigator'
+import { Button, Card, CardContent, Badge, EstadoLista, MonthNavigator } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
-import { EstadoLista } from '@/components/EstadoLista'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)

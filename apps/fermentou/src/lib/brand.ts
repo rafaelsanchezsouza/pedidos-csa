@@ -1,18 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CAMADA DE BRAND — fonte única da identidade visual do tenant.
 // Para trocar de cliente, edite SÓ este arquivo: nome, tagline, ícone e paleta.
-// As cores são aplicadas às CSS variables do tema (shadcn) por applyBrand(), que
-// roda no boot (main.tsx) antes do render. Formato HSL do shadcn: "H S% L%".
+// As cores são aplicadas às CSS variables do tema (shadcn) por applyBrand() do
+// @pedidos/core/ui, que roda no boot (main.tsx) antes do render. Formato HSL: "H S% L%".
 // ─────────────────────────────────────────────────────────────────────────────
 
-type ThemeVars = Record<string, string>
-
-export interface Brand {
-  name: string
-  tagline: string
-  icon: string            // caminho em /public
-  colors: { light: ThemeVars; dark: ThemeVars }
-}
+import type { Brand } from '@pedidos/core'
 
 // Paleta Fermentou: preto #000, creme #EFCAAF, marrom escuro #421C06, branco.
 const cream = '25 67% 81%'      // #EFCAAF
@@ -66,21 +59,4 @@ export const BRAND: Brand = {
       ring: cream,
     },
   },
-}
-
-// Compat: código antigo importa APP_NAME.
-export const APP_NAME = BRAND.name
-
-// Aplica a paleta do brand nas CSS variables do :root, o título e o favicon.
-// Chamada no boot (main.tsx), antes do primeiro render.
-export function applyBrand(brand: Brand = BRAND): void {
-  const root = document.documentElement
-  const dark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
-  const vars = dark ? brand.colors.dark : brand.colors.light
-  for (const [name, value] of Object.entries(vars)) {
-    root.style.setProperty(`--${name}`, value)
-  }
-  document.title = brand.name
-  const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-  if (favicon) favicon.href = brand.icon
 }
