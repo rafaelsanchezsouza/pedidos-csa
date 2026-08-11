@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ⚠️ Esta paleta está espelhada em src/config.ts (BRAND.colors) — mudou aqui, mude lá.
+   A duplicação acaba quando core/ui assumir o applyBrand (task 6): aí o CSS deixa de
+   declarar as cores e o BRAND vira a fonte única. */
 @layer base {
   :root {
     --background: 0 0% 100%;

@@ -119,15 +119,25 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   *Decisão de fronteira:* `middleware/auth` (verificação de token Firebase) e o serviço
   `whatsapp/` **ficam no app** — são adapters das portas, não engine.
 
+### Task 6 — progresso
+- **`apps/csa/src/config.ts` criada** (1ª fatia): `AppConfig` da CSA com os valores que já
+  estavam hardcoded — paleta do `index.css`, seeds do `POST /colmeias` (65/40/10),
+  defaults dos jobs (terça 6h, semana vira domingo), `roleDefaults` `['colmeia','coagricultor']`,
+  `pickupLabel: 'Colmeia'`, `offeringSource: 'parse-message'` + `messageParser: 'fuzzy'`.
+  **Declarar não muda nada**: nada consome a config ainda (a CSA só adota o engine depois da
+  migração) e a paleta segue sendo aplicada pelo `index.css`, não por `applyBrand`.
+  ⚠️ A paleta está **espelhada** em `config.ts` e `index.css` até `core/ui` assumir — o CSS
+  carrega o aviso. Comparar os dois num teste exigiria `node:fs`, e dar tipos de Node ao
+  tsconfig do front custa mais do que a trava vale (`?raw` volta vazio no Vitest).
+
 ### Roteiro da próxima sessão — task 6
 1. **Decidir a janela da migração da CSA** (questão em aberto 1, abaixo) antes de escrever
    `migrate-csa-canonico.ts` — é ela que define se o script é uma passada só.
-2. `config-csa.ts` (`AppConfig` da CSA) + script de migração canônica; validar **em cópia**
-   antes de produção.
+2. Script de migração canônica; validar **em cópia** antes de produção.
 3. Só **depois** da migração a CSA adota o engine (rotas `tenants`, `offerings` etc.) — até lá
    segue com as rotas próprias `colmeia*` e o `parseMessage/` local. O adapter `openai` do app
    nasce nessa adoção (a porta e o parser fuzzy já existem no core).
-4. `core/ui`: extrair `PageHeader`/primitives/`applyBrand`.
+4. `core/ui`: extrair `PageHeader`/primitives/`applyBrand` — encerra a duplicação da paleta.
 - ⚠️ **Deploy do fermentou está quebrado desde a task 1** (não é regressão): `deploy.sh` copia
   só o `package.json` do app e roda `npm ci` na VM — `@pedidos/core` não resolve fora do
   workspace. Resolver na task 6 (empacotar o core no artefato ou `npm pack`).
@@ -258,8 +268,8 @@ compatibilidade — só nomes canônicos.
 
 ## 5. O que falta
 
-- **Task 6 — ui kit + apps finos + migração** (a única restante): `config-csa.ts`; script de
-  migração canônica da CSA + validação em cópia; CSA adota o engine (incluindo o adapter
+- **Task 6 — ui kit + apps finos + migração** (a única restante): ~~`config-csa.ts`~~ (feito);
+  script de migração canônica da CSA + validação em cópia; CSA adota o engine (incluindo o adapter
   `openai` do `MessageParser`); extrair `PageHeader`/primitives/`applyBrand` para `core/ui`;
   consertar o `deploy.sh` do fermentou (⚠️ acima) e deployar os dois apps independentemente.
 
