@@ -69,7 +69,8 @@ email/senha, screenshot. Foi assim que validei cada feature no site real, não s
 - **Colapso quando singular**: com 1 fornecedor, some seletor/coluna/filtro de fornecedor em
   Catálogo/Ofertas/Consolidado/Meus Pedidos; reaparece ao adicionar o 2º. Idem organização.
 - **Escopo do fornecedor**: fornecedor não-admin vê/edita só o do seu `User.producerId`. Admin
-  sobrepõe. **Só no frontend** — trava server-side é a Pendência F3.
+  sobrepõe. ~~Só no frontend~~ — a trava server-side **foi feita** (2026-08-21): a regra vive em
+  `packages/core/src/server/auth.ts` e vale para os dois apps.
 - **Marca**: tudo de identidade em `src/lib/brand.ts` (`BRAND`: nome/tagline/ícone/paleta);
   `applyBrand()` no `main.tsx` injeta as cores nas CSS vars no boot. Trocar de cliente = 1 arquivo.
 - **Datas/fuso**: `weekUtils.ts` (client) e `weekMath.ts` (server) duplicam a mesma regra,
@@ -98,7 +99,7 @@ email/senha, screenshot. Foi assim que validei cada feature no site real, não s
 | Marca Fermentou (nome/ícone/paleta light+dark) | ✅ |
 | WhatsApp número dedicado (F2) | ⬜ usa o compartilhado |
 | Pix pré-entrega por pedido (F3) | ⬜ decisão de produto pendente (B1/B2) |
-| Trava server-side do escopo de fornecedor | ⬜ Pendência F3 |
+| Trava server-side do escopo de fornecedor | ✅ feita em 2026-08-21 (`core/src/server/auth.ts`) |
 
 ---
 
@@ -113,8 +114,9 @@ Em ordem do que eu faria:
 1. **Cadastrar o catálogo real da Fermentou** (Administração → Catálogo). É o que falta pra virar
    uso de verdade; você faz pela tela.
 2. **Criar o usuário do dono da Fermentou** — marcar `Fornecedor` (vincula ao Fermentou sozinho).
-   **Antes de dar esse acesso**, fechar a **Pendência F3** (trava server-side): sem ela, um
-   fornecedor pode editar produto de outro via API direta.
+   ~~Antes, fechar a Pendência F3~~ — feita. Agora o cuidado é outro: **garantir o
+   `User.producerId`**, porque é dele que a trava depende. Fornecedor sem `producerId` não
+   consegue editar nada.
 3. **Segurança**: trocar senha do admin + rotacionar a chave de serviço.
 4. **WhatsApp dedicado (F2)** quando for pra clientes reais — criar instância própria no
    evolution-api (mesmo serviço, número novo; ver `~/repos/ZAP-PROTOCOL.md`).

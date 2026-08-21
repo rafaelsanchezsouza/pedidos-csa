@@ -31,6 +31,6 @@ Ordem de execução. Fases em `requirements.md`. O que depende do usuário está
 
 | # | Item |
 |---|------|
-| 11 | `weekUtils.ts` (client) e `weekMath.ts` (server) duplicam a mesma regra — unificar |
+| 11 | ~~`weekUtils.ts` (client) e `weekMath.ts` (server) duplicam a mesma regra~~ ✅ unificados em `packages/core/src/domain/week.ts` na task 2 do monorepo (eram 4 cópias, 2 apps × client/server) |
 | 12 | Decidir o destino de: período de acolhida, quinzenal, doação de cota, `role` livre |
 | 13 | ~~Renomear identificador do tenant~~ | ✅ feito — `colmeiaId`→`tenantId` no app novo |

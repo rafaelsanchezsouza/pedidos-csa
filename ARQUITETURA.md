@@ -4,12 +4,12 @@ Monorepo com um **motor único** (`packages/core`) consumido por **apps separado
 independentemente deployáveis** (`apps/csa`, `apps/fermentou`). As diferenças entre clientes
 são **configuração**, não fork de código.
 
-> Estado: **tasks 1–6 concluídas**. Os dois apps rodam do monorepo em produção e a migração
-> canônica da CSA foi executada (2026-08-21) — `tenants`/`tenantId` no lugar, `colmeiaId`
-> preservado para rollback. Pendente só a **limpeza do legado** (`--limpar-legado`), depois de
-> alguns dias de uso verde. Branch
-> `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
-> `~/repos/pedidos-app`) seguem **intactos** como fonte da verdade até este monorepo substituí-los.
+> Estado: **tasks 1–6 concluídas**. Os dois apps rodam do monorepo em produção, a migração
+> canônica da CSA foi executada (2026-08-21) e a **autorização no servidor** está no ar nos dois.
+> Pendente a **limpeza do legado** (`--limpar-legado`), depois de alguns dias de uso verde.
+> Branch `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
+> `~/repos/pedidos-app`) seguem intactos **como plano de rollback** — não são mais a fonte da
+> verdade, e não devem ser aposentados antes da limpeza do legado.
 
 ---
 
@@ -522,6 +522,8 @@ lá — só os 18 `deliveryType` ficam com o rótulo trocado na tela, sem efeito
 - ~~**Task 6**~~ **concluída.** Os dois apps rodam do monorepo em produção e a CSA está no
   modelo canônico. O deploy do fermentou primeiro valeu a pena: achou **3 bugs** que teriam
   derrubado a CSA dentro da janela, com os dados já migrados.
+- ✅ **Autorização no servidor** (10ª fatia, fora do escopo original da task 6): fechada a
+  Pendência F3 do Fermentou, que estava aberta desde julho e valia para os dois apps.
 - **Pendências, em ordem:**
   1. **Limpeza do legado** (`--limpar-legado`) depois de alguns dias de CSA verde — até lá o
      rollback é um redeploy do repo antigo.
@@ -529,14 +531,17 @@ lá — só os 18 `deliveryType` ficam com o rótulo trocado na tela, sem efeito
      são o plano de rollback, então só depois do item 1. Arquivar, não apagar.
   3. Apagar o backup com dados pessoais (`~/backup-csa-2026-08-21.json`) quando não for mais
      necessário.
+  4. **`producerId` no cadastro de fornecedor**: a trava de escopo depende dele. Fornecedor sem
+     `producerId` não edita nada — nega em vez de liberar, mas confira o cadastro antes de dar
+     esse acesso a alguém de fora.
+  5. Resto em `HANDOFF.md` §6 (WhatsApp dedicado, Pix, `.env.development`).
 
-### Questões em aberto (decidir na task 6)
+### Questões em aberto — todas resolvidas
 
-1. ~~Migração da CSA: janela ou zero-downtime?~~ **Decidido: janela de manutenção** (decisão 4).
-2. **Port-backs do `MERGE.md` §6** (setup robusto, correções de deploy que consertam bugs
-   latentes da CSA): a task 5 os trouxe **de graça no engine** — a CSA os herda no momento em
-   que adota as rotas do core (task 6), não antes. Resta conferir §6 item a item na adoção
-   para ver se sobrou algo que não veio junto.
+1. ~~Migração da CSA: janela ou zero-downtime?~~ **Janela de manutenção** (decisão 4), executada
+   em 2026-08-21 com passada aditiva.
+2. ~~**Port-backs do `MERGE.md` §6**~~: entraram na adoção do engine (7ª fatia) — `/api/setup`
+   robusto e as correções de deploy. O `NODE_ENV`/`--update-env` do §6.3 foi junto.
 
 ---
 

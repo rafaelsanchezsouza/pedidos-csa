@@ -69,9 +69,9 @@ cosmético.
 | # | Item | Issue |
 |---|------|-------|
 | 11 | Sanitizar mensagens de erro nos handlers | #10 |
-| 12 | ~~Extrair PaymentService + cron job para cotas~~ — **aparentemente concluído** (`server/services/paymentService.ts` extraído + `server/jobs/quotaJob.ts` no ar); confirmar e fechar a issue | #18 |
+| 12 | ~~Extrair PaymentService + cron job para cotas~~ ✅ concluído e depois **movido para o motor** (`@pedidos/core/server`, serviço unificado com o fork); o `quotaJob` fica no app porque cron é infra | #18 |
 | 13 | Observabilidade — Sentry, Pino, métricas | #22 |
-| 14 | `npm run lint` quebrado (eslint fora das devDeps; nunca rodou) | sem issue |
+| 14 | `npm run lint` quebrado (eslint fora das devDeps; nunca rodou) — segue valendo no monorepo | sem issue |
 | 15 | CatalogoPage esconde o header no load (empty-state em `<TableRow>`, migrar p/ Card) | sem issue |
 | 16 | Ambiente de dev hospedado (`dev.csaparahyba.com.br`) — **prep pronta** na branch `chore/ambiente-dev` (não mergeada); falta DNS + certbot + 1º deploy. Ver `RUNBOOK-DEV.md` | sem issue |
 

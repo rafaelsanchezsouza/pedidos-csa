@@ -82,7 +82,7 @@ Catálogo/Ofertas/Verificar Pagamentos; admin sobrepõe. **Validado** com fornec
 |---|---|
 | F1 | ✅ Escopo do fornecedor em Catálogo/Ofertas/Pagamentos filtra por `producerId` (frontend) |
 | F2 | ✅ Vínculo por **id** (`User.producerId` → entidade fornecedor), não por nome |
-| F3 | ⬜ **Trava server-side do escopo de escrita** pendente: um fornecedor poderia, via API direta, criar/editar produto/oferta de OUTRO `producerId` (o backend não valida o dono). Mesma classe do isolamento em camada de app (E2). Fazer antes de ter fornecedor externo com acesso real |
+| F3 | ✅ **Trava server-side FEITA** (2026-08-21, em produção nos dois apps): `packages/core/src/server/auth.ts` — fornecedor mexe só no que é do seu `producerId`, admin no próprio tenant, e o tenant vem sempre do recurso, nunca do header. 18 testes de caso negativo em `server/auth.test.ts`. **Depende de `User.producerId` preenchido**: fornecedor sem ele não edita nada (nega em vez de liberar). Ver `ARQUITETURA.md`, 10ª fatia da task 6 |
 
 ## E. Vender para outro cliente (multi-tenant → SaaS)
 
