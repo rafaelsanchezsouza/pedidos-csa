@@ -12,7 +12,7 @@ import type { User } from '@/types'
 const { membro, updateSpy } = vi.hoisted(() => ({
   membro: {
     id: 'u1', name: 'André', email: 'andre@ex.com', address: 'Rua 1', neighborhood: 'Centro',
-    contact: '11999999999', frequency: 'semanal', deliveryType: 'entrega', colmeiaId: 'c1',
+    contact: '11999999999', frequency: 'semanal', deliveryType: 'entrega', tenantId: 'c1',
     acesso: 'user', quota: 'Cota inteira', quotaQty: 2,
   } as User,
   updateSpy: vi.fn().mockResolvedValue({}),
@@ -25,7 +25,7 @@ vi.mock('@/services/api', () => ({
   usersApi: { list: vi.fn().mockResolvedValue([membro]), update: updateSpy },
   producersApi: { list: vi.fn().mockResolvedValue([]) },
   rolesApi: { list: vi.fn().mockResolvedValue([]) },
-  colmeiasApi: { create: vi.fn(), update: vi.fn() },
+  tenantsApi: { create: vi.fn(), update: vi.fn() },
 }))
 
 import { AdminPage } from './AdminPage'

@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Pencil, Trash2, Ban, CheckCircle, Upload } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { usersApi, producersApi, colmeiasApi, rolesApi } from '@/services/api'
+import { usersApi, producersApi, tenantsApi, rolesApi } from '@/services/api'
 import type { BatchResult } from '@/services/api'
-import type { User, Producer, ColmeiaRole } from '@/types'
+import type { User, Producer, TenantRole } from '@/types'
 import { formatQuota } from '@/lib/quota'
-import { parseCsvLine, isSuperadmin } from '@pedidos/core'
+import { parseCsvLine, isSuperadmin, isEntrega, type DeliveryType } from '@pedidos/core'
+import { config } from '@/config'
 import { Button, Input, Label, Card, CardContent, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
 
@@ -30,7 +31,7 @@ interface MemberForm {
 }
 const emptyMemberForm: MemberForm = {
   name: '', email: '', password: '', address: '', neighborhood: '', contact: '',
-  frequency: 'semanal', deliveryType: 'colmeia', acesso: 'user', quota: 'Cota inteira', quotaQty: 1,
+  frequency: 'semanal', deliveryType: 'retirada', acesso: 'user', quota: 'Cota inteira', quotaQty: 1,
 }
 
 
@@ -40,7 +41,7 @@ interface ParsedRow {
   contact: string
   address: string
   neighborhood: string
-  deliveryType: 'colmeia' | 'entrega'
+  deliveryType: DeliveryType
   frequency: 'semanal' | 'quinzenal'
   quota: 'Cota inteira' | 'Meia cota'
   acesso: 'user'
@@ -68,7 +69,7 @@ function parseGoogleFormCsv(text: string): ParsedRow[] {
       contact: (c[3]?.trim() ?? '').replace(/\D/g, ''),
       address: addressParts.join(', '),
       neighborhood: c[6]?.trim() ?? '',
-      deliveryType: (retirada.includes('colmeia') ? 'colmeia' : 'entrega') as 'colmeia' | 'entrega',
+      deliveryType: (retirada.includes('colmeia') ? 'retirada' : 'entrega') as DeliveryType,
       frequency: (freq.includes('quinzenal') ? 'quinzenal' : 'semanal') as 'semanal' | 'quinzenal',
       quota: (cota.includes('meia') ? 'Meia cota' : 'Cota inteira') as 'Cota inteira' | 'Meia cota',
       acesso: 'user' as const,
@@ -82,7 +83,7 @@ export function AdminPage() {
   const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
   const [producers, setProducers] = useState<Producer[]>([])
-  const [roles, setRoles] = useState<ColmeiaRole[]>([])
+  const [roles, setRoles] = useState<TenantRole[]>([])
   const [newRoleName, setNewRoleName] = useState('')
   const [showNewRoleInput, setShowNewRoleInput] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -161,7 +162,7 @@ export function AdminPage() {
     setSavingColmeia(true)
     setColmeiaError('')
     try {
-      await colmeiasApi.create({ name: newColmeiaName.trim() })
+      await tenantsApi.create({ name: newColmeiaName.trim() })
       await refreshUser()
       setColmeiaDialog(false)
       setNewColmeiaName('')
@@ -194,7 +195,7 @@ export function AdminPage() {
         setProducerDialog(false)
         await load()
       } else {
-        const created = await producersApi.create({ ...producerForm, colmeiaId: colmeia.id }, colmeia.id)
+        const created = await producersApi.create({ ...producerForm, tenantId: colmeia.id }, colmeia.id)
         setProducerDialog(false)
         await load()
         // Fluxo: após criar produtor, ir direto para adicionar oferta
@@ -286,7 +287,7 @@ export function AdminPage() {
         ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         : undefined
       const result = await usersApi.createMember(
-        { ...memberForm, colmeiaId: colmeia.id, ...(acolhidaExpiry ? { acolhidaExpiry } : {}) },
+        { ...memberForm, tenantId: colmeia.id, ...(acolhidaExpiry ? { acolhidaExpiry } : {}) },
         colmeia.id
       )
       await load()
@@ -313,7 +314,7 @@ export function AdminPage() {
     if (!colmeia || csvRows.length === 0) return
     setCsvImporting(true)
     try {
-      const members = csvRows.map(r => ({ ...r, colmeiaId: colmeia.id }))
+      const members = csvRows.map(r => ({ ...r, tenantId: colmeia.id }))
       const { results } = await usersApi.createMemberBatch(members, colmeia.id)
       setCsvResults(results)
       await load()
@@ -337,7 +338,7 @@ export function AdminPage() {
     setSavingQuota(true)
     setQuotaMessage('')
     try {
-      await colmeiasApi.update(colmeia.id, {
+      await tenantsApi.update(colmeia.id, {
         quotaInteira: parseFloat(quotaInteira) || 0,
         quotaMeia: parseFloat(quotaMeia) || 0,
         freteDelivery: parseFloat(freteDelivery) || 0,
@@ -1024,7 +1025,7 @@ export function AdminPage() {
                       <tr key={i} className="border-b last:border-0">
                         <td className="py-1 pr-3 font-medium">{r.name}</td>
                         <td className="py-1 pr-3 text-muted-foreground">{r.email}</td>
-                        <td className="py-1 pr-3 capitalize">{r.deliveryType === 'colmeia' ? 'Colmeia' : 'Entrega'}</td>
+                        <td className="py-1 pr-3 capitalize">{isEntrega(r) ? 'Entrega' : config.vocabulary.pickupLabel}</td>
                         <td className="py-1 capitalize">{r.frequency}</td>
                       </tr>
                     ))}

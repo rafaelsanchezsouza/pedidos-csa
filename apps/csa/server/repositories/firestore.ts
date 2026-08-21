@@ -1,4 +1,5 @@
 import admin from 'firebase-admin'
+import type { Repo } from '@pedidos/core/server'
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -46,6 +47,19 @@ export async function updateDoc<T extends object>(
   await db.collection(collection).doc(id).update(data as FirebaseFirestore.UpdateData<T>)
 }
 
+export async function setDoc<T extends object>(collection: string, id: string, data: T): Promise<void> {
+  await db.collection(collection).doc(id).set(data)
+}
+
+export async function updateMany(collection: string, updates: Array<[id: string, data: object]>): Promise<void> {
+  const batch = db.batch()
+  for (const [id, data] of updates) batch.update(db.collection(collection).doc(id), data)
+  await batch.commit()
+}
+
 export async function deleteDoc(collection: string, id: string): Promise<void> {
   await db.collection(collection).doc(id).delete()
 }
+
+// Adapter concreto da porta Repo do engine — é só o repositório acima visto pelo contrato.
+export const repo: Repo = { getDoc, listDocs, createDoc, setDoc, updateDoc, updateMany, deleteDoc }

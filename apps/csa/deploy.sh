@@ -58,10 +58,11 @@ $SSH "chmod 600 $VM_DIR/.env"
 echo "==> [5/6] Instalando dependências de produção..."
 $SSH "cd $VM_DIR && npm install --omit=dev --no-audit --no-fund"
 
-echo "==> [6/6] Reiniciando servidor..."
-$SSH "cd $VM_DIR && pm2 describe pedidos-csa > /dev/null 2>&1 \
-  && pm2 restart pedidos-csa \
-  || pm2 start dist-server/index.js --name pedidos-csa && pm2 save"
+echo "==> [6/6] Reiniciando servidor (NODE_ENV=production)..."
+# NODE_ENV explícito: env.ts só carrega .env.production com ele setado, e --update-env garante
+# que o pm2 releia o ambiente em vez de reusar o da primeira vez que subiu (MERGE.md §6.3).
+$SSH "cd $VM_DIR && export NODE_ENV=production && \
+  (pm2 restart pedidos-csa --update-env || pm2 start dist-server/server/index.js --name pedidos-csa --update-env) && pm2 save"
 
 echo ""
 echo "Deploy concluído! App disponível em https://$VM_HOST"

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { offeringsApi, ordersApi, colmeiasApi } from '@/services/api'
+import { offeringsApi, ordersApi, tenantsApi } from '@/services/api'
 import type { WeeklyOffering, Order, OrderItem } from '@/types'
 import { Minus, Plus, Heart } from 'lucide-react'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, EstadoLista, WeekNavigator } from '@pedidos/core/ui'
@@ -30,7 +30,7 @@ export function PedidosPage() {
       const [offs, myOrder, freshColmeia] = await Promise.all([
         offeringsApi.list(weekId, colmeia.id),
         ordersApi.getMy(weekId, colmeia.id),
-        colmeiasApi.get(colmeia.id),
+        tenantsApi.get(colmeia.id),
       ])
       setOfferings(offs)
       setOrder(myOrder)
@@ -71,7 +71,7 @@ export function PedidosPage() {
         await ordersApi.create({
           userId: user.id,
           userName: user.name,
-          colmeiaId: colmeia.id,
+          tenantId: colmeia.id,
           weekId,
           items: [],
           status: 'rascunho',
@@ -115,7 +115,7 @@ export function PedidosPage() {
         await ordersApi.create({
           userId: user.id,
           userName: user.name,
-          colmeiaId: colmeia.id,
+          tenantId: colmeia.id,
           weekId,
           items,
           status: 'enviado',

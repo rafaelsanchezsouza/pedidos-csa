@@ -4,10 +4,10 @@ Monorepo com um **motor único** (`packages/core`) consumido por **apps separado
 independentemente deployáveis** (`apps/csa`, `apps/fermentou`). As diferenças entre clientes
 são **configuração**, não fork de código.
 
-> Estado: **tasks 1–5 concluídas e verdes**; **task 6 em andamento** — `core/ui` e o conserto do
-> `deploy.sh` feitos, script de migração canônica **escrito e ensaiado sobre uma cópia da
-> produção** (falta rodar em prod, na janela). Restam: CSA adotar o engine e o primeiro deploy
-> de verdade. Branch
+> Estado: **tasks 1–5 concluídas e verdes**; **task 6 quase concluída** — `core/ui`, conserto do
+> `deploy.sh`, script de migração canônica **ensaiado sobre uma cópia da produção** e **a CSA já
+> roda sobre o engine** (o `server/routes/` dos dois apps sumiu). Resta o **evento único**:
+> migrar a produção na janela e deployar os dois apps. Branch
 > `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
 > `~/repos/pedidos-app`) seguem **intactos** como fonte da verdade até este monorepo substituí-los.
 
@@ -183,9 +183,8 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 ### Roteiro da próxima sessão — task 6
 1. ~~`migrate-csa-canonico.ts` + validação em cópia~~ (feito; falta **rodar em produção** na
    janela — ver o roteiro da janela em §4.5).
-2. Só **depois** da migração a CSA adota o engine (rotas `tenants`, `offerings` etc.) — até lá
-   segue com as rotas próprias `colmeia*` e o `parseMessage/` local. O adapter `openai` do app
-   nasce nessa adoção (a porta e o parser fuzzy já existem no core).
+2. ~~CSA adota o engine~~ (feito na 7ª fatia — o código já é canônico e **exige** o banco
+   migrado; por isso migração e deploy são o mesmo evento).
 3. Deployar os dois apps (o `deploy.sh` já foi consertado, mas **nunca rodou de verdade** —
    o primeiro deploy é o teste).
 - ✅ **Deploy consertado** (5ª fatia da task 6) — estava quebrado **nos dois apps** desde a
@@ -231,6 +230,46 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
     **fica string na produção**: os predicados do core são dual-mode (task 3), então mexer nos
     dados seria risco sem ganho. O engine passa a **escrever** lista; a leitura aceita os dois.
   - `vite.config.ts` da CSA passou a incluir `scripts/**/*.test.ts` na suíte.
+- ✅ **CSA adotou o engine** (7ª fatia da task 6) — o `server/routes/` da CSA **sumiu**; o boot
+  virou o mesmo do fermentou: `adapters.ts` (Firebase Auth + Evolution API sob as portas),
+  `repo` no `repositories/firestore.ts`, `services/{payments,orders}.ts` instanciando os
+  serviços do core com `(repo, config)`, e as 9 rotas vindas das factories. `paymentService`,
+  `ordersService`, `middleware/colmeia.ts` e o barrel `parseMessage/` foram **deletados**.
+  - **Superfície idêntica:** os endpoints das rotas próprias e das do core batem 1:1 — o core é
+    superset (traz `/from-catalog` e `/rename-quota`, que a CSA não usa). Nenhum endpoint da CSA
+    ficou para trás.
+  - **Front canônico no mesmo commit:** `colmeiaId`→`tenantId` (175 pontos), header
+    `x-colmeia-id`→`x-tenant-id`, `/api/colmeias`→`/api/tenants`, tipos `Colmeia`/`ColmeiaRole`
+    → `Tenant`/`TenantRole`, `colmeiasApi`→`tenantsApi`, e `deliveryType` passou a usar
+    `DeliveryType`/`isEntrega` do core em vez de comparar com `'colmeia'`.
+    *Front e backend são um commit só de propósito* — sobem juntos com a migração, na janela.
+  - **A fronteira que NÃO se moveu:** vocabulário de tela. "Nova Colmeia", "Selecionar Colmeia"
+    e o rótulo da não-entrega seguem `Colmeia` (via `vocabulary.pickupLabel`), assim como as
+    variáveis locais das páginas. Canônico é o **modelo e o protocolo**; a tela é do app.
+    Mesma razão pela qual `roleDefaults: ['colmeia', ...]` continua — ali `colmeia` é **função
+    no coletivo**, não o token de entrega.
+  - **`acesso` continua string no front da CSA**: o engine repassa o que o cliente manda, os
+    predicados são dual-mode e a produção não muda de forma. Coerente com a decisão de não
+    migrar esse campo.
+  - `parseMessage`: a config diz `'fuzzy'`, que vem do core, então **nada é injetado no boot**.
+    O `openai.ts` fica no app como adapter alternativo (dep e chave só aqui), apontando para as
+    portas do core.
+  - **Port-backs do `MERGE.md` §6 que entraram junto** (a CSA os herdou ao adotar o engine, como
+    previsto): `/api/setup` robusto (exige `adminUid`+`tenantName`, cria o doc do admin, trava
+    ao existir qualquer tenant) — **sem** fornecedor padrão, porque na CSA a oferta nasce da
+    mensagem do produtor; e o `deploy.sh` com `NODE_ENV=production` explícito + `--update-env`
+    (§6.3): sem isso o `env.ts` não carregava o `.env.production` e o pm2 reusava o ambiente da
+    primeira subida.
+  - **Emissão mudou igual à do fermentou:** `rootDir: '..'` no `server/tsconfig.json` para
+    compilar `src/config.ts` junto → o entrypoint virou `dist-server/server/index.js`; `start`
+    e `deploy.sh` atualizados.
+  - *Verificado além do build:* backend subiu de verdade em porta local com credencial de
+    mentira (RSA gerada na hora) — as 9 rotas respondem 401 (montadas, exigindo token), o OTP
+    público responde 400 (valida corpo) e os dois jobs agendam. É o teste que pega rota não
+    montada e factory que estoura no boot.
+  - ⚠️ **A partir daqui a CSA exige o banco migrado.** O código não lê mais `colmeias`/
+    `colmeiaId`; rodar contra a produção atual não acha nada. Migração e deploy são o mesmo
+    evento (§4.5).
 
 ### Como o server consome o core (o ponto que exigia decisão)
 `@pedidos/core` **builda para `dist`** (`tsc` NodeNext → `.js` + `.d.ts`); imports internos com
@@ -261,10 +300,12 @@ pedidos/
 │           ├── types.ts         # modelo canônico (docs Tenant/User/Order/Payment/Offering…)
 │           └── index.ts         # barrel (front); engine = '@pedidos/core/server'
 └── apps/
-    ├── csa/                     # app CSA — domínio/acesso do core; rotas ainda próprias
+    ├── csa/                     # app CSA — consome o ENGINE inteiro (desde a task 6)
     │   ├── src/lib/             # SÓ o que é específico: quota.ts (formatQuota), utils.ts
-    │   └── server/              # routes/{colmeias,offerings,...}, services/{paymentService,
-    │                            #   ordersService, parseMessage/, whatsapp/}
+    │   ├── scripts/             # migração canônica (lógica sobre porta Store) + dump/backup
+    │   └── server/              # entrypoint fino: index.ts + adapters.ts, middleware/auth,
+    │                            #   repositories/firestore, services/{whatsapp,parseMessage/
+    │                            #   openai}, jobs/
     └── fermentou/               # app Fermentou — consome o ENGINE inteiro
         ├── src/config.ts        # AppConfig do app
         ├── src/lib/             # brand.ts, features.ts, utils.ts
@@ -272,10 +313,10 @@ pedidos/
                                  #   repositories/firestore, services/whatsapp, jobs/
 ```
 
-O fermentou **não tem mais `server/routes/`** — tudo vem do engine. O que ainda vive nos dois
-apps é adapter ou infra (auth Firebase, Firestore, whatsapp, cron). A CSA segue com as rotas
-próprias `colmeia*` e o `parseMessage/` local **até a migração canônica** (task 6) — é a última
-duplicação, e é proposital.
+**Nenhum dos dois apps tem mais `server/routes/`** — tudo vem do engine. O que ainda vive nos
+apps é adapter ou infra (auth Firebase, Firestore, whatsapp, cron) e as páginas com o
+vocabulário de cada cliente. A última duplicação (as rotas `colmeia*` da CSA) morreu na 7ª fatia
+da task 6.
 
 ---
 
@@ -378,10 +419,11 @@ posterior, com o app já verde).
 ## 5. O que falta
 
 - **Task 6 — ui kit + apps finos + migração** (a única restante): ~~`config-csa.ts`~~,
-  ~~`core/ui`~~, ~~script de migração canônica + validação em cópia~~ (feitos); falta **rodar a
-  migração em produção** (janela — roteiro em §4.5); CSA adota o engine (incluindo o adapter
-  `openai` do `MessageParser`); ~~consertar o `deploy.sh`~~ (feito, falta rodar) e deployar os
-  dois apps independentemente.
+  ~~`core/ui`~~, ~~script de migração canônica + validação em cópia~~, ~~CSA adota o engine~~ e
+  ~~consertar o `deploy.sh`~~ (feitos). Falta **um evento só**: na janela, rodar a migração
+  (roteiro em §4.5) e deployar os dois apps — o `deploy.sh` nunca rodou de verdade, então o
+  primeiro deploy é o teste dele. Sugestão de ordem: **fermentou primeiro** (não tem dados
+  reais e não depende de migração), que valida o `deploy.sh` antes de a CSA depender dele.
 
 ### Questões em aberto (decidir na task 6)
 

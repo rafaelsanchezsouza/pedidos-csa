@@ -1,5 +1,7 @@
+// Adapter alternativo do MessageParser (a dep `openai` e a chave vivem só neste app).
+// Ativar: capabilities.messageParser = 'openai' na config + injetar `parseMessage` no boot.
 import OpenAI from 'openai'
-import type { ExistingProduct, ParsedProduct, MessageParser } from './types.js'
+import type { ExistingProduct, ParsedProduct, MessageParser } from '@pedidos/core/server'
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 

@@ -15,7 +15,7 @@ vi.mock('@/services/api', () => ({
   usersApi: { list: vi.fn().mockResolvedValue([]) },
   producersApi: { list: vi.fn().mockResolvedValue([]) },
   rolesApi: { list: vi.fn().mockResolvedValue([]) },
-  colmeiasApi: { create: vi.fn() },
+  tenantsApi: { create: vi.fn() },
 }))
 
 import { AdminPage } from './AdminPage'

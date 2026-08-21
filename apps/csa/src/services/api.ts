@@ -1,5 +1,5 @@
 import { auth } from './firebase'
-import type { Colmeia, Product, Producer, WeeklyOffering, Order, User, ParsedProduct, Payment, ColmeiaRole } from '@/types'
+import type { Tenant, Product, Producer, WeeklyOffering, Order, User, ParsedProduct, Payment, TenantRole } from '@/types'
 
 const BASE_URL = '/api'
 
@@ -9,13 +9,13 @@ async function getToken(): Promise<string> {
   return user.getIdToken()
 }
 
-async function request<T>(path: string, options: RequestInit = {}, colmeiaId?: string): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, tenantId?: string): Promise<T> {
   const token = await getToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
   }
-  if (colmeiaId) headers['x-colmeia-id'] = colmeiaId
+  if (tenantId) headers['x-tenant-id'] = tenantId
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: { ...headers, ...(options.headers as Record<string, string> | undefined) },
@@ -28,24 +28,24 @@ async function request<T>(path: string, options: RequestInit = {}, colmeiaId?: s
   return res.json() as Promise<T>
 }
 
-export const colmeiasApi = {
-  list: () => request<Colmeia[]>('/colmeias'),
-  get: (id: string) => request<Colmeia>(`/colmeias/${id}`),
-  create: (data: { name: string }) => request<Colmeia>('/colmeias', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: Partial<Colmeia>) =>
-    request<Colmeia>(`/colmeias/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+export const tenantsApi = {
+  list: () => request<Tenant[]>('/tenants'),
+  get: (id: string) => request<Tenant>(`/tenants/${id}`),
+  create: (data: { name: string }) => request<Tenant>('/tenants', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<Tenant>) =>
+    request<Tenant>(`/tenants/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 }
 
 export const productsApi = {
-  list: (colmeiaId: string) => request<Product[]>(`/products?colmeiaId=${colmeiaId}`, {}, colmeiaId),
-  create: (data: Omit<Product, 'id' | 'dateUpdated'>, colmeiaId: string) =>
-    request<Product>('/products', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
-  update: (id: string, data: Partial<Product>, colmeiaId: string) =>
-    request<Product>(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
-  delete: (id: string, colmeiaId: string) =>
-    request<void>(`/products/${id}`, { method: 'DELETE' }, colmeiaId),
-  importBatch: (products: Array<Omit<Product, 'id' | 'dateUpdated'>>, colmeiaId: string) =>
-    request<{ results: ProductBatchResult[] }>('/products/import-batch', { method: 'POST', body: JSON.stringify({ products }) }, colmeiaId),
+  list: (tenantId: string) => request<Product[]>(`/products?tenantId=${tenantId}`, {}, tenantId),
+  create: (data: Omit<Product, 'id' | 'dateUpdated'>, tenantId: string) =>
+    request<Product>('/products', { method: 'POST', body: JSON.stringify(data) }, tenantId),
+  update: (id: string, data: Partial<Product>, tenantId: string) =>
+    request<Product>(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }, tenantId),
+  delete: (id: string, tenantId: string) =>
+    request<void>(`/products/${id}`, { method: 'DELETE' }, tenantId),
+  importBatch: (products: Array<Omit<Product, 'id' | 'dateUpdated'>>, tenantId: string) =>
+    request<{ results: ProductBatchResult[] }>('/products/import-batch', { method: 'POST', body: JSON.stringify({ products }) }, tenantId),
 }
 
 export interface ProductBatchResult {
@@ -55,74 +55,74 @@ export interface ProductBatchResult {
 }
 
 export const producersApi = {
-  list: (colmeiaId: string) => request<Producer[]>(`/producers?colmeiaId=${colmeiaId}`, {}, colmeiaId),
-  create: (data: Omit<Producer, 'id'>, colmeiaId: string) =>
-    request<Producer>('/producers', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
-  update: (id: string, data: Partial<Producer>, colmeiaId: string) =>
-    request<Producer>(`/producers/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
-  delete: (id: string, colmeiaId: string) =>
-    request<void>(`/producers/${id}`, { method: 'DELETE' }, colmeiaId),
+  list: (tenantId: string) => request<Producer[]>(`/producers?tenantId=${tenantId}`, {}, tenantId),
+  create: (data: Omit<Producer, 'id'>, tenantId: string) =>
+    request<Producer>('/producers', { method: 'POST', body: JSON.stringify(data) }, tenantId),
+  update: (id: string, data: Partial<Producer>, tenantId: string) =>
+    request<Producer>(`/producers/${id}`, { method: 'PUT', body: JSON.stringify(data) }, tenantId),
+  delete: (id: string, tenantId: string) =>
+    request<void>(`/producers/${id}`, { method: 'DELETE' }, tenantId),
 }
 
 export const offeringsApi = {
-  list: (weekId: string, colmeiaId: string) =>
-    request<WeeklyOffering[]>(`/offerings?weekId=${weekId}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
-  create: (data: Omit<WeeklyOffering, 'id' | 'dateCreated'>, colmeiaId: string) =>
-    request<WeeklyOffering>('/offerings', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
-  update: (id: string, data: Partial<WeeklyOffering>, colmeiaId: string) =>
-    request<WeeklyOffering>(`/offerings/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
-  parse: (rawMessage: string, colmeiaId: string, producerId: string) =>
+  list: (weekId: string, tenantId: string) =>
+    request<WeeklyOffering[]>(`/offerings?weekId=${weekId}&tenantId=${tenantId}`, {}, tenantId),
+  create: (data: Omit<WeeklyOffering, 'id' | 'dateCreated'>, tenantId: string) =>
+    request<WeeklyOffering>('/offerings', { method: 'POST', body: JSON.stringify(data) }, tenantId),
+  update: (id: string, data: Partial<WeeklyOffering>, tenantId: string) =>
+    request<WeeklyOffering>(`/offerings/${id}`, { method: 'PUT', body: JSON.stringify(data) }, tenantId),
+  parse: (rawMessage: string, tenantId: string, producerId: string) =>
     request<ParsedProduct[]>('/offerings/parse', {
       method: 'POST',
-      body: JSON.stringify({ rawMessage, colmeiaId, producerId }),
-    }, colmeiaId),
-  fallback: (weekStart: string, colmeiaId: string, producerId?: string) =>
+      body: JSON.stringify({ rawMessage, tenantId, producerId }),
+    }, tenantId),
+  fallback: (weekStart: string, tenantId: string, producerId?: string) =>
     request<WeeklyOffering[]>('/offerings/fallback', {
       method: 'POST',
-      body: JSON.stringify({ weekStart, colmeiaId, producerId }),
-    }, colmeiaId),
+      body: JSON.stringify({ weekStart, tenantId, producerId }),
+    }, tenantId),
 }
 
 export const ordersApi = {
-  getMy: (weekId: string, colmeiaId: string) =>
-    request<Order | null>(`/orders/my?weekId=${weekId}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
-  create: (data: Omit<Order, 'id' | 'dateCreated' | 'dateUpdated'>, colmeiaId: string) =>
-    request<Order>('/orders', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
-  update: (id: string, data: Partial<Order>, colmeiaId: string) =>
-    request<Order>(`/orders/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
-  getConsolidated: (weekId: string, colmeiaId: string) =>
-    request<Order[]>(`/orders/consolidated?weekId=${weekId}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
-  getConsolidatedText: (weekId: string, colmeiaId: string, producerId: string) =>
-    request<{ text: string }>(`/orders/consolidated-text?weekId=${weekId}&colmeiaId=${colmeiaId}&producerId=${producerId}`, {}, colmeiaId),
-  sendConsolidatedWhatsApp: (weekId: string, colmeiaId: string, producerId: string) =>
+  getMy: (weekId: string, tenantId: string) =>
+    request<Order | null>(`/orders/my?weekId=${weekId}&tenantId=${tenantId}`, {}, tenantId),
+  create: (data: Omit<Order, 'id' | 'dateCreated' | 'dateUpdated'>, tenantId: string) =>
+    request<Order>('/orders', { method: 'POST', body: JSON.stringify(data) }, tenantId),
+  update: (id: string, data: Partial<Order>, tenantId: string) =>
+    request<Order>(`/orders/${id}`, { method: 'PUT', body: JSON.stringify(data) }, tenantId),
+  getConsolidated: (weekId: string, tenantId: string) =>
+    request<Order[]>(`/orders/consolidated?weekId=${weekId}&tenantId=${tenantId}`, {}, tenantId),
+  getConsolidatedText: (weekId: string, tenantId: string, producerId: string) =>
+    request<{ text: string }>(`/orders/consolidated-text?weekId=${weekId}&tenantId=${tenantId}&producerId=${producerId}`, {}, tenantId),
+  sendConsolidatedWhatsApp: (weekId: string, tenantId: string, producerId: string) =>
     request<{ success: boolean }>('/orders/send-consolidated-whatsapp', {
       method: 'POST',
-      body: JSON.stringify({ weekId, colmeiaId, producerId }),
-    }, colmeiaId),
-  getWeekLock: (weekId: string, colmeiaId: string) =>
-    request<{ locked: boolean }>(`/orders/week-lock?weekId=${weekId}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
-  getHistory: (colmeiaId: string, userId?: string) =>
-    request<Order[]>(`/orders/history?colmeiaId=${colmeiaId}${userId ? `&userId=${userId}` : ''}`, {}, colmeiaId),
-  getMonthly: (month: string, colmeiaId: string) =>
-    request<Order[]>(`/orders/monthly?month=${month}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
-  toggleRecebido: (userId: string, userName: string, weekId: string, colmeiaId: string, recebido: boolean) =>
+      body: JSON.stringify({ weekId, tenantId, producerId }),
+    }, tenantId),
+  getWeekLock: (weekId: string, tenantId: string) =>
+    request<{ locked: boolean }>(`/orders/week-lock?weekId=${weekId}&tenantId=${tenantId}`, {}, tenantId),
+  getHistory: (tenantId: string, userId?: string) =>
+    request<Order[]>(`/orders/history?tenantId=${tenantId}${userId ? `&userId=${userId}` : ''}`, {}, tenantId),
+  getMonthly: (month: string, tenantId: string) =>
+    request<Order[]>(`/orders/monthly?month=${month}&tenantId=${tenantId}`, {}, tenantId),
+  toggleRecebido: (userId: string, userName: string, weekId: string, tenantId: string, recebido: boolean) =>
     request<{ id: string; recebido: boolean }>('/orders/recebido', {
       method: 'PATCH',
-      body: JSON.stringify({ userId, userName, weekId, colmeiaId, recebido }),
-    }, colmeiaId),
+      body: JSON.stringify({ userId, userName, weekId, tenantId, recebido }),
+    }, tenantId),
 }
 
 export const paymentsApi = {
-  getMy: (month: string, colmeiaId: string) =>
-    request<Payment[]>(`/payments/my?month=${month}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
-  list: (month: string, colmeiaId: string) =>
-    request<Payment[]>(`/payments?month=${month}&colmeiaId=${colmeiaId}`, {}, colmeiaId),
-  update: (id: string, data: Partial<Payment>, colmeiaId: string) =>
-    request<Payment>(`/payments/${id}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
-  ensureQuota: (month: string, colmeiaId: string) =>
-    request<Payment>('/payments/quota', { method: 'POST', body: JSON.stringify({ month, colmeiaId }) }, colmeiaId),
-  ensureFrete: (month: string, colmeiaId: string) =>
-    request<Payment | { skipped: true }>('/payments/frete', { method: 'POST', body: JSON.stringify({ month, colmeiaId }) }, colmeiaId),
+  getMy: (month: string, tenantId: string) =>
+    request<Payment[]>(`/payments/my?month=${month}&tenantId=${tenantId}`, {}, tenantId),
+  list: (month: string, tenantId: string) =>
+    request<Payment[]>(`/payments?month=${month}&tenantId=${tenantId}`, {}, tenantId),
+  update: (id: string, data: Partial<Payment>, tenantId: string) =>
+    request<Payment>(`/payments/${id}`, { method: 'PUT', body: JSON.stringify(data) }, tenantId),
+  ensureQuota: (month: string, tenantId: string) =>
+    request<Payment>('/payments/quota', { method: 'POST', body: JSON.stringify({ month, tenantId }) }, tenantId),
+  ensureFrete: (month: string, tenantId: string) =>
+    request<Payment | { skipped: true }>('/payments/frete', { method: 'POST', body: JSON.stringify({ month, tenantId }) }, tenantId),
 }
 
 export const issuesApi = {
@@ -131,12 +131,12 @@ export const issuesApi = {
 }
 
 export const rolesApi = {
-  list: (colmeiaId: string) =>
-    request<ColmeiaRole[]>('/roles', {}, colmeiaId),
-  create: (name: string, colmeiaId: string) =>
-    request<ColmeiaRole>('/roles', { method: 'POST', body: JSON.stringify({ name }) }, colmeiaId),
-  delete: (id: string, colmeiaId: string) =>
-    request<void>(`/roles/${id}`, { method: 'DELETE' }, colmeiaId),
+  list: (tenantId: string) =>
+    request<TenantRole[]>('/roles', {}, tenantId),
+  create: (name: string, tenantId: string) =>
+    request<TenantRole>('/roles', { method: 'POST', body: JSON.stringify({ name }) }, tenantId),
+  delete: (id: string, tenantId: string) =>
+    request<void>(`/roles/${id}`, { method: 'DELETE' }, tenantId),
 }
 
 export const whatsappApi = {
@@ -175,26 +175,26 @@ export interface BatchResult {
 }
 
 export const usersApi = {
-  getMe: (colmeiaId?: string) => request<User>('/users/me', {}, colmeiaId),
-  updateMe: (data: Partial<User>, colmeiaId?: string) =>
-    request<User>('/users/me', { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
-  list: (colmeiaId: string) => request<User[]>(`/users?colmeiaId=${colmeiaId}`, {}, colmeiaId),
+  getMe: (tenantId?: string) => request<User>('/users/me', {}, tenantId),
+  updateMe: (data: Partial<User>, tenantId?: string) =>
+    request<User>('/users/me', { method: 'PUT', body: JSON.stringify(data) }, tenantId),
+  list: (tenantId: string) => request<User[]>(`/users?tenantId=${tenantId}`, {}, tenantId),
   create: (data: Omit<User, 'id'>) =>
     request<User>('/users', { method: 'POST', body: JSON.stringify(data) }),
-  createMember: (data: Omit<User, 'id'> & { password?: string }, colmeiaId: string) =>
-    request<User & { password?: string }>('/users/create-member', { method: 'POST', body: JSON.stringify(data) }, colmeiaId),
-  createMemberBatch: (members: Array<Omit<User, 'id'> & { password?: string }>, colmeiaId: string) =>
-    request<{ results: BatchResult[] }>('/users/create-member-batch', { method: 'POST', body: JSON.stringify({ members }) }, colmeiaId),
-  update: (uid: string, data: Partial<User>, colmeiaId: string) =>
-    request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify(data) }, colmeiaId),
-  reorderDelivery: (orderedIds: string[], colmeiaId: string) =>
-    request<{ updated: number }>('/users/reorder-delivery', { method: 'PUT', body: JSON.stringify({ orderedIds }) }, colmeiaId),
-  disable: (uid: string, colmeiaId: string) =>
-    request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify({ disabled: true }) }, colmeiaId),
-  enable: (uid: string, colmeiaId: string) =>
-    request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify({ disabled: false }) }, colmeiaId),
-  delete: (uid: string, colmeiaId: string) =>
-    request<{ success: boolean }>(`/users/${uid}`, { method: 'DELETE' }, colmeiaId),
-  resetPassword: (uid: string, colmeiaId: string) =>
-    request<{ link: string; whatsappSent: boolean }>(`/users/${uid}/reset-password`, { method: 'POST' }, colmeiaId),
+  createMember: (data: Omit<User, 'id'> & { password?: string }, tenantId: string) =>
+    request<User & { password?: string }>('/users/create-member', { method: 'POST', body: JSON.stringify(data) }, tenantId),
+  createMemberBatch: (members: Array<Omit<User, 'id'> & { password?: string }>, tenantId: string) =>
+    request<{ results: BatchResult[] }>('/users/create-member-batch', { method: 'POST', body: JSON.stringify({ members }) }, tenantId),
+  update: (uid: string, data: Partial<User>, tenantId: string) =>
+    request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify(data) }, tenantId),
+  reorderDelivery: (orderedIds: string[], tenantId: string) =>
+    request<{ updated: number }>('/users/reorder-delivery', { method: 'PUT', body: JSON.stringify({ orderedIds }) }, tenantId),
+  disable: (uid: string, tenantId: string) =>
+    request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify({ disabled: true }) }, tenantId),
+  enable: (uid: string, tenantId: string) =>
+    request<User>(`/users/${uid}`, { method: 'PUT', body: JSON.stringify({ disabled: false }) }, tenantId),
+  delete: (uid: string, tenantId: string) =>
+    request<{ success: boolean }>(`/users/${uid}`, { method: 'DELETE' }, tenantId),
+  resetPassword: (uid: string, tenantId: string) =>
+    request<{ link: string; whatsappSent: boolean }>(`/users/${uid}/reset-password`, { method: 'POST' }, tenantId),
 }

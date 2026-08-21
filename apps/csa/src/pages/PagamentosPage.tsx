@@ -89,13 +89,13 @@ function WeeklyBreakdown({ weeks }: { weeks: WeekGroup[] }) {
 
 function PaymentCard({
   payment,
-  colmeiaId,
+  tenantId,
   userId,
   month,
   onReload,
 }: {
   payment: Payment
-  colmeiaId: string
+  tenantId: string
   userId: string
   month: string
   onReload: () => void
@@ -112,8 +112,8 @@ function PaymentCard({
     setUploading(true)
     setMessage('')
     try {
-      const url = await uploadProof(file, colmeiaId, userId, month)
-      await paymentsApi.update(payment.id, { proofUrl: url }, colmeiaId)
+      const url = await uploadProof(file, tenantId, userId, month)
+      await paymentsApi.update(payment.id, { proofUrl: url }, tenantId)
       setMessage('Comprovante enviado!')
       onReload()
     } catch (err) {
@@ -129,7 +129,7 @@ function PaymentCard({
     if (next && weeks === null) {
       setLoadingDetails(true)
       try {
-        const orders = await ordersApi.getMonthly(month, colmeiaId)
+        const orders = await ordersApi.getMonthly(month, tenantId)
         setWeeks(groupOrdersByWeek(orders, payment.producerName))
       } catch {
         setWeeks([])
@@ -205,14 +205,14 @@ function PaymentCard({
 // Card de fatura sem breakdown de pedido (Cota, Frete): valor + comprovante.
 function QuotaCard({
   payment,
-  colmeiaId,
+  tenantId,
   userId,
   month,
   onReload,
   title = 'Cota Mensal',
 }: {
   payment: Payment
-  colmeiaId: string
+  tenantId: string
   userId: string
   month: string
   onReload: () => void
@@ -227,8 +227,8 @@ function QuotaCard({
     setUploading(true)
     setMessage('')
     try {
-      const url = await uploadProof(file, colmeiaId, userId, month)
-      await paymentsApi.update(payment.id, { proofUrl: url }, colmeiaId)
+      const url = await uploadProof(file, tenantId, userId, month)
+      await paymentsApi.update(payment.id, { proofUrl: url }, tenantId)
       setMessage('Comprovante enviado!')
       onReload()
     } catch (err) {
@@ -288,7 +288,7 @@ function QuotaCard({
 
 // --- Meus Pagamentos (todos os papéis) ---
 
-function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
+function MyPayments({ user, tenantId }: { user: User; tenantId: string }) {
   const [month, setMonth] = useState(currentMonth())
   const [payments, setPayments] = useState<Payment[]>([])
   const [quotaPayment, setQuotaPayment] = useState<Payment | null>(null)
@@ -298,17 +298,17 @@ function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const all = await paymentsApi.getMy(month, colmeiaId)
+      const all = await paymentsApi.getMy(month, tenantId)
       // Cota e Entrega têm cards próprios (flat); o resto são faturas de produtor.
       setPayments(all.filter((p) => p.producerName !== 'Cota' && p.producerName !== 'Entrega'))
       if (user.quota && !user.isentoCotas) {
-        const qp = await paymentsApi.ensureQuota(month, colmeiaId)
+        const qp = await paymentsApi.ensureQuota(month, tenantId)
         if (qp && 'amount' in qp) setQuotaPayment(qp)
       } else {
         setQuotaPayment(null)
       }
       if (user.deliveryType === 'entrega') {
-        const fp = await paymentsApi.ensureFrete(month, colmeiaId)
+        const fp = await paymentsApi.ensureFrete(month, tenantId)
         setFretePayment(fp && 'amount' in fp ? fp : null)
       } else {
         setFretePayment(null)
@@ -316,7 +316,7 @@ function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
     } finally {
       setLoading(false)
     }
-  }, [month, colmeiaId, user.quota, user.isentoCotas, user.deliveryType])
+  }, [month, tenantId, user.quota, user.isentoCotas, user.deliveryType])
 
   useEffect(() => { load() }, [load])
 
@@ -332,7 +332,7 @@ function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
       {quotaPayment && (
         <QuotaCard
           payment={quotaPayment}
-          colmeiaId={colmeiaId}
+          tenantId={tenantId}
           userId={user.id}
           month={month}
           onReload={load}
@@ -342,7 +342,7 @@ function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
       {fretePayment && (
         <QuotaCard
           payment={fretePayment}
-          colmeiaId={colmeiaId}
+          tenantId={tenantId}
           userId={user.id}
           month={month}
           onReload={load}
@@ -361,7 +361,7 @@ function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
           <PaymentCard
             key={p.id}
             payment={p}
-            colmeiaId={colmeiaId}
+            tenantId={tenantId}
             userId={user.id}
             month={month}
             onReload={load}
@@ -377,5 +377,5 @@ function MyPayments({ user, colmeiaId }: { user: User; colmeiaId: string }) {
 export function PagamentosPage() {
   const { user, colmeia } = useAuth()
   if (!user || !colmeia) return null
-  return <MyPayments user={user} colmeiaId={colmeia.id} />
+  return <MyPayments user={user} tenantId={colmeia.id} />
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Wand2, Check, X, History, Pencil, Lock, Unlock } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { offeringsApi, producersApi, productsApi, colmeiasApi } from '@/services/api'
+import { offeringsApi, producersApi, productsApi, tenantsApi } from '@/services/api'
 import { formatDeliveryDate, getPresentWeekId } from '@pedidos/core'
 import { PageHeader, WeekNavigator } from '@pedidos/core/ui'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
@@ -38,7 +38,7 @@ export function OfertasPage() {
         offeringsApi.list(weekId, colmeia.id),
         producersApi.list(colmeia.id),
         productsApi.list(colmeia.id),
-        colmeiasApi.get(colmeia.id),
+        tenantsApi.get(colmeia.id),
       ])
       setOfferings(offs)
       setProducers(prods)
@@ -58,7 +58,7 @@ export function OfertasPage() {
     setTogglingExtras(true)
     try {
       const novo = !extrasAberto
-      await colmeiasApi.update(colmeia.id, { extrasAberto: novo })
+      await tenantsApi.update(colmeia.id, { extrasAberto: novo })
       setExtrasAberto(novo)
     } finally {
       setTogglingExtras(false)
@@ -165,7 +165,7 @@ export function OfertasPage() {
         await offeringsApi.create({
           producerId: selectedProducerId,
           producerName: producer?.name ?? '',
-          colmeiaId: colmeia.id,
+          tenantId: colmeia.id,
           items,
           weekStart: weekId,
           rawMessage,

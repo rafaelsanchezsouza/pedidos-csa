@@ -153,7 +153,7 @@ export function EntregasPage() {
         setOrders((prev) => prev.map((o) => o.userId === userId ? { ...o, weeklyNote: noteText } : o))
       } else {
         const created = await ordersApi.create({
-          userId, userName, colmeiaId: colmeia.id, weekId, items: [], status: 'rascunho', weeklyNote: noteText,
+          userId, userName, tenantId: colmeia.id, weekId, items: [], status: 'rascunho', weeklyNote: noteText,
         }, colmeia.id)
         setOrders((prev) => [...prev, created])
       }
@@ -180,7 +180,7 @@ export function EntregasPage() {
         setOrders((prev) => prev.map((o) => o.userId === userId ? { ...o, weeklyAddress: addressText } : o))
       } else {
         const created = await ordersApi.create({
-          userId, userName, colmeiaId: colmeia.id, weekId, items: [], status: 'rascunho', weeklyAddress: addressText,
+          userId, userName, tenantId: colmeia.id, weekId, items: [], status: 'rascunho', weeklyAddress: addressText,
         }, colmeia.id)
         setOrders((prev) => [...prev, created])
       }
@@ -202,7 +202,7 @@ export function EntregasPage() {
         setOrders((prev) => prev.map((o) => o.userId === u.id ? { ...o, suspensa: novoValor } : o))
       } else {
         const created = await ordersApi.create({
-          userId: u.id, userName: u.name, colmeiaId: colmeia.id, weekId, items: [], status: 'rascunho', suspensa: true,
+          userId: u.id, userName: u.name, tenantId: colmeia.id, weekId, items: [], status: 'rascunho', suspensa: true,
         }, colmeia.id)
         setOrders((prev) => [...prev, created])
       }

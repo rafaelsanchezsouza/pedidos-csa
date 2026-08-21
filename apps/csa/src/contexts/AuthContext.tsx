@@ -6,19 +6,19 @@ import {
   signOut,
 } from 'firebase/auth'
 import { auth } from '@/services/firebase'
-import { colmeiasApi, usersApi } from '@/services/api'
-import type { User, Colmeia } from '@/types'
+import { tenantsApi, usersApi } from '@/services/api'
+import type { User, Tenant } from '@/types'
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null
   user: User | null
-  colmeia: Colmeia | null
-  colmeias: Colmeia[]
+  colmeia: Tenant | null
+  colmeias: Tenant[]
   loading: boolean
   authError: string
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  selectColmeia: (colmeiaId: string) => void
+  selectColmeia: (tenantId: string) => void
   refreshUser: () => Promise<void>
 }
 
@@ -38,8 +38,8 @@ export const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [user, setUser] = useState<User | null>(null)
-  const [colmeia, setColmeia] = useState<Colmeia | null>(null)
-  const [colmeias, setColmeias] = useState<Colmeia[]>([])
+  const [colmeia, setColmeia] = useState<Tenant | null>(null)
+  const [colmeias, setColmeias] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState('')
 
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const [me, allColmeias] = await Promise.all([
         usersApi.getMe(),
-        colmeiasApi.list(),
+        tenantsApi.list(),
       ])
       setUser(me)
       setColmeias(allColmeias)
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         const saved = localStorage.getItem(`colmeia_${fbUser.uid}`)
         const savedFound = saved ? allColmeias.find((c) => c.id === saved) : null
-        const ownColmeia = me.colmeiaId ? allColmeias.find((c) => c.id === me.colmeiaId) : null
+        const ownColmeia = me.tenantId ? allColmeias.find((c) => c.id === me.tenantId) : null
         setColmeia(savedFound ?? ownColmeia ?? allColmeias[0] ?? null)
       }
     } catch (err) {
@@ -93,12 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
-  function selectColmeia(colmeiaId: string) {
-    const found = colmeias.find((c) => c.id === colmeiaId)
+  function selectColmeia(tenantId: string) {
+    const found = colmeias.find((c) => c.id === tenantId)
     if (found) {
       setColmeia(found)
       if (firebaseUser) {
-        localStorage.setItem(`colmeia_${firebaseUser.uid}`, colmeiaId)
+        localStorage.setItem(`colmeia_${firebaseUser.uid}`, tenantId)
       }
     }
   }

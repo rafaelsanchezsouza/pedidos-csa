@@ -1,4 +1,6 @@
-export interface Colmeia {
+import type { DeliveryType } from '@pedidos/core'
+
+export interface Tenant {
   id: string
   name: string
   adminId: string
@@ -21,8 +23,8 @@ export interface User {
   neighborhood?: string
   contact: string
   frequency: 'semanal' | 'quinzenal'
-  deliveryType: 'colmeia' | 'entrega'
-  colmeiaId: string
+  deliveryType: DeliveryType
+  tenantId: string
   acesso: 'admin' | 'user' | 'superadmin' | 'produtor'
   role?: string
   isentoCotas?: boolean
@@ -37,17 +39,17 @@ export interface User {
   freteDelivery?: number // override do frete deste membro; ausente = usa o padrão da colmeia
 }
 
-export interface ColmeiaRole {
+export interface TenantRole {
   id: string
   name: string
-  colmeiaId: string
+  tenantId: string
 }
 
 export interface Producer {
   id: string
   name: string
   contact: string
-  colmeiaId: string
+  tenantId: string
   pixKey?: string
 }
 
@@ -57,7 +59,7 @@ export interface Product {
   unit: string
   price: number
   producerId: string
-  colmeiaId: string
+  tenantId: string
   dateUpdated: string
 }
 
@@ -73,7 +75,7 @@ export interface WeeklyOffering {
   id: string
   producerId: string
   producerName: string
-  colmeiaId: string
+  tenantId: string
   items: OfferingItem[]
   weekStart: string
   rawMessage?: string
@@ -94,7 +96,7 @@ export interface Order {
   id: string
   userId: string
   userName: string
-  colmeiaId: string
+  tenantId: string
   weekId: string
   items: OrderItem[]
   status: 'rascunho' | 'enviado'
@@ -111,7 +113,7 @@ export interface Payment {
   id: string
   userId: string
   userName: string
-  colmeiaId: string
+  tenantId: string
   month: string
   producerName: string
   proofUrl?: string

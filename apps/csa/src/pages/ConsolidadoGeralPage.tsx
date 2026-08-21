@@ -5,7 +5,7 @@ import type { Order, User, WeeklyOffering } from '@/types'
 import { formatQuota } from '@/lib/quota'
 import { Card, CardContent, CardHeader, CardTitle, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, WeekNavigator } from '@pedidos/core/ui'
 import { Pencil, StickyNote } from 'lucide-react'
-import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek, isFornecedor } from '@pedidos/core'
+import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek, isFornecedor, isEntrega } from '@pedidos/core'
 import { PageHeader } from '@pedidos/core/ui'
 
 export function ConsolidadoGeralPage() {
@@ -74,7 +74,7 @@ export function ConsolidadoGeralPage() {
         setOrders((prev) => prev.map((o) => o.userId === u.id ? { ...o, doacao } : o))
       } else {
         const created = await ordersApi.create({
-          userId: u.id, userName: u.name, colmeiaId: colmeia.id,
+          userId: u.id, userName: u.name, tenantId: colmeia.id,
           weekId, items: [], status: 'rascunho', doacao,
         }, colmeia.id)
         setOrders((prev) => [...prev, created])
@@ -94,7 +94,7 @@ export function ConsolidadoGeralPage() {
         if (existing) {
           return prev.map((o) => o.userId === u.id ? { ...o, recebido: updated.recebido } : o)
         }
-        return [...prev, { id: updated.id, userId: u.id, userName: u.name, colmeiaId: colmeia.id, weekId, items: [], status: 'rascunho', recebido: updated.recebido, dateCreated: '', dateUpdated: '' }]
+        return [...prev, { id: updated.id, userId: u.id, userName: u.name, tenantId: colmeia.id, weekId, items: [], status: 'rascunho', recebido: updated.recebido, dateCreated: '', dateUpdated: '' }]
       })
     } finally {
       setToggling(null)
@@ -139,7 +139,7 @@ export function ConsolidadoGeralPage() {
         setOrders((prev) => prev.map((o) => o.userId === userId ? { ...o, weeklyNote: noteText } : o))
       } else {
         const created = await ordersApi.create({
-          userId, userName, colmeiaId: colmeia.id, weekId, items: [], status: 'rascunho', weeklyNote: noteText,
+          userId, userName, tenantId: colmeia.id, weekId, items: [], status: 'rascunho', weeklyNote: noteText,
         }, colmeia.id)
         setOrders((prev) => [...prev, created])
       }
@@ -355,7 +355,7 @@ export function ConsolidadoGeralPage() {
                             )}
                             {formatQuota(u) && <div className="text-xs text-muted-foreground">{formatQuota(u)}</div>}
                             {u.contact && <div className="text-xs text-muted-foreground">{u.contact}</div>}
-                            {u.deliveryType === 'colmeia' && (
+                            {!isEntrega(u) && (
                               <div className="text-xs text-blue-600">retira na colmeia</div>
                             )}
                             {u.frequency === 'quinzenal' && (

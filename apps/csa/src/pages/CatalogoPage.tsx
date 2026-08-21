@@ -100,7 +100,7 @@ export function CatalogoPage() {
         unit: form.unit.trim(),
         price: parseFloat(form.price),
         producerId: form.producerId,
-        colmeiaId: colmeia.id,
+        tenantId: colmeia.id,
       }
       if (editing) {
         await productsApi.update(editing.id, data, colmeia.id)
@@ -141,7 +141,7 @@ export function CatalogoPage() {
         unit: r.unit,
         price: r.price,
         producerId: r.producerId,
-        colmeiaId: colmeia.id,
+        tenantId: colmeia.id,
       }))
       const { results } = await productsApi.importBatch(payload, colmeia.id)
       setCsvResults(results)
