@@ -4,10 +4,10 @@ Monorepo com um **motor único** (`packages/core`) consumido por **apps separado
 independentemente deployáveis** (`apps/csa`, `apps/fermentou`). As diferenças entre clientes
 são **configuração**, não fork de código.
 
-> Estado: **tasks 1–4 concluídas e verdes**; **task 5 quase concluída** — engine `core/server`
-> com portas (`Repo`, `AuthGateway`, `WhatsAppGateway`, `MessageParser`) e **todas as rotas do
-> fermentou como factories** (inclusive `offerings`), modelo canônico em `types.ts` e CSA
-> usando acesso-lista; **task 6 é a próxima**. Branch
+> Estado: **tasks 1–5 concluídas e verdes**; **task 6 em andamento** — `core/ui` e o conserto do
+> `deploy.sh` feitos, script de migração canônica **escrito e ensaiado sobre uma cópia da
+> produção** (falta rodar em prod, na janela). Restam: CSA adotar o engine e o primeiro deploy
+> de verdade. Branch
 > `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
 > `~/repos/pedidos-app`) seguem **intactos** como fonte da verdade até este monorepo substituí-los.
 
@@ -50,8 +50,10 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 
 | **5. Engine** | `packages/core/server`: portas (`Repo`, `AuthGateway`, `WhatsAppGateway`, `MessageParser`) + **todas as rotas/serviços como factories `(deps, config)`**; modelo canônico em `types.ts`; CSA usando acesso-lista. Detalhe fatia a fatia abaixo | core 150, csa 25, fermentou 22 + 4 builds |
 
-**Placar atual:** `@pedidos/core` **150 testes**, `apps/csa` **25**, `apps/fermentou` **22** — todos
+**Placar atual:** `@pedidos/core` **167 testes**, `apps/csa` **28**, `apps/fermentou` **9** — todos
 × 3 fusos (BR/UTC/UTC+14). Builds front + backend dos dois apps verdes.
+> Os números dos apps **caíram** de propósito na task 6: os testes de UI que eram cópia nos dois
+> (PageHeader, EstadoLista) subiram para o core. Soma cresceu; a duplicação sumiu.
 
 ### Task 5 — fatia a fatia (concluída)
 - **`isEntrega` + fim do `pickupValue`** (decisão registrada acima): predicado no domínio;
@@ -179,8 +181,8 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   tsconfig do front custa mais do que a trava vale (`?raw` volta vazio no Vitest).
 
 ### Roteiro da próxima sessão — task 6
-1. `migrate-csa-canonico.ts` (janela de manutenção — ver decisão 4); validar **em cópia** antes
-   de produção.
+1. ~~`migrate-csa-canonico.ts` + validação em cópia~~ (feito; falta **rodar em produção** na
+   janela — ver o roteiro da janela em §4.5).
 2. Só **depois** da migração a CSA adota o engine (rotas `tenants`, `offerings` etc.) — até lá
    segue com as rotas próprias `colmeia*` e o `parseMessage/` local. O adapter `openai` do app
    nasce nessa adoção (a porta e o parser fuzzy já existem no core).
@@ -205,6 +207,30 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   Efeito colateral do mesmo achado: `npm run build -w @pedidos/core` agora faz `rm -rf dist`
   antes (o `tsc` não limpa o `outDir`, e testes de builds antigos estavam indo para o tarball),
   e o `tsconfig.ui.json` passou a excluir também `*.test.ts` (só excluía `.tsx`).
+- ✅ **Script de migração canônica escrito e ensaiado** (6ª fatia da task 6) — em
+  `apps/csa/scripts/`:
+  - `migracao-canonico.ts` é a **lógica sobre uma porta `Store`** (listar/criar/atualizar), não
+    um script acoplado ao Firestore. Por isso o **mesmo código** roda em memória (ensaio),
+    no emulador e em produção — 11 testes com store de memória (`memoryStore.ts`).
+  - `migrate-csa-canonico.ts` é a CLI com os adapters e as travas: **dry-run é o padrão**
+    (só escreve com `--executar`), `--dump=<arquivo>` faz o ensaio em memória, e o alvo
+    (memória / emulador / Firestore real + projeto) é **impresso antes de qualquer escrita**.
+  - `dump-firestore.ts` (somente leitura) é o **backup exigido pela decisão 4** e a fonte do
+    ensaio. O JSON tem dados pessoais: fica fora do repo.
+  - **Idempotente e abortável:** roda a apuração inteira antes de escrever; se algum doc tiver
+    `colmeiaId` e `tenantId` divergentes, **aborta sem escrever nada**. Segunda passada é no-op
+    (travado por teste). `colmeias` **não é apagada** — fica como rollback; limpar é passo
+    separado, depois da validação.
+  - **Ensaio sobre cópia da produção (2026-08-20):** 458 docs renomeados
+    (`orders` 43, `payments` 215, `producers` 2, `products` 99, `roles` 4, `users` 39,
+    `week_locks` 14, `weekly_offerings` 42), 2 tenants criados com o mesmo id, 18
+    `deliveryType 'colmeia'→'retirada'`, **zero órfãos e zero avisos**. Conferido por diff
+    campo a campo: nenhum doc perdido, nenhum valor alterado fora do escopo.
+  - **Escopo deliberado:** `weekly_offerings`, `week_locks` e `otp_codes` **não mudam de nome** —
+    o engine já usa esses nomes; a única coleção renomeada é `colmeias`→`tenants`. E `acesso`
+    **fica string na produção**: os predicados do core são dual-mode (task 3), então mexer nos
+    dados seria risco sem ganho. O engine passa a **escrever** lista; a leitura aceita os dois.
+  - `vite.config.ts` da CSA passou a incluir `scripts/**/*.test.ts` na suíte.
 
 ### Como o server consome o core (o ponto que exigia decisão)
 `@pedidos/core` **builda para `dist`** (`tsc` NodeNext → `.js` + `.d.ts`); imports internos com
@@ -329,14 +355,33 @@ Script `migrate-csa-canonico.ts` (rodar **uma vez**, com backup + em cópia ante
 front CSA passa a mandar `x-tenant-id` / `/api/tenants`. Depois disso o motor não tem camada de
 compatibilidade — só nomes canônicos.
 
+**Por que os dados precisam mudar** (a pergunta volta sempre): não é "só trocar o engine". O
+motor só conhece `tenants`/`tenantId` e **não tem camada de mapeamento** por decisão explícita
+(decisão 2). Adotar o engine sem renomear os dados faz o app ler uma coleção `tenants` vazia —
+os dados continuam lá, invisíveis. A alternativa seria ressuscitar a leitura dos dois nomes:
+código que nasce para morrer, exatamente o que a decisão 2 recusou.
+
+**Roteiro da janela** (script pronto e ensaiado; nada disso rodou em produção ainda):
+```bash
+cd apps/csa
+FIREBASE_ENV=prod OUT=~/backup-csa-$(date +%F).json npx tsx scripts/dump-firestore.ts  # backup
+FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts              # dry-run: confere o placar
+FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts --executar   # a passada única
+```
+Front e backend sobem **no mesmo deploy** — o front só passa a mandar `x-tenant-id`/`/api/tenants`
+depois da migração, e o backend antigo não entende os nomes novos. Rollback = reverter o deploy;
+a coleção `colmeias` e o `colmeiaId` originais não são apagados pelo script (limpeza é passo
+posterior, com o app já verde).
+
 ---
 
 ## 5. O que falta
 
-- **Task 6 — ui kit + apps finos + migração** (a única restante): ~~`config-csa.ts`~~ e
-  ~~`core/ui`~~ (feitos); falta o script de migração canônica da CSA + validação em cópia; CSA
-  adota o engine (incluindo o adapter `openai` do `MessageParser`); ~~consertar o `deploy.sh`~~
-  (feito, falta rodar) e deployar os dois apps independentemente.
+- **Task 6 — ui kit + apps finos + migração** (a única restante): ~~`config-csa.ts`~~,
+  ~~`core/ui`~~, ~~script de migração canônica + validação em cópia~~ (feitos); falta **rodar a
+  migração em produção** (janela — roteiro em §4.5); CSA adota o engine (incluindo o adapter
+  `openai` do `MessageParser`); ~~consertar o `deploy.sh`~~ (feito, falta rodar) e deployar os
+  dois apps independentemente.
 
 ### Questões em aberto (decidir na task 6)
 

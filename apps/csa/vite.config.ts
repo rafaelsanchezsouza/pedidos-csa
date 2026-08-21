@@ -7,7 +7,7 @@ export default defineConfig({
     // node é o padrão: cálculo puro (weekUtils, weekMath) não paga o custo do jsdom.
     // Teste de componente declara `// @vitest-environment jsdom` no topo do arquivo.
     environment: 'node',
-    include: ['{src,server}/**/*.test.{ts,tsx}'],
+    include: ['{src,server,scripts}/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
   },
   plugins: [react()],
