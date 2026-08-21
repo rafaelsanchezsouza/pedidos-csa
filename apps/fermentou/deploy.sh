@@ -61,8 +61,26 @@ echo "==> [5/6] Instalando dependências de produção..."
 $SSH "cd $VM_DIR && npm install --omit=dev --no-audit --no-fund"
 
 echo "==> [6/6] Reiniciando servidor (NODE_ENV=production)..."
+# `pm2 restart` reusa o script gravado na PRIMEIRA subida e ignora um caminho novo — foi assim
+# que o 1º deploy real derrubou o app quando a emissão mudou para dist-server/server/. delete +
+# start garante que o processo sempre aponte para o build atual.
 $SSH "cd $VM_DIR && export NODE_ENV=production && \
-  (pm2 restart pedidos-app --update-env || pm2 start dist-server/server/index.js --name pedidos-app --update-env) && pm2 save"
+  pm2 delete pedidos-app > /dev/null 2>&1; \
+  pm2 start dist-server/server/index.js --name pedidos-app --update-env && pm2 save"
+
+# Sem CI, o deploy é o único momento em que o código roda de verdade: ele mesmo precisa dizer
+# se subiu. "pm2 online" não basta — um crash loop também aparece como online por alguns
+# segundos. Qualquer HTTP (401 inclusive) prova que o processo está ouvindo.
+echo "==> Verificando se o backend respondeu..."
+PORT_APP="$(grep -E '^PORT=' "$ENV_FILE" | head -1 | cut -d= -f2 | tr -d "\"' ")"
+sleep 3
+CODE="$($SSH "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT_APP/api/tenants" || true)"
+if [[ -z "$CODE" || "$CODE" == "000" ]]; then
+  echo "ERRO: nada respondeu em 127.0.0.1:$PORT_APP. Log do pedidos-app:"
+  $SSH "pm2 logs pedidos-app --lines 20 --nostream --no-color"
+  exit 1
+fi
+echo "OK: backend respondeu $CODE em /api/tenants (401 é o esperado sem token)."
 
 echo ""
 echo "Deploy concluído! App disponível em https://$VM_HOST"

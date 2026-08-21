@@ -61,8 +61,26 @@ $SSH "cd $VM_DIR && npm install --omit=dev --no-audit --no-fund"
 echo "==> [6/6] Reiniciando servidor (NODE_ENV=production)..."
 # NODE_ENV explícito: env.ts só carrega .env.production com ele setado, e --update-env garante
 # que o pm2 releia o ambiente em vez de reusar o da primeira vez que subiu (MERGE.md §6.3).
+# `pm2 restart` reusa o script gravado na PRIMEIRA subida e ignora um caminho novo — foi assim
+# que o 1º deploy real derrubou o app quando a emissão mudou para dist-server/server/. delete +
+# start garante que o processo sempre aponte para o build atual.
 $SSH "cd $VM_DIR && export NODE_ENV=production && \
-  (pm2 restart pedidos-csa --update-env || pm2 start dist-server/server/index.js --name pedidos-csa --update-env) && pm2 save"
+  pm2 delete pedidos-csa > /dev/null 2>&1; \
+  pm2 start dist-server/server/index.js --name pedidos-csa --update-env && pm2 save"
+
+# Sem CI, o deploy é o único momento em que o código roda de verdade: ele mesmo precisa dizer
+# se subiu. "pm2 online" não basta — um crash loop também aparece como online por alguns
+# segundos. Qualquer HTTP (401 inclusive) prova que o processo está ouvindo.
+echo "==> Verificando se o backend respondeu..."
+PORT_APP="$(grep -E '^PORT=' "$ENV_FILE" | head -1 | cut -d= -f2 | tr -d "\"' ")"
+sleep 3
+CODE="$($SSH "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT_APP/api/tenants" || true)"
+if [[ -z "$CODE" || "$CODE" == "000" ]]; then
+  echo "ERRO: nada respondeu em 127.0.0.1:$PORT_APP. Log do pedidos-csa:"
+  $SSH "pm2 logs pedidos-csa --lines 20 --nostream --no-color"
+  exit 1
+fi
+echo "OK: backend respondeu $CODE em /api/tenants (401 é o esperado sem token)."
 
 echo ""
 echo "Deploy concluído! App disponível em https://$VM_HOST"

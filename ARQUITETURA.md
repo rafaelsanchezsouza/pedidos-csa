@@ -271,6 +271,23 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
     `colmeiaId`; rodar contra a produção atual não acha nada. Migração e deploy são o mesmo
     evento (§4.5).
 
+- ✅ **Primeiro deploy real (fermentou) — e os dois bugs que só ele achava** (8ª fatia da task 6):
+  o `deploy.sh` rodou ponta a ponta contra a VM (build → `npm pack` do core → scp → `npm install
+  --omit=dev` → pm2). O empacotamento do core funcionou; o app **não subiu**.
+  - **Bug 1 — `pm2 restart` ignora o caminho novo.** O pm2 guarda o script da **primeira**
+    subida (`dist-server/index.js`); como o `restart` teve sucesso, o ramo
+    `|| pm2 start …/server/index.js` nunca rodou e o processo entrou em crash loop com
+    `ERR_MODULE_NOT_FOUND`. Corrigido nos **dois** apps: `pm2 delete` + `pm2 start`, que sempre
+    aponta para o build atual. A CSA tinha o mesmo defeito latente — a emissão dela acabou de
+    mudar igual.
+  - **Bug 2 — o deploy não verificava nada.** Terminava com "Deploy concluído!" com o app caído;
+    `pm2 list` mostrava `online` porque o crash loop reinicia. Os dois `deploy.sh` ganharam uma
+    verificação final: leem `PORT` do `.env.production`, batem em `/api/tenants` pelo localhost
+    da VM e **falham imprimindo o log do pm2** se nada responder. Qualquer HTTP (401 inclusive)
+    prova que o processo está ouvindo.
+  - *Lição registrada:* "buildou" e "instalou" não são "subiu". Sem CI, o único momento em que
+    o código roda de verdade é o deploy — então é o deploy que tem de dizer se subiu.
+
 ### Como o server consome o core (o ponto que exigia decisão)
 `@pedidos/core` **builda para `dist`** (`tsc` NodeNext → `.js` + `.d.ts`); imports internos com
 extensão `.js` (ESM válido no node). Assim **todos os consumidores resolvem igual** via
