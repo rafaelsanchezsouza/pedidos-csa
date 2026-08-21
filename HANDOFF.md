@@ -158,7 +158,11 @@ não veio da adoção do engine.
 A regra está agora em `packages/core/src/server/auth.ts`, com 18 testes escritos como casos
 negativos (`server/auth.test.ts`) — o tenant vem sempre do recurso, nunca do header.
 
-✅ **Em produção desde 2026-08-21** (os dois apps redeployados, `restarts 0`).
+⚠️ **A primeira tentativa de deploy NÃO levou a trava** e passou verde: o `npm install` na VM
+respondeu "up to date" porque o tarball do core sempre se chamou `pedidos-core-0.1.0.tgz` — nome
+e versão fixos, dependência considerada satisfeita. O `deploy.sh` agora **carimba o tarball com
+timestamp**, apaga a cópia instalada antes de instalar e **compara o sha256** do
+`@pedidos/core` da VM com o build local, falhando se divergir.
 
 O que **não** está fechado: o escopo de fornecedor depende de `User.producerId` estar preenchido.
 Usuário com `acesso: ['fornecedor']` e sem `producerId` não consegue editar nada — é o lado

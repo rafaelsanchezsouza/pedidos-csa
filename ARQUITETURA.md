@@ -355,11 +355,24 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   administradores para fora.
   18 testes novos escritos como **casos negativos** (`server/auth.test.ts`): cada um é um
   ataque que funcionava. Placar do core: 167 → **185**.
-  ✅ **Em produção nos dois apps desde 2026-08-21** — deploy verde, `restarts 0`, log de erro
-  limpo.
+  ⚠️ **O primeiro deploy passou verde sem levar a trava** — ver a 11ª fatia abaixo: o npm não
+  reinstalou o core porque o tarball tinha sempre o mesmo nome e versão.
   *Erro que os testes pegaram no meio do caminho:* a checagem de `GET /payments` caiu no
   handler errado (`/my`) e teria quebrado a página de pagamentos de **todo membro**. O teste
   que garante o caminho feliz do membro nasceu daí.
+
+- ✅ **Deploy passa a provar que o motor foi trocado** (11ª fatia, 2026-08-21):
+  o `@pedidos/core` é empacotado como `pedidos-core-0.1.0.tgz` — **nome e versão fixos**. O npm
+  resolve dep `file:` pelo caminho: mesma spec, árvore considerada satisfeita, `npm install`
+  responde **"up to date"** e o core antigo continua instalado. Foi exatamente o que aconteceu
+  com a fatia de autorização: deploy verde nos dois apps, `restarts 0`, `/api/tenants` em 401 —
+  e `node_modules/@pedidos/core/dist/server/auth.js` **não existia na VM**.
+  A verificação do deploy não pegou porque ela só provava que *algum* backend respondia.
+  **Correções:** o tarball ganha **carimbo de timestamp** no nome (spec nova = reinstalação),
+  a cópia instalada do core e os tarballs velhos são apagados antes do install, e o deploy
+  passou a **comparar o sha256** de `dist/server/index.js` local × VM, falhando se divergir.
+  *Lição, terceira da série:* "buildou" ≠ "subiu" ≠ **"subiu com o código novo"**. Num monorepo
+  com motor compartilhado, a pergunta que importa no deploy é qual motor ficou instalado.
 
 ### Como o server consome o core (o ponto que exigia decisão)
 `@pedidos/core` **builda para `dist`** (`tsc` NodeNext → `.js` + `.d.ts`); imports internos com

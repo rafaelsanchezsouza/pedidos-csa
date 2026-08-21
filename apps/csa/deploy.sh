@@ -14,7 +14,12 @@ source deploy.env
 
 SSH="ssh -i $SSH_KEY $VM_USER@$VM_HOST"
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"  # raiz do monorepo
-CORE_TGZ="pedidos-core-0.1.0.tgz"
+# Nome CARIMBADO por deploy. O npm resolve dep `file:` pelo caminho: com nome fixo e versão
+# fixa (0.1.0, que nunca muda), ele responde "up to date" e NÃO reinstala o core — foi assim
+# que a trava de autorização ficou fora do ar depois de um deploy verde. Nome novo = spec nova
+# = reinstalação garantida.
+CORE_TGZ_PACK="pedidos-core-0.1.0.tgz"
+CORE_TGZ="pedidos-core-$(date +%Y%m%d%H%M%S).tgz"
 
 if [[ "${1:-}" != "--skip-build" ]]; then
   echo "==> [1/6] Build local (core primeiro — o app consome o dist dele)..."
@@ -28,10 +33,11 @@ fi
 # levá-lo como tarball (npm pack empacota o dist, conforme package.json#files) e reescrever a
 # dependência para `file:` no package.json que vai junto. Sem isto o deploy quebra no install.
 echo "==> [2/6] Empacotando @pedidos/core..."
-rm -f "$CORE_TGZ"
+rm -f pedidos-core-*.tgz
 # `npm pack <caminho>`: com --prefix ele empacotaria o app, não o core.
 npm pack "$RAIZ/packages/core" --pack-destination "$PWD" > /dev/null
-test -f "$CORE_TGZ" || { echo "Erro: $CORE_TGZ não foi gerado"; exit 1; }
+test -f "$CORE_TGZ_PACK" || { echo "Erro: $CORE_TGZ_PACK não foi gerado"; exit 1; }
+mv "$CORE_TGZ_PACK" "$CORE_TGZ"
 
 # package.json de produção: mesma coisa, com a dep do core apontando para o tarball.
 # O package-lock.json do app é resquício de quando era repo próprio — no monorepo o lock é o
@@ -43,7 +49,10 @@ node -e "
 "
 
 echo "==> [3/6] Copiando artefatos para a VM..."
-$SSH "rm -rf $VM_DIR/dist $VM_DIR/dist-server $VM_DIR/package-lock.json"
+# Tarballs antigos e a cópia instalada do core saem juntos: o npm não tem como reaproveitar
+# uma árvore obsoleta se ela não existe mais.
+$SSH "rm -rf $VM_DIR/dist $VM_DIR/dist-server $VM_DIR/package-lock.json \
+  $VM_DIR/pedidos-core-*.tgz $VM_DIR/node_modules/@pedidos/core"
 scp -i "$SSH_KEY" -r dist/        "$VM_USER@$VM_HOST:$VM_DIR/dist"
 scp -i "$SSH_KEY" -r dist-server/ "$VM_USER@$VM_HOST:$VM_DIR/dist-server"
 scp -i "$SSH_KEY" "$CORE_TGZ"     "$VM_USER@$VM_HOST:$VM_DIR/$CORE_TGZ"
@@ -71,6 +80,19 @@ $SSH "cd $VM_DIR && export NODE_ENV=production && \
 # Sem CI, o deploy é o único momento em que o código roda de verdade: ele mesmo precisa dizer
 # se subiu. "pm2 online" não basta — um crash loop também aparece como online por alguns
 # segundos. Qualquer HTTP (401 inclusive) prova que o processo está ouvindo.
+# "Instalou" não é "instalou o NOSSO core": comparar o artefato local com o que ficou na VM é
+# a única prova. Sem isto, um core obsoleto passa despercebido por um deploy inteiro.
+echo "==> Verificando se o motor instalado é o que acabamos de buildar..."
+SHA_LOCAL="$(sha256sum "$RAIZ/packages/core/dist/server/index.js" | cut -d' ' -f1)"
+SHA_VM="$($SSH "sha256sum $VM_DIR/node_modules/@pedidos/core/dist/server/index.js 2>/dev/null | cut -d' ' -f1")"
+if [[ "$SHA_LOCAL" != "$SHA_VM" ]]; then
+  echo "ERRO: @pedidos/core na VM não confere com o build local."
+  echo "  local: ${SHA_LOCAL:-<ausente>}"
+  echo "  VM:    ${SHA_VM:-<ausente>}"
+  exit 1
+fi
+echo "OK: motor confere (sha256 ${SHA_LOCAL:0:12})."
+
 echo "==> Verificando se o backend respondeu..."
 PORT_APP="$(grep -E '^PORT=' "$ENV_FILE" | head -1 | cut -d= -f2 | tr -d "\"' ")"
 sleep 3
