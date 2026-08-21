@@ -285,8 +285,17 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
     verificação final: leem `PORT` do `.env.production`, batem em `/api/tenants` pelo localhost
     da VM e **falham imprimindo o log do pm2** se nada responder. Qualquer HTTP (401 inclusive)
     prova que o processo está ouvindo.
+  - **Bug 3 — o `.env.production` deixou de ser encontrado** (achado pela verificação do bug 2,
+    no deploy seguinte): `env.ts` resolvia o arquivo com `resolve(__dirname, '..')`, mas a
+    distância até a raiz do app **muda** — em dev este arquivo é `server/env.ts` (1 nível),
+    compilado é `dist-server/server/env.js` (2). O `'..'` fixo só acertava um dos dois, e
+    `dotenv` **não reclama de path inexistente**: o boot seguia sem variável nenhuma e só
+    estourava depois, no firebase-admin (`Service account object must contain a string
+    "project_id"`). Agora o `env.ts` **procura subindo** (até 3 níveis) e **falha ali mesmo**
+    dizendo o que faltou. Vale para os dois apps — a CSA tem a mesma emissão desde a 7ª fatia.
   - *Lição registrada:* "buildou" e "instalou" não são "subiu". Sem CI, o único momento em que
-    o código roda de verdade é o deploy — então é o deploy que tem de dizer se subiu.
+    o código roda de verdade é o deploy — então é o deploy que tem de dizer se subiu. Os três
+    bugs desta fatia estavam latentes desde a task 5 e nenhum aparecia em teste ou build.
 
 ### Como o server consome o core (o ponto que exigia decisão)
 `@pedidos/core` **builda para `dist`** (`tsc` NodeNext → `.js` + `.d.ts`); imports internos com
