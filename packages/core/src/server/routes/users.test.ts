@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createUsersRouter, type UsersDeps } from './users'
 import { createMemoryRepo } from '../memoryRepo'
-import { withRouter, json } from '../testutil'
+import { withRouter, json, adminDeTeste } from '../testutil'
 import type { AuthGateway, WhatsAppGateway } from '../repo.js'
 import type { AppConfig } from '../../config.js'
 
@@ -88,6 +88,7 @@ describe('createUsersRouter', () => {
   it('reorder-delivery valida ids da tenant e grava deliveryOrder = posição', async () => {
     const repo = createMemoryRepo({
       users: {
+        ...adminDeTeste(),
         a: { name: 'A', tenantId: 't1' }, b: { name: 'B', tenantId: 't1' },
         fora: { name: 'X', tenantId: 't2' },
       },
@@ -111,6 +112,7 @@ describe('createUsersRouter', () => {
   it('rename-quota cascateia só na tenant', async () => {
     const repo = createMemoryRepo({
       users: {
+        ...adminDeTeste(),
         a: { name: 'A', tenantId: 't1', quota: 'Meia' },
         b: { name: 'B', tenantId: 't1', quota: 'Inteira' },
         fora: { name: 'X', tenantId: 't2', quota: 'Meia' },
@@ -128,7 +130,7 @@ describe('createUsersRouter', () => {
   })
 
   it('reset-password usa o nome do app da config na mensagem', async () => {
-    const repo = createMemoryRepo({ users: { u9: { name: 'Ana', contact: '5511', tenantId: 't1' } } })
+    const repo = createMemoryRepo({ users: { ...adminDeTeste(), u9: { name: 'Ana', contact: '5511', tenantId: 't1' } } })
     const { auth, whatsapp, sent } = fakes()
     await withRouter('/api/users', createUsersRouter({ repo, auth, whatsapp }, config), async (get) => {
       const res = await get('/api/users/u9/reset-password', { method: 'POST', body: '{}', ...json })
@@ -140,7 +142,7 @@ describe('createUsersRouter', () => {
   })
 
   it('DELETE remove o login e soft-deleta o doc', async () => {
-    const repo = createMemoryRepo({ users: { u9: { name: 'Ana', tenantId: 't1' } } })
+    const repo = createMemoryRepo({ users: { ...adminDeTeste(), u9: { name: 'Ana', tenantId: 't1' } } })
     const { auth, whatsapp, authCalls } = fakes()
     await withRouter('/api/users', createUsersRouter({ repo, auth, whatsapp }, config), async (get) => {
       await get('/api/users/u9', { method: 'DELETE' })

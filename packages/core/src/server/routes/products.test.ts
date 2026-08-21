@@ -3,7 +3,7 @@ import { createProductsRouter } from './products'
 import { createProducersRouter } from './producers'
 import { createIssuesRouter } from './issues'
 import { createMemoryRepo } from '../memoryRepo'
-import { withRouter, json } from '../testutil'
+import { withRouter, json, adminDeTeste } from '../testutil'
 
 describe('createProductsRouter', () => {
   it('GET filtra por tenant (query ou req.tenantId)', async () => {
@@ -22,7 +22,7 @@ describe('createProductsRouter', () => {
   })
 
   it('import-batch devolve um resultado por linha, sem abortar no erro', async () => {
-    const repo = createMemoryRepo()
+    const repo = createMemoryRepo({ users: adminDeTeste() })
     await withRouter('/api/products', createProductsRouter({ repo }), async (get) => {
       const res = await get('/api/products/import-batch', {
         method: 'POST',

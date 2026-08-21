@@ -37,7 +37,7 @@ npm run build -w pedidos-csa  && npm run build:backend -w pedidos-csa
 npm run build -w pedidos-app  && npm run build:backend -w pedidos-app
 ```
 
-Placar atual: **core 167**, **csa 31**, **fermentou 9** — todos ×3 fusos. **Sem CI: o verde local
+Placar atual: **core 185**, **csa 31**, **fermentou 9** — todos ×3 fusos. **Sem CI: o verde local
 é o único portão.** Mudou estrutura de emissão? `rm -rf apps/*/dist-server` antes (o `tsc` não
 limpa o `outDir`).
 
@@ -100,6 +100,10 @@ de membros** — fora do repo, apagar quando não for mais necessário.
   pode arrastar express); `@pedidos/core/ui` idem para React.
 - Editar o core exige `npm run build -w @pedidos/core` para o server enxergar a mudança.
 
+**De permissão**
+- A autorização é do **servidor** (`packages/core/src/server/auth.ts`). Rota que muda dado ou lê
+  dado de terceiro carrega o `Ator` e checa. O tenant vem do **recurso**, nunca do header.
+
 **Dos dados**
 - **`acesso` é lista** no modelo, mas a produção da CSA tem **string** (`'user'`/`'admin'`). Os
   predicados do core são **dual-mode** e normalizam rótulos legados (`user`→`consumidor`,
@@ -138,7 +142,7 @@ de membros** — fora do repo, apagar quando não for mais necessário.
 2. **Aposentar os repos originais** (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) — só depois do
    item 1, porque são o plano de rollback. Arquivar, não apagar.
 3. **Apagar o backup** com dados pessoais (`~/backup-csa-2026-08-21.json`).
-4. **Trava server-side de autorização** — ver risco abaixo.
+4. **Redeployar os dois apps** para a trava de autorização valer em produção (§7).
 5. **WhatsApp dedicado para o Fermentou** (hoje divide o número da CSA; ver `~/repos/ZAP-PROTOCOL.md`).
 6. **Pix pré-entrega** — decisão de produto antes de codar (`apps/fermentou/PENDENCIAS.md` B1/B2).
 7. **`.env.development`** não existe em nenhum dos dois apps — `npm run dev` quebra no boot do
@@ -146,15 +150,17 @@ de membros** — fora do repo, apagar quando não for mais necessário.
 
 ## 7. Riscos conhecidos
 
-**Autorização incompleta nas rotas do engine.** `tenants` e `orders` checam permissão; **`products`,
-`producers` e `users` não checam nada além de estar autenticado**. Qualquer usuário logado pode
-criar ou editar produto de qualquer tenant chamando a API direto. O escopo de fornecedor
-(`User.producerId`) é aplicado **só no frontend**.
+**Autorização — corrigida no código, ainda NÃO em produção.** Até 2026-08-21 o engine confiava no
+frontend: bastava estar autenticado para listar todos os membros (nome, e-mail, telefone,
+endereço), editar produto de qualquer tenant, marcar a **própria fatura como paga** ou se
+**promover a admin** via `PUT /users/me`. Era pré-existente (a "Pendência F3" do handoff antigo),
+não veio da adoção do engine.
 
-Isso é **pré-existente**, não veio da adoção do engine — as rotas antigas dos dois apps tinham a
-mesma forma (era a "Pendência F3" do handoff antigo do Fermentou). Mas agora vale para os dois
-apps de uma vez, e a CSA tem dados reais de membros. **Fechar antes de dar acesso de fornecedor a
-alguém de fora.**
+A regra está agora em `packages/core/src/server/auth.ts`, com 18 testes escritos como casos
+negativos (`server/auth.test.ts`) — o tenant vem sempre do recurso, nunca do header.
+
+> ⚠️ **Só vale depois de redeployar os dois apps.** Enquanto o `deploy.sh` não rodar, a produção
+> segue com o comportamento antigo.
 
 ## 8. Docs
 

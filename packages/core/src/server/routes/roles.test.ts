@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createRolesRouter } from './roles'
 import { createMemoryRepo } from '../memoryRepo'
-import { withRouter, json } from '../testutil'
+import { withRouter, json, adminDeTeste } from '../testutil'
 import type { AppConfig } from '../../config.js'
 
 const config = (roleDefaults: string[]): AppConfig => ({
@@ -32,7 +32,7 @@ describe('createRolesRouter', () => {
   })
 
   it('POST duplicado é 409; sem tenant é 400', async () => {
-    const repo = createMemoryRepo({ roles: { r1: { name: 'cozinha', tenantId: 't1' } } })
+    const repo = createMemoryRepo({ users: adminDeTeste(), roles: { r1: { name: 'cozinha', tenantId: 't1' } } })
     const router = createRolesRouter({ repo }, config([]))
     await withRouter('/api/roles', router, async (get) => {
       const dup = await get('/api/roles', { method: 'POST', body: JSON.stringify({ name: 'cozinha' }), ...json })
@@ -46,6 +46,7 @@ describe('createRolesRouter', () => {
 
   it('DELETE de função padrão é 400; de função livre é 204', async () => {
     const repo = createMemoryRepo({
+      users: adminDeTeste(),
       roles: { r1: { name: 'colmeia', tenantId: 't1' }, r2: { name: 'cozinha', tenantId: 't1' } },
     })
     const router = createRolesRouter({ repo }, config(['colmeia']))

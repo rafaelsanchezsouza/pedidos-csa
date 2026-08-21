@@ -32,6 +32,8 @@ incluir `src/config.ts`); `start` e `deploy.sh` já apontam para lá.
 - **Engine não lê `process.env`** — integrações/segredos entram no boot do app
 - `@pedidos/core/server` é export **separado do barrel raiz** (o front importa
   `@pedidos/core` e não pode arrastar express)
+- **Autorização é do servidor** (`server/auth.ts`): rota que muda dado ou lê dado de terceiro
+  carrega o `Ator` e checa. O tenant vem do **recurso**, nunca do header
 - Telefone: normalizar **uma vez, no adapter que envia** (`normalizePhone` do core); serviços
   do engine repassam o contato cru
 - Dados da CSA são **canônicos** (`tenants`/`tenantId`), com o `colmeiaId` ainda ao lado até a

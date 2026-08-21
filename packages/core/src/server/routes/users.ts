@@ -4,6 +4,7 @@ import type { AppConfig } from '../../config.js'
 import type { Repo, AuthGateway, WhatsAppGateway } from '../repo.js'
 import type { UserDoc } from '../../types.js'
 import '../types.js'
+import { carregarAtor, ehAdmin, negar, filtrarCamposDoPerfil } from '../auth.js'
 
 export type { UserDoc }
 
@@ -21,6 +22,14 @@ function gerarSenha() {
 
 export function createUsersRouter({ repo, auth, whatsapp, appUrl }: UsersDeps, config: AppConfig): Router {
   const router = Router()
+
+  // O tenant vem do RECURSO, não do header: senão bastava mandar x-tenant-id de outra tenant.
+  async function exigirAdmin(req: Request, res: Response, tenantId?: string): Promise<boolean> {
+    const ator = await carregarAtor(repo, req.user!.uid)
+    if (ehAdmin(ator, tenantId)) return true
+    negar(res)
+    return false
+  }
 
   // Nome do tenant no texto de boas-vindas; sem doc, cai no nome do app (fim do ?? 'CSA').
   const tenantName = async (tenantId: string): Promise<string> => {
@@ -46,7 +55,9 @@ export function createUsersRouter({ repo, auth, whatsapp, appUrl }: UsersDeps, c
 
   router.put('/me', async (req: Request, res: Response) => {
     try {
-      const updates = req.body as Partial<UserDoc>
+      // Só os campos do próprio perfil: sem esta trava, um membro se promovia a admin
+      // mandando `acesso` no corpo.
+      const updates = filtrarCamposDoPerfil(req.body)
       await repo.updateDoc<UserDoc>('users', req.user!.uid, updates)
       const user = await repo.getDoc<UserDoc>('users', req.user!.uid)
       res.json(user)
@@ -59,6 +70,8 @@ export function createUsersRouter({ repo, auth, whatsapp, appUrl }: UsersDeps, c
     try {
       const tenantId = (req.query.tenantId as string) || req.tenantId
       if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
+      // Nome, e-mail, telefone e endereço de todos os membros: só admin.
+      if (!(await exigirAdmin(req, res, tenantId))) return
       const users = await repo.listDocs<UserDoc>('users', [['tenantId', '==', tenantId]])
       res.json(users)
     } catch (err) {
@@ -69,8 +82,15 @@ export function createUsersRouter({ repo, auth, whatsapp, appUrl }: UsersDeps, c
   // Auto-registro: cria doc para o usuário já autenticado
   router.post('/', async (req: Request, res: Response) => {
     try {
-      const data = req.body as UserDoc
       const uid = req.user!.uid
+      // Escape hatch de primeiro acesso: só cria o próprio doc, e nunca com privilégio
+      // escolhido por quem chama (antes dava para nascer admin). Editar depois é PUT /me.
+      if (await repo.getDoc<UserDoc>('users', uid)) {
+        negar(res, 'Usuário já existe: use PUT /users/me')
+        return
+      }
+      const { acesso: _ignorado, ...resto } = req.body as UserDoc
+      const data = { ...resto, acesso: ['consumidor'] } as UserDoc
       await repo.setDoc('users', uid, data)
       res.status(201).json({ id: uid, ...data })
     } catch (err) {
@@ -133,6 +153,7 @@ export function createUsersRouter({ repo, auth, whatsapp, appUrl }: UsersDeps, c
     try {
       const tenantId = req.tenantId
       if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
+      if (!(await exigirAdmin(req, res, tenantId))) return
       const { orderedIds } = req.body as { orderedIds: string[] }
       if (!Array.isArray(orderedIds)) { res.status(400).json({ message: 'orderedIds deve ser um array' }); return }
 
@@ -157,6 +178,7 @@ export function createUsersRouter({ repo, auth, whatsapp, appUrl }: UsersDeps, c
     try {
       const tenantId = req.tenantId
       if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
+      if (!(await exigirAdmin(req, res, tenantId))) return
       const { from, to } = req.body as { from?: string; to?: string }
       if (!from || !to) { res.status(400).json({ message: 'from e to obrigatórios' }); return }
       if (from === to) { res.json({ updated: 0 }); return }
@@ -173,6 +195,8 @@ export function createUsersRouter({ repo, auth, whatsapp, appUrl }: UsersDeps, c
   router.put('/:uid', async (req: Request, res: Response) => {
     try {
       const uid = req.params['uid'] as string
+      const alvo = await repo.getDoc<UserDoc>('users', uid)
+      if (!(await exigirAdmin(req, res, alvo?.tenantId))) return
       const updates = req.body as Partial<UserDoc>
       if ('disabled' in updates) {
         await auth.updateUser(uid, { disabled: !!updates.disabled })
@@ -193,6 +217,7 @@ export function createUsersRouter({ repo, auth, whatsapp, appUrl }: UsersDeps, c
         auth.getUserEmail(uid),
         repo.getDoc<UserDoc>('users', uid),
       ])
+      if (!(await exigirAdmin(req, res, user?.tenantId))) return
       if (!email) { res.status(404).json({ message: 'Usuário sem e-mail de login' }); return }
       const link = await auth.generatePasswordResetLink(email)
       let whatsappSent = false
@@ -211,6 +236,8 @@ export function createUsersRouter({ repo, auth, whatsapp, appUrl }: UsersDeps, c
   router.delete('/:uid', async (req: Request, res: Response) => {
     try {
       const uid = req.params['uid'] as string
+      const alvo = await repo.getDoc<UserDoc>('users', uid)
+      if (!(await exigirAdmin(req, res, alvo?.tenantId))) return
       await auth.deleteUser(uid)
       await repo.updateDoc<UserDoc>('users', uid, { deleted: true, disabled: true })
       res.json({ success: true })

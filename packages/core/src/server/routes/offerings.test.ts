@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createOfferingsRouter } from './offerings'
 import { createMemoryRepo } from '../memoryRepo'
-import { withRouter, json } from '../testutil'
+import { withRouter, json, adminDeTeste } from '../testutil'
 import type { AppConfig } from '../../config.js'
 
 const catalogConfig: AppConfig = {
@@ -51,6 +51,7 @@ describe('createOfferingsRouter — POST (upsert)', () => {
 
   it('cria produto novo no catálogo, atualiza preço do existente e deduplica', async () => {
     const repo = createMemoryRepo({
+      users: adminDeTeste(),
       products: { p1: { name: 'Alface', unit: 'unid', price: 3, producerId: 'pr1', tenantId: 't1' } },
     })
     await withRouter('/api/offerings', createOfferingsRouter({ repo }, catalogConfig), async (get) => {
@@ -77,6 +78,7 @@ describe('createOfferingsRouter — POST (upsert)', () => {
 
   it('substitui a oferta da semana e remove dos pedidos os produtos que saíram', async () => {
     const repo = createMemoryRepo({
+      users: adminDeTeste(),
       products: {
         p1: { name: 'Alface', unit: 'unid', price: 4, producerId: 'pr1', tenantId: 't1' },
         p2: { name: 'Couve', unit: 'maço', price: 5, producerId: 'pr1', tenantId: 't1' },
@@ -110,7 +112,7 @@ describe('createOfferingsRouter — POST (upsert)', () => {
   })
 
   it('nova oferta reabre extras fechados do tenant', async () => {
-    const repo = createMemoryRepo({ tenants: { t1: { name: 'L', extrasAberto: false } } })
+    const repo = createMemoryRepo({ users: adminDeTeste(), tenants: { t1: { name: 'L', extrasAberto: false } } })
     await withRouter('/api/offerings', createOfferingsRouter({ repo }, catalogConfig), async (get) => {
       await get('/api/offerings', {
         method: 'POST',
@@ -126,6 +128,7 @@ describe('createOfferingsRouter — POST (upsert)', () => {
 describe('createOfferingsRouter — fallback', () => {
   it('copia a última oferta de quem não tem na semana, descartando rawMessage', async () => {
     const repo = createMemoryRepo({
+      users: adminDeTeste(),
       weekly_offerings: {
         velha: { producerId: 'pr1', producerName: 'Sítio', tenantId: 't1', weekStart: '2026-07-27',
           items: [{ productId: 'p1', productName: 'Alface', unit: 'unid', price: 4, type: 'fixo' }],
@@ -152,6 +155,7 @@ describe('createOfferingsRouter — fallback', () => {
 describe('createOfferingsRouter — capacidades', () => {
   it('from-catalog: gera oferta por produtor a partir do catálogo ativo; /parse não existe', async () => {
     const repo = createMemoryRepo({
+      users: adminDeTeste(),
       products: {
         p1: { name: 'Pão', unit: 'unid', price: 12, producerId: 'pr1', tenantId: 't1', type: 'fixo' },
         p2: { name: 'Café', unit: 'pct', price: 30, producerId: 'pr2', tenantId: 't1' },
@@ -182,6 +186,7 @@ describe('createOfferingsRouter — capacidades', () => {
 
   it('parse-message + fuzzy: extrai itens e enriquece preço pelo catálogo; /from-catalog não existe', async () => {
     const repo = createMemoryRepo({
+      users: adminDeTeste(),
       products: { p1: { name: 'Alface', unit: 'unid', price: 4.5, producerId: 'pr1', tenantId: 't1' } },
     })
     await withRouter('/api/offerings', createOfferingsRouter({ repo }, parseConfig), async (get) => {
@@ -215,7 +220,7 @@ describe('createOfferingsRouter — capacidades', () => {
       ...catalogConfig,
       capabilities: { ...catalogConfig.capabilities, offeringSource: 'parse-message', messageParser: 'openai' },
     }
-    const repo = createMemoryRepo()
+    const repo = createMemoryRepo({ users: adminDeTeste() })
     const parseMessage = async () => [{ name: 'Via adapter', unit: 'unid', price: 1, type: 'extra' as const }]
     await withRouter('/api/offerings', createOfferingsRouter({ repo, parseMessage }, config), async (get) => {
       const res = await get('/api/offerings/parse', {

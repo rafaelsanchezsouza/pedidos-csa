@@ -330,6 +330,35 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
     sem backup. Deliberadamente adiada: enquanto ela não roda, voltar para `~/repos/pedidos-csa`
     é um redeploy.
 
+- ✅ **Autorização no servidor** (10ª fatia, 2026-08-21) — `packages/core/src/server/auth.ts`.
+  Até aqui o engine confiava no frontend: **bastava estar autenticado**. As telas tinham gate,
+  a API não. O que dava para fazer chamando direto, com um login comum de membro:
+  - `GET /users` — nome, e-mail, telefone e endereço de **todos os membros** da tenant.
+  - `PUT /users/me` gravava o corpo inteiro no doc → mandar `acesso: ['admin']` **promovia a si
+    mesmo**. Era a falha mais grave, e a que menos aparecia.
+  - `PUT /payments/:id` sem distinção de campo → marcar a **própria fatura como paga**
+    (`verified: true`). O comentário na rota já dizia "proofUrl (usuário) ou verified (admin)";
+    a regra existia só no comentário.
+  - criar/editar/apagar produto, fornecedor, função e oferta de **qualquer tenant**, passando o
+    `tenantId` no corpo.
+  - `GET /orders/history?userId=` lia o histórico de outro membro; `send-consolidated-whatsapp`
+    disparava mensagem ao produtor e **trancava a semana** de todo mundo.
+  - **Nada disso era regressão da adoção do engine** — as rotas antigas dos dois apps tinham a
+    mesma forma (era a "Pendência F3" do handoff do Fermentou, aberta desde então).
+  **A regra agora:** o tenant vem sempre do **recurso**, nunca do header (é o header que o
+  atacante controla). Superadmin atravessa tenants; admin manda no próprio; fornecedor mexe só
+  no que é do seu `producerId`; o dono de uma fatura só anexa comprovante. `import-batch`
+  autoriza **linha a linha**, para um lote não virar porta dos fundos.
+  **Compatibilidade com a produção é parte da regra:** a CSA grava `acesso` como *string*
+  (`'admin'`) e tem registro com o rótulo legado `role: 'superadmin'`. Os predicados são
+  dual-mode e há teste para as três formas — sem isso a trava trancaria os próprios
+  administradores para fora.
+  18 testes novos escritos como **casos negativos** (`server/auth.test.ts`): cada um é um
+  ataque que funcionava. Placar do core: 167 → **185**.
+  *Erro que os testes pegaram no meio do caminho:* a checagem de `GET /payments` caiu no
+  handler errado (`/my`) e teria quebrado a página de pagamentos de **todo membro**. O teste
+  que garante o caminho feliz do membro nasceu daí.
+
 ### Como o server consome o core (o ponto que exigia decisão)
 `@pedidos/core` **builda para `dist`** (`tsc` NodeNext → `.js` + `.d.ts`); imports internos com
 extensão `.js` (ESM válido no node). Assim **todos os consumidores resolvem igual** via

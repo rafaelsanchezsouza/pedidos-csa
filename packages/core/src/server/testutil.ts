@@ -32,3 +32,10 @@ export async function withRouter(
 }
 
 export const json = { headers: { 'content-type': 'application/json' } }
+
+// Ator padrão dos testes de rota. Desde que a autorização passou a ser feita no servidor
+// (auth.ts), as rotas de mutação exigem um doc em `users` para o uid que está chamando —
+// sem ele, tudo responde 403. `uid` default do withRouter é 'u1'.
+export const adminDeTeste = (tenantId = 't1', uid = 'u1') => ({
+  [uid]: { name: 'Admin de teste', tenantId, acesso: ['admin'] },
+})

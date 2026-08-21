@@ -3,6 +3,7 @@ import type { AppConfig } from '../../config.js'
 import type { EngineDeps } from '../repo.js'
 import type { RoleDoc } from '../../types.js'
 import '../types.js'
+import { carregarAtor, ehAdmin, negar } from '../auth.js'
 
 // Funções no coletivo (campo livre do membro). Os defaults são vocabulário do cliente
 // (CSA: colmeia/coagricultor; padaria: nenhum) — vêm de config.tenantDefaults.roleDefaults.
@@ -35,6 +36,8 @@ export function createRolesRouter({ repo }: EngineDeps, config: AppConfig): Rout
       const tenantId = req.tenantId
       const { name } = req.body as { name?: string }
       if (!tenantId || !name?.trim()) { res.status(400).json({ message: 'name obrigatório' }); return }
+      const ator = await carregarAtor(repo, req.user!.uid)
+      if (!ehAdmin(ator, tenantId)) { negar(res); return }
       const existing = await repo.listDocs<RoleDoc>('roles', [
         ['tenantId', '==', tenantId],
         ['name', '==', name.trim()],
@@ -51,6 +54,8 @@ export function createRolesRouter({ repo }: EngineDeps, config: AppConfig): Rout
     try {
       const role = await repo.getDoc<RoleDoc>('roles', req.params.id as string)
       if (!role) { res.status(404).json({ message: 'Não encontrado' }); return }
+      const ator = await carregarAtor(repo, req.user!.uid)
+      if (!ehAdmin(ator, role.tenantId)) { negar(res); return }
       if (defaults.includes(role.name)) {
         res.status(400).json({ message: 'Não é possível remover funções padrão' }); return
       }

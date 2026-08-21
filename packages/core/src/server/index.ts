@@ -3,6 +3,10 @@
 import './types.js'
 
 export * from './repo.js'
+export {
+  carregarAtor, ehSuperadmin, ehAdmin, ehFornecedor, ehAdminOuFornecedor,
+  podeMexerNoProducer, negar, type Ator,
+} from './auth.js'
 export { createTenantMiddleware } from './middleware/tenant.js'
 export { createTenantsRouter, type TenantDoc } from './routes/tenants.js'
 export { createRolesRouter, type RoleDoc } from './routes/roles.js'

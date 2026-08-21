@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { isAdmin } from '../../acesso.js'
+import { carregarAtor, ehAdmin, ehAdminOuFornecedor, negar } from '../auth.js'
 import type { EngineDeps, WhatsAppGateway } from '../repo.js'
 import type { PaymentService } from '../services/payments.js'
 import type { OrdersService } from '../services/orders.js'
@@ -16,6 +17,15 @@ export interface OrdersDeps extends EngineDeps {
 
 export function createOrdersRouter({ repo, payments, orders, whatsapp }: OrdersDeps): Router {
   const router = Router()
+
+  // Consolidado e envio ao produtor são operação de bastidor: admin, ou fornecedor da tenant
+  // (é ele quem recebe o pedido). Nunca o consumidor.
+  async function exigirBastidor(req: Request, res: Response, tenantId?: string): Promise<boolean> {
+    const ator = await carregarAtor(repo, req.user!.uid)
+    if (ehAdminOuFornecedor(ator, tenantId)) return true
+    negar(res)
+    return false
+  }
 
   router.get('/my', async (req: Request, res: Response) => {
     try {
@@ -38,6 +48,7 @@ export function createOrdersRouter({ repo, payments, orders, whatsapp }: OrdersD
       const tenantId = (req.query.tenantId as string) || req.tenantId
       const weekId = req.query.weekId as string
       if (!tenantId || !weekId) { res.status(400).json({ message: 'tenantId e weekId obrigatórios' }); return }
+      if (!(await exigirBastidor(req, res, tenantId))) return
       res.json(await repo.listDocs<OrderDoc>('orders', [
         ['tenantId', '==', tenantId],
         ['weekId', '==', weekId],
@@ -56,6 +67,7 @@ export function createOrdersRouter({ repo, payments, orders, whatsapp }: OrdersD
       if (!tenantId || !weekId || !producerId) {
         res.status(400).json({ message: 'tenantId, weekId e producerId obrigatórios' }); return
       }
+      if (!(await exigirBastidor(req, res, tenantId))) return
       const text = await orders.buildConsolidatedText(tenantId, weekId, producerId)
       res.json({ text })
     } catch (err) {
@@ -83,6 +95,9 @@ export function createOrdersRouter({ repo, payments, orders, whatsapp }: OrdersD
       if (!tenantId || !weekId || !producerId) {
         res.status(400).json({ message: 'tenantId, weekId e producerId obrigatórios' }); return
       }
+      // Manda WhatsApp e trava a semana de todo mundo: só admin.
+      const ator = await carregarAtor(repo, req.user!.uid)
+      if (!ehAdmin(ator, tenantId)) { negar(res); return }
 
       const producers = await repo.listDocs<{ name: string; contact: string }>('producers', [
         ['tenantId', '==', tenantId],
@@ -140,6 +155,8 @@ export function createOrdersRouter({ repo, payments, orders, whatsapp }: OrdersD
       const tenantId = (req.query.tenantId as string) || req.tenantId
       if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
       const userId = (req.query.userId as string) || req.user!.uid
+      // Histórico de outra pessoa é dado de terceiro.
+      if (userId !== req.user!.uid && !(await exigirBastidor(req, res, tenantId))) return
       const list = await repo.listDocs<OrderDoc>('orders', [
         ['userId', '==', userId],
         ['tenantId', '==', tenantId],

@@ -5,6 +5,7 @@ import type { MessageParser } from '../parseMessage.js'
 import { fuzzyMessageParser } from '../fuzzyParser.js'
 import type { OfferingDoc, OfferingItem, OrderDoc, ProductDoc } from '../../types.js'
 import '../types.js'
+import { carregarAtor, negar, podeMexerNoProducer, ehAdminOuFornecedor } from '../auth.js'
 
 export type { OfferingDoc, OfferingItem }
 
@@ -113,6 +114,14 @@ export function createOfferingsRouter(deps: OfferingsDeps, config: AppConfig): R
   const { repo } = deps
   const router = Router()
 
+  // A oferta da semana é do produtor: admin da tenant, ou o fornecedor dono dela.
+  async function podeMexer(req: Request, res: Response, tenantId?: string, producerId?: string) {
+    const ator = await carregarAtor(repo, req.user!.uid)
+    if (podeMexerNoProducer(ator, tenantId, producerId)) return true
+    negar(res)
+    return false
+  }
+
   router.get('/', async (req: Request, res: Response) => {
     try {
       const tenantId = (req.query.tenantId as string | undefined) || req.tenantId
@@ -141,6 +150,7 @@ export function createOfferingsRouter(deps: OfferingsDeps, config: AppConfig): R
         }
         const tenantId = bodyTenantId || req.tenantId
         if (!tenantId) { res.status(400).json({ message: 'tenantId obrigatório' }); return }
+        if (!(await podeMexer(req, res, tenantId, producerId))) return
 
         const productFilters: WhereFilter[] = [['tenantId', '==', tenantId]]
         if (producerId) productFilters.push(['producerId', '==', producerId])
@@ -172,6 +182,7 @@ export function createOfferingsRouter(deps: OfferingsDeps, config: AppConfig): R
         if (!tenantId || !weekStart) {
           res.status(400).json({ message: 'weekStart e tenantId obrigatórios' }); return
         }
+        if (!(await podeMexer(req, res, tenantId, producerId))) return
 
         const productFilters: WhereFilter[] = [['tenantId', '==', tenantId]]
         if (producerId) productFilters.push(['producerId', '==', producerId])
@@ -228,6 +239,12 @@ export function createOfferingsRouter(deps: OfferingsDeps, config: AppConfig): R
       if (!tenantId || !weekStart) {
         res.status(400).json({ message: 'weekStart e tenantId obrigatórios' }); return
       }
+      // Sem producerId o fallback cobre a tenant inteira — aí é ato de admin.
+      const ator = await carregarAtor(repo, req.user!.uid)
+      const permitido = producerId
+        ? podeMexerNoProducer(ator, tenantId, producerId)
+        : ehAdminOuFornecedor(ator, tenantId) && !!ator.tenantId
+      if (!permitido) { negar(res); return }
 
       // Ofertas já existentes nesta semana
       const thisWeek = await repo.listDocs<OfferingDoc>('weekly_offerings', [
@@ -271,7 +288,9 @@ export function createOfferingsRouter(deps: OfferingsDeps, config: AppConfig): R
 
   router.post('/', async (req: Request, res: Response) => {
     try {
-      const offering = await upsertOffering(repo, req.body as Omit<OfferingDoc, 'dateCreated'>)
+      const dados = req.body as Omit<OfferingDoc, 'dateCreated'>
+      if (!(await podeMexer(req, res, dados.tenantId, dados.producerId))) return
+      const offering = await upsertOffering(repo, dados)
       res.status(201).json(offering)
     } catch (err) {
       res.status(500).json({ message: String(err) })
@@ -280,6 +299,10 @@ export function createOfferingsRouter(deps: OfferingsDeps, config: AppConfig): R
 
   router.put('/:id', async (req: Request, res: Response) => {
     try {
+      const id = req.params['id'] as string
+      const atual = await repo.getDoc<OfferingDoc>('weekly_offerings', id)
+      if (!atual) { res.status(404).json({ message: 'Oferta não encontrada' }); return }
+      if (!(await podeMexer(req, res, atual.tenantId, atual.producerId))) return
       const updates = req.body as Partial<OfferingDoc>
       await repo.updateDoc<OfferingDoc>('weekly_offerings', req.params['id'] as string, updates)
       res.json({ id: req.params['id'], ...updates })

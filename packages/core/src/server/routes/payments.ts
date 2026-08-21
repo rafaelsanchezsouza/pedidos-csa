@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import type { EngineDeps } from '../repo.js'
 import type { PaymentService, PaymentDoc } from '../services/payments.js'
 import '../types.js'
+import { carregarAtor, ehAdmin, ehAdminOuFornecedor, negar } from '../auth.js'
 
 export interface PaymentsDeps extends EngineDeps {
   payments: PaymentService
@@ -31,6 +32,8 @@ export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
       const tenantId = (req.body.tenantId as string) || req.tenantId
       const month = req.body.month as string
       if (!tenantId || !month) { res.status(400).json({ message: 'tenantId e month obrigatórios' }); return }
+      const ator = await carregarAtor(repo, req.user!.uid)
+      if (!ehAdmin(ator, tenantId)) { negar(res); return }
       res.json(await payments.generateQuotaForAll(tenantId, month))
     } catch (err) {
       res.status(500).json({ message: String(err) })
@@ -55,6 +58,8 @@ export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
       const tenantId = (req.body.tenantId as string) || req.tenantId
       const month = req.body.month as string
       if (!tenantId || !month) { res.status(400).json({ message: 'tenantId e month obrigatórios' }); return }
+      const ator = await carregarAtor(repo, req.user!.uid)
+      if (!ehAdmin(ator, tenantId)) { negar(res); return }
       res.json(await payments.generateFreteForAll(tenantId, month))
     } catch (err) {
       res.status(500).json({ message: String(err) })
@@ -67,6 +72,7 @@ export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
       const tenantId = (req.query.tenantId as string) || req.tenantId
       const month = req.query.month as string
       if (!tenantId || !month) { res.status(400).json({ message: 'tenantId e month obrigatórios' }); return }
+      // Sem gate: já está filtrado por userId — é a fatura de quem chama.
       const list = await repo.listDocs<PaymentDoc>('payments', [
         ['userId', '==', req.user!.uid],
         ['tenantId', '==', tenantId],
@@ -84,6 +90,8 @@ export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
       const tenantId = (req.query.tenantId as string) || req.tenantId
       const month = req.query.month as string
       if (!tenantId || !month) { res.status(400).json({ message: 'tenantId e month obrigatórios' }); return }
+      const ator = await carregarAtor(repo, req.user!.uid)
+      if (!ehAdminOuFornecedor(ator, tenantId)) { negar(res); return }
       const list = await repo.listDocs<PaymentDoc>('payments', [
         ['tenantId', '==', tenantId],
         ['month', '==', month],
@@ -94,12 +102,28 @@ export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
     }
   })
 
-  // PUT /:id — atualiza proofUrl (usuário) ou verified (admin)
+  // PUT /:id — atualiza proofUrl (usuário) ou verified (admin).
+  // A regra estava só no comentário: qualquer um marcava a PRÓPRIA fatura como paga.
   router.put('/:id', async (req: Request, res: Response) => {
     try {
-      const updates = { ...req.body as Partial<PaymentDoc>, dateUpdated: new Date().toISOString() }
-      await repo.updateDoc<PaymentDoc>('payments', req.params['id'] as string, updates)
-      res.json({ id: req.params['id'], ...updates })
+      const id = req.params['id'] as string
+      const atual = await repo.getDoc<PaymentDoc>('payments', id)
+      if (!atual) { res.status(404).json({ message: 'Fatura não encontrada' }); return }
+      const ator = await carregarAtor(repo, req.user!.uid)
+      const corpo = req.body as Partial<PaymentDoc>
+      let updates: Partial<PaymentDoc>
+      if (ehAdminOuFornecedor(ator, atual.tenantId)) {
+        updates = corpo
+      } else if (atual.userId === ator.uid) {
+        // O dono anexa comprovante — quem confere é outra pessoa.
+        if (corpo.proofUrl === undefined) { negar(res, 'Só o comprovante pode ser alterado'); return }
+        updates = { proofUrl: corpo.proofUrl }
+      } else {
+        negar(res); return
+      }
+      const comData = { ...updates, dateUpdated: new Date().toISOString() }
+      await repo.updateDoc<PaymentDoc>('payments', id, comData)
+      res.json({ id, ...comData })
     } catch (err) {
       res.status(500).json({ message: String(err) })
     }

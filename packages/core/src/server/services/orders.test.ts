@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { createOrdersService } from './orders'
 import { createOrdersRouter } from '../routes/orders'
 import { createMemoryRepo } from '../memoryRepo'
-import { withRouter, json } from '../testutil'
+import { withRouter, json, adminDeTeste } from '../testutil'
 import type { AppConfig } from '../../config.js'
 import type { PaymentService } from './payments.js'
 import type { WhatsAppGateway } from '../repo.js'
@@ -20,6 +20,7 @@ const config: AppConfig = {
 const WEEK = '2025-08-04'
 
 const seed = {
+  users: adminDeTeste(),
   producers: { pr1: { name: 'Sítio', contact: '(11) 99999-0000', tenantId: 't1' } },
   weekly_offerings: {
     of1: { tenantId: 't1', weekStart: WEEK, producerId: 'pr1', producerName: 'Sítio', items: [{ productId: 'p1', productName: 'Pão', unit: 'un' }] },
