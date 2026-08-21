@@ -355,6 +355,8 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   administradores para fora.
   18 testes novos escritos como **casos negativos** (`server/auth.test.ts`): cada um é um
   ataque que funcionava. Placar do core: 167 → **185**.
+  ✅ **Em produção nos dois apps desde 2026-08-21** — deploy verde, `restarts 0`, log de erro
+  limpo.
   *Erro que os testes pegaram no meio do caminho:* a checagem de `GET /payments` caiu no
   handler errado (`/my`) e teria quebrado a página de pagamentos de **todo membro**. O teste
   que garante o caminho feliz do membro nasceu daí.

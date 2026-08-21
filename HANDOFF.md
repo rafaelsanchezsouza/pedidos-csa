@@ -142,10 +142,9 @@ de membros** — fora do repo, apagar quando não for mais necessário.
 2. **Aposentar os repos originais** (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) — só depois do
    item 1, porque são o plano de rollback. Arquivar, não apagar.
 3. **Apagar o backup** com dados pessoais (`~/backup-csa-2026-08-21.json`).
-4. **Redeployar os dois apps** para a trava de autorização valer em produção (§7).
-5. **WhatsApp dedicado para o Fermentou** (hoje divide o número da CSA; ver `~/repos/ZAP-PROTOCOL.md`).
-6. **Pix pré-entrega** — decisão de produto antes de codar (`apps/fermentou/PENDENCIAS.md` B1/B2).
-7. **`.env.development`** não existe em nenhum dos dois apps — `npm run dev` quebra no boot do
+4. **WhatsApp dedicado para o Fermentou** (hoje divide o número da CSA; ver `~/repos/ZAP-PROTOCOL.md`).
+5. **Pix pré-entrega** — decisão de produto antes de codar (`apps/fermentou/PENDENCIAS.md` B1/B2).
+6. **`.env.development`** não existe em nenhum dos dois apps — `npm run dev` quebra no boot do
    Firebase. Decidir se dev aponta para o mesmo projeto ou um separado.
 
 ## 7. Riscos conhecidos
@@ -159,8 +158,11 @@ não veio da adoção do engine.
 A regra está agora em `packages/core/src/server/auth.ts`, com 18 testes escritos como casos
 negativos (`server/auth.test.ts`) — o tenant vem sempre do recurso, nunca do header.
 
-> ⚠️ **Só vale depois de redeployar os dois apps.** Enquanto o `deploy.sh` não rodar, a produção
-> segue com o comportamento antigo.
+✅ **Em produção desde 2026-08-21** (os dois apps redeployados, `restarts 0`).
+
+O que **não** está fechado: o escopo de fornecedor depende de `User.producerId` estar preenchido.
+Usuário com `acesso: ['fornecedor']` e sem `producerId` não consegue editar nada — é o lado
+seguro do erro, mas confira o cadastro antes de dar esse acesso a alguém.
 
 ## 8. Docs
 
