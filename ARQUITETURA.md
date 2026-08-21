@@ -293,6 +293,11 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
     estourava depois, no firebase-admin (`Service account object must contain a string
     "project_id"`). Agora o `env.ts` **procura subindo** (até 3 níveis) e **falha ali mesmo**
     dizendo o que faltou. Vale para os dois apps — a CSA tem a mesma emissão desde a 7ª fatia.
+  - ✅ **Fermentou no ar a partir do monorepo** (2026-08-20): pm2 `online`, **0 restarts**,
+    script path `dist-server/server/index.js`, front público **200** e `/api/tenants` **401**
+    sem token. É o primeiro app rodando do monorepo em vez do repo original. Fica de fora do
+    escopo desta verificação o que exige login (leitura real do Firestore) — o que ela prova é
+    que o processo sobe, carrega credencial e serve.
   - *Lição registrada:* "buildou" e "instalou" não são "subiu". Sem CI, o único momento em que
     o código roda de verdade é o deploy — então é o deploy que tem de dizer se subiu. Os três
     bugs desta fatia estavam latentes desde a task 5 e nenhum aparecia em teste ou build.
@@ -448,8 +453,8 @@ posterior, com o app já verde).
   ~~`core/ui`~~, ~~script de migração canônica + validação em cópia~~, ~~CSA adota o engine~~ e
   ~~consertar o `deploy.sh`~~ (feitos). Falta **um evento só**: na janela, rodar a migração
   (roteiro em §4.5) e deployar os dois apps — o `deploy.sh` nunca rodou de verdade, então o
-  primeiro deploy é o teste dele. Sugestão de ordem: **fermentou primeiro** (não tem dados
-  reais e não depende de migração), que valida o `deploy.sh` antes de a CSA depender dele.
+  primeiro deploy é o teste dele. ~~Sugestão de ordem: **fermentou primeiro**~~ — feito, e valeu
+  a pena: achou **3 bugs** que teriam derrubado a CSA dentro da janela, com os dados já migrados.
 
 ### Questões em aberto (decidir na task 6)
 
