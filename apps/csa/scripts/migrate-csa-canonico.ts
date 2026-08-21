@@ -11,6 +11,10 @@
 // Produção (dry-run primeiro, SEMPRE):
 //   FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts
 //   FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts --executar
+//
+// 2ª passada, DEPOIS que o app novo estiver verde em produção (apaga o colmeiaId e com ele a
+// possibilidade de rollback sem restaurar backup):
+//   FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts --executar --limpar-legado
 import { readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { fileURLToPath } from 'url'
@@ -19,6 +23,7 @@ import { migrarCanonico, formatarRelatorio, type DocRaw, type Store } from './mi
 import { memoryStore, type Dump } from './memoryStore.js'
 
 const executar = process.argv.includes('--executar')
+const limparLegado = process.argv.includes('--limpar-legado')
 const arqDump = process.argv.find((a) => a.startsWith('--dump='))?.slice('--dump='.length)
 
 async function storeDeDump(caminho: string): Promise<{ store: Store; fim: () => void }> {
@@ -77,7 +82,7 @@ async function storeFirestore(): Promise<{ store: Store; fim: () => void }> {
 
 const { store, fim } = arqDump ? await storeDeDump(arqDump) : await storeFirestore()
 
-const rel = await migrarCanonico(store, executar)
+const rel = await migrarCanonico(store, { executar, limparLegado })
 console.log(formatarRelatorio(rel))
 fim()
 

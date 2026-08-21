@@ -31,42 +31,81 @@ describe('migrarCanonico', () => {
     expect(store.dump()).toEqual(antes)
   })
 
-  it('cria tenants com o mesmo id e preserva colmeias para rollback', async () => {
+  it('cria tenants com o mesmo id e preserva colmeias', async () => {
     const store = memoryStore(base())
-    await migrarCanonico(store, true)
+    await migrarCanonico(store, { executar: true })
     const d = store.dump()
 
     expect(d.tenants[T]).toEqual({ name: 'Flor de Quilombo', adminId: 'u1', dateCreated: '2024-01-01' })
     expect(d.colmeias[T]).toBeDefined()
   })
 
-  it('renomeia colmeiaId→tenantId em todas as coleções e converte deliveryType', async () => {
+  // O ponto da migração aditiva: enquanto o legado existir, o código antigo volta a rodar.
+  it('escreve tenantId AO LADO do colmeiaId (rollback preservado)', async () => {
     const store = memoryStore(base())
-    await migrarCanonico(store, true)
+
+    const rel = await migrarCanonico(store, { executar: true })
     const d = store.dump()
 
+    for (const col of ['users', 'orders', 'payments']) {
+      for (const doc of Object.values(d[col])) {
+        expect(doc.tenantId).toBe(T)
+        expect(doc.colmeiaId).toBe(T)
+      }
+    }
+    expect(rel.legadoMantido).toBe(4)
+    expect(rel.limpouLegado).toBe(false)
+  })
+
+  it('converte deliveryType (única mudança não-aditiva)', async () => {
+    const store = memoryStore(base())
+    await migrarCanonico(store, { executar: true })
+    const d = store.dump()
+
+    expect(d.users.u1.deliveryType).toBe('retirada')
+    expect(d.users.u2.deliveryType).toBe('entrega')
+  })
+
+  it('--limpar-legado apaga o colmeiaId numa 2ª passada', async () => {
+    const store = memoryStore(base())
+    await migrarCanonico(store, { executar: true })
+
+    const rel = await migrarCanonico(store, { executar: true, limparLegado: true })
+    const d = store.dump()
+
+    expect(rel.limpouLegado).toBe(true)
+    expect(rel.legadoMantido).toBe(0)
+    expect(rel.campos.users.legadoRemovido).toBe(2)
     for (const col of ['users', 'orders', 'payments']) {
       for (const doc of Object.values(d[col])) {
         expect(doc.tenantId).toBe(T)
         expect(doc).not.toHaveProperty('colmeiaId')
       }
     }
-    expect(d.users.u1.deliveryType).toBe('retirada')
-    expect(d.users.u2.deliveryType).toBe('entrega')
+  })
+
+  it('limpar-legado direto (sem passada aditiva antes) também funciona', async () => {
+    const store = memoryStore(base())
+    await migrarCanonico(store, { executar: true, limparLegado: true })
+    const d = store.dump()
+
+    expect(d.orders.o1.tenantId).toBe(T)
+    expect(d.orders.o1).not.toHaveProperty('colmeiaId')
   })
 
   it('não toca em coleções sem tenant (otp_codes)', async () => {
     const store = memoryStore(base())
-    await migrarCanonico(store, true)
+    await migrarCanonico(store, { executar: true })
     expect(store.dump().otp_codes.x1).toEqual({ uid: 'u1', code: '123456' })
     expect(COLECOES_COM_TENANT).not.toContain('otp_codes')
   })
 
   it('preserva os demais campos do doc', async () => {
     const store = memoryStore(base())
-    await migrarCanonico(store, true)
+    await migrarCanonico(store, { executar: true })
     expect(store.dump().users.u2).toEqual({
       name: 'B',
+      colmeiaId: T,
       tenantId: T,
       deliveryType: 'entrega',
       acesso: 'user',
@@ -75,10 +114,10 @@ describe('migrarCanonico', () => {
 
   it('é idempotente: a 2ª passada não muda nada', async () => {
     const store = memoryStore(base())
-    await migrarCanonico(store, true)
+    await migrarCanonico(store, { executar: true })
     const depois1 = store.dump()
 
-    const rel = await migrarCanonico(store, true)
+    const rel = await migrarCanonico(store, { executar: true })
 
     expect(store.dump()).toEqual(depois1)
     expect(rel.tenantsCriados).toEqual([])
@@ -88,15 +127,14 @@ describe('migrarCanonico', () => {
     expect(rel.deliveryTypeConvertidos).toBe(0)
   })
 
-  it('limpa o campo legado quando os dois existem com o mesmo valor (passada interrompida)', async () => {
-    const d = base()
-    d.orders.o1.tenantId = T
-    const store = memoryStore(d)
+  it('idempotente também depois da limpeza', async () => {
+    const store = memoryStore(base())
+    await migrarCanonico(store, { executar: true, limparLegado: true })
+    const depois1 = store.dump()
 
-    await migrarCanonico(store, true)
+    await migrarCanonico(store, { executar: true, limparLegado: true })
 
-    expect(store.dump().orders.o1).not.toHaveProperty('colmeiaId')
-    expect(store.dump().orders.o1.tenantId).toBe(T)
+    expect(store.dump()).toEqual(depois1)
   })
 
   it('aborta sem escrever nada se colmeiaId e tenantId divergem', async () => {
@@ -105,7 +143,7 @@ describe('migrarCanonico', () => {
     const store = memoryStore(d)
     const antes = store.dump()
 
-    const rel = await migrarCanonico(store, true)
+    const rel = await migrarCanonico(store, { executar: true })
 
     expect(rel.executado).toBe(false)
     expect(rel.erros).toHaveLength(1)
@@ -118,7 +156,7 @@ describe('migrarCanonico', () => {
     d.orders.o2 = { userId: 'u9', colmeiaId: 'sumiu' }
     const store = memoryStore(d)
 
-    const rel = await migrarCanonico(store, true)
+    const rel = await migrarCanonico(store, { executar: true })
 
     expect(rel.avisos.some((a) => a.includes('órfão'))).toBe(true)
     expect(store.dump().orders.o2.tenantId).toBe('sumiu')
@@ -129,14 +167,14 @@ describe('migrarCanonico', () => {
     d.users.u3 = { name: 'C', colmeiaId: T, deliveryType: 'ponto' }
     const store = memoryStore(d)
 
-    const rel = await migrarCanonico(store, true)
+    const rel = await migrarCanonico(store, { executar: true })
 
     expect(rel.avisos.some((a) => a.includes('deliveryType inesperado'))).toBe(true)
     expect(store.dump().users.u3.deliveryType).toBe('ponto')
   })
 
   it('aborta em banco vazio (proteção contra apontar para o projeto errado)', async () => {
-    const rel = await migrarCanonico(memoryStore({}), true)
+    const rel = await migrarCanonico(memoryStore({}), { executar: true })
     expect(rel.executado).toBe(false)
     expect(rel.erros[0]).toContain('banco errado')
   })

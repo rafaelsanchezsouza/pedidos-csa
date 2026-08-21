@@ -218,13 +218,21 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
     ensaio. O JSON tem dados pessoais: fica fora do repo.
   - **Idempotente e abortável:** roda a apuração inteira antes de escrever; se algum doc tiver
     `colmeiaId` e `tenantId` divergentes, **aborta sem escrever nada**. Segunda passada é no-op
-    (travado por teste). `colmeias` **não é apagada** — fica como rollback; limpar é passo
-    separado, depois da validação.
-  - **Ensaio sobre cópia da produção (2026-08-20):** 458 docs renomeados
+    (travado por teste).
+  - **ADITIVA por padrão** (corrigido antes da janela — a 1ª versão apagava o `colmeiaId`, o que
+    matava o rollback que este doc alegava ter): o `tenantId` é escrito **ao lado** do
+    `colmeiaId`. Enquanto o campo legado existir, **o código antigo volta a rodar sem restaurar
+    backup** — que é o que torna a janela reversível de verdade. A limpeza é uma 2ª passada
+    explícita (`--limpar-legado`), feita **depois** do app novo verde em produção.
+    Única mudança não-aditiva: `deliveryType` (é valor, não campo novo). São 18 docs e o impacto
+    no código antigo é cosmético — ele testa `=== 'colmeia'` só para exibir o rótulo, e a regra
+    de frete pergunta `isEntrega`, que segue certa.
+  - **Ensaio sobre cópia da produção (as duas fases):** fase 1 escreve `tenantId` em 458 docs
     (`orders` 43, `payments` 215, `producers` 2, `products` 99, `roles` 4, `users` 39,
-    `week_locks` 14, `weekly_offerings` 42), 2 tenants criados com o mesmo id, 18
-    `deliveryType 'colmeia'→'retirada'`, **zero órfãos e zero avisos**. Conferido por diff
-    campo a campo: nenhum doc perdido, nenhum valor alterado fora do escopo.
+    `week_locks` 14, `weekly_offerings` 42), cria 2 tenants com o mesmo id, converte 18
+    `deliveryType` e **mantém os 458 `colmeiaId`**; fase 2 (`--limpar-legado`) zera o legado.
+    **Zero órfãos, zero avisos**, e diff campo a campo confirmando nenhum doc perdido e nenhum
+    valor alterado fora do escopo. As duas fases são idempotentes.
   - **Escopo deliberado:** `weekly_offerings`, `week_locks` e `otp_codes` **não mudam de nome** —
     o engine já usa esses nomes; a única coleção renomeada é `colmeias`→`tenants`. E `acesso`
     **fica string na produção**: os predicados do core são dual-mode (task 3), então mexer nos
@@ -436,14 +444,25 @@ código que nasce para morrer, exatamente o que a decisão 2 recusou.
 **Roteiro da janela** (script pronto e ensaiado; nada disso rodou em produção ainda):
 ```bash
 cd apps/csa
-FIREBASE_ENV=prod OUT=~/backup-csa-$(date +%F).json npx tsx scripts/dump-firestore.ts  # backup
-FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts              # dry-run: confere o placar
-FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts --executar   # a passada única
+# 1. parar o app: enquanto o código antigo estiver de pé ele grava colmeiaId em doc novo
+ssh … "pm2 stop pedidos-csa"
+# 2. backup (o JSON tem dados pessoais: fora do repo, apagar depois)
+FIREBASE_ENV=prod OUT=~/backup-csa-$(date +%F).json npx tsx scripts/dump-firestore.ts
+# 3. dry-run: confere o placar antes de escrever
+FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts
+# 4. a passada aditiva
+FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts --executar
+# 5. deploy (sobe o app de novo e verifica sozinho no fim)
+bash deploy.sh
+# 6. DEPOIS de validar o app logando, num momento tranquilo:
+FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts --executar --limpar-legado
 ```
 Front e backend sobem **no mesmo deploy** — o front só passa a mandar `x-tenant-id`/`/api/tenants`
-depois da migração, e o backend antigo não entende os nomes novos. Rollback = reverter o deploy;
-a coleção `colmeias` e o `colmeiaId` originais não são apagados pelo script (limpeza é passo
-posterior, com o app já verde).
+depois da migração, e o backend antigo não entende os nomes novos.
+
+**Rollback** (enquanto o passo 6 não rodou): redeployar a CSA a partir de `~/repos/pedidos-csa`,
+que segue intacto. O código antigo volta a achar tudo porque `colmeias` e `colmeiaId` continuam
+lá — só os 18 `deliveryType` ficam com o rótulo trocado na tela, sem efeito em regra.
 
 ---
 
