@@ -2,7 +2,10 @@
 
 Motor compartilhado (`packages/core`) + apps separados (`apps/csa`, `apps/fermentou`).
 
-- **Decisões, estado e roteiro:** [`ARQUITETURA.md`](ARQUITETURA.md)
+Os dois apps estão **em produção rodando deste monorepo**.
+
+- **Comece aqui:** [`HANDOFF.md`](HANDOFF.md) — onde roda, como deployar, armadilhas, pendências
+- **Decisões e histórico:** [`ARQUITETURA.md`](ARQUITETURA.md)
 - **Regras de trabalho e portão de verificação:** [`CLAUDE.md`](CLAUDE.md)
 
 ```bash

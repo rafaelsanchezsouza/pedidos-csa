@@ -2,10 +2,13 @@
 
 ## Colmeia (Multi-tenancy)
 
-- Todos os dados (usuários, produtos, pedidos, produtores) pertencem a uma colmeia via `colmeiaId`
+- Todos os dados (usuários, produtos, pedidos, produtores) pertencem a uma colmeia via `tenantId`
+  (a coleção é `tenants`; **"colmeia" é o vocabulário de tela**, o modelo é canônico desde a
+  migração de 2026-08-21 — o `colmeiaId` legado ainda existe ao lado até a limpeza)
 - Superadmin acessa todas as colmeias; admin e usuário comum só acessam a própria
 - Seleção de colmeia ativa salva no `localStorage` do navegador
-- Setup inicial cria a primeira colmeia via `POST /api/setup` (sem autenticação)
+- Setup inicial cria a primeira colmeia via `POST /api/setup` (sem autenticação, e **bloqueado
+  assim que existir qualquer tenant** — roda uma vez só)
 - Um usuário pode pertencer a apenas uma colmeia
 
 ## Usuários
@@ -151,7 +154,7 @@
 
 ## Pagamentos
 
-- Uma fatura (`PaymentDoc`) por usuário **por produtor** por mês — chave única: `(userId, colmeiaId, month, producerName)`
+- Uma fatura (`PaymentDoc`) por usuário **por produtor** por mês — chave única: `(userId, tenantId, month, producerName)`
 - Mês representado como string `"YYYY-MM"`
 - Usuário envia comprovante por fatura → URL em `proofUrl`; admin verifica → `verified: true`
 

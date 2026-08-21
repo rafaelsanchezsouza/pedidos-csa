@@ -1,6 +1,9 @@
-# pedidos-app
+# pedidos-app (Fermentou)
 
 Motor multi-tenant de gestão de pedidos e entregas — catálogo, rota de entrega e faturas. Primeiro cliente: uma padaria.
+
+> App do monorepo `pedidos`, consumindo o motor `@pedidos/core`. Para onde roda, deploy,
+> armadilhas e pendências, **comece por [`../../HANDOFF.md`](../../HANDOFF.md)**.
 
 ## Pré-requisitos
 
@@ -117,11 +120,12 @@ npm run lint   # Verificar erros de lint
 
 ```
 /opt/pedidos-app/
-├── dist/            ← frontend buildado (servido pelo nginx)
-├── dist-server/     ← backend buildado (Node.js)
+├── dist/                        ← frontend buildado (servido pelo nginx)
+├── dist-server/server/index.js  ← entrypoint do backend (Node.js)
 ├── node_modules/
-├── package.json
-└── .env             ← variáveis de produção (não está no git)
+├── package.json                 ← gerado no deploy: dep do core aponta para o tarball
+├── pedidos-core-0.1.0.tgz       ← @pedidos/core empacotado (npm pack)
+└── .env.production              ← variáveis de produção (não está no git)
 ```
 
 ### Primeira vez: setup da VM
@@ -139,13 +143,19 @@ Depois, abra a porta 80 no console Oracle Cloud:
 
 ### Configurar o deploy
 
-Edite as variáveis no topo do `deploy.sh`:
+Copie `deploy.env.example` para `deploy.env` (gitignored) e preencha — o `deploy.sh` lê de lá,
+não tem mais variáveis no topo:
 
 ```bash
 VM_USER="ubuntu"
-VM_HOST="SEU_IP_AQUI"
-SSH_KEY="~/.ssh/id_rsa"
+VM_HOST="..."
+VM_DIR="/opt/pedidos-app"
+SSH_KEY="~/.ssh/..."
+ENV_FILE=".env.production"
 ```
+
+O `.env.production` também é gitignored e **não veio no monorepo** — há cópia em
+`~/repos/pedidos-app`.
 
 ### Rodar o deploy
 

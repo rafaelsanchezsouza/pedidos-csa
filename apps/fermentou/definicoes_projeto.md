@@ -1,3 +1,8 @@
+> ⚠️ **DESATUALIZADO** (2026-08-21). Descreve o app quando era repo próprio, com rotas e
+> serviços locais. Hoje ele consome o engine (`@pedidos/core/server`) e o `server/routes/` não
+> existe mais. Para o estado real: [`../../HANDOFF.md`](../../HANDOFF.md).
+> As regras de negócio aqui seguem válidas.
+
 # Definições do Projeto — pedidos-app
 
 ## Visão Geral

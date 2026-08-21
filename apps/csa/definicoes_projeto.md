@@ -1,3 +1,9 @@
+> ⚠️ **DESATUALIZADO** (2026-08-21). Descreve a CSA antes do monorepo: `colmeiaId`, coleção
+> `colmeias`, rotas próprias em `server/routes/`. Hoje o app consome o engine
+> (`@pedidos/core/server`) e os dados são canônicos (`tenantId`, coleção `tenants`).
+> Para o estado real: [`../../HANDOFF.md`](../../HANDOFF.md) e
+> [`../../ARQUITETURA.md`](../../ARQUITETURA.md). As regras de negócio aqui seguem válidas.
+
 # Definições do Projeto — pedidos-csa
 
 ## Visão Geral

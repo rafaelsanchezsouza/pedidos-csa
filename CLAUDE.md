@@ -1,9 +1,11 @@
 # pedidos — monorepo (motor compartilhado, apps separados)
 
 Motor único `packages/core` consumido por apps **deployáveis sozinhos** (`apps/csa`,
-`apps/fermentou`). **Leia `ARQUITETURA.md` primeiro** — decisões, estado das tasks e o que
-falta. Os repos originais (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) seguem intactos como
-fonte da verdade em produção até este monorepo substituí-los.
+`apps/fermentou`). **Os dois estão no ar rodando deste monorepo** (desde 2026-08-21).
+**Leia `HANDOFF.md` primeiro** (onde roda, como deployar, armadilhas, pendências) e
+`ARQUITETURA.md` para as decisões e o histórico. Os repos originais
+(`~/repos/pedidos-csa`, `~/repos/pedidos-app`) seguem intactos **como plano de rollback** —
+não são mais a fonte da verdade. Não aposentar antes da limpeza do legado (`HANDOFF.md` §4).
 
 ## Comportamento
 - pt-BR em tudo (commits, comentários, texto ao usuário); extremamente conciso
@@ -19,7 +21,7 @@ npm run build -w pedidos-app  && npm run build:backend -w pedidos-app
 npm run build -w pedidos-csa  && npm run build:backend -w pedidos-csa
 ```
 Mudou estrutura de emissão? `rm -rf apps/*/dist-server` antes de rebuildar (tsc não limpa
-`outDir`). O backend do fermentou emite em `dist-server/server/index.js` (rootDir `..` para
+`outDir`). **Os dois** backends emitem em `dist-server/server/index.js` (rootDir `..` para
 incluir `src/config.ts`); `start` e `deploy.sh` já apontam para lá.
 
 ## Regras do engine (estabelecidas na task 5 — manter)
@@ -32,6 +34,8 @@ incluir `src/config.ts`); `start` e `deploy.sh` já apontam para lá.
   `@pedidos/core` e não pode arrastar express)
 - Telefone: normalizar **uma vez, no adapter que envia** (`normalizePhone` do core); serviços
   do engine repassam o contato cru
+- Dados da CSA são **canônicos** (`tenants`/`tenantId`), com o `colmeiaId` ainda ao lado até a
+  limpeza; `acesso` continua **string** em produção e os predicados do core são dual-mode
 - `deliveryType`: o motor só pergunta `isEntrega(u)`; o token de não-entrega
   (`retirada`/`colmeia` legado) é vocabulário de UI, nunca decide regra
 - Testes do engine: servidor http real em porta efêmera (`server/testutil.ts`) + `memoryRepo`

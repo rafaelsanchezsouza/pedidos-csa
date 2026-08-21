@@ -1,3 +1,8 @@
+> ⚠️ **SUPERSEDIDO** por [`../../HANDOFF.md`](../../HANDOFF.md) (2026-08-21). Este documento
+> descreve o app quando ele era o repo `pedidos-app` sozinho: os comandos de deploy, a estrutura
+> do server e o estado das features **mudaram** com o monorepo. Segue aqui como histórico do
+> primeiro cliente e das decisões de produto.
+
 # Handoff — pedidos-app (Fermentou)
 
 Estado em 2026-07-21. Motor genérico de pedidos/entregas multi-tenant, fork do `pedidos-csa`.

@@ -1,3 +1,7 @@
+> ℹ️ **Histórico** (2026-08-21). O merge aconteceu: o motor foi extraído para `packages/core` e
+> os dois apps o consomem. Os port-backs do §6 (setup robusto, correções de deploy) **já
+> entraram** — a CSA os herdou ao adotar o engine. Vale como mapa das divergências que existiam.
+
 # Merge futuro: `pedidos-app` ⇄ `pedidos-csa`
 
 Objetivo declarado: **remesclar o motor de backend** dos dois apps num só, multi-tenant,
