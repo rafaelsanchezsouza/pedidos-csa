@@ -4,10 +4,10 @@ Monorepo com um **motor único** (`packages/core`) consumido por **apps separado
 independentemente deployáveis** (`apps/csa`, `apps/fermentou`). As diferenças entre clientes
 são **configuração**, não fork de código.
 
-> Estado: **tasks 1–5 concluídas e verdes**; **task 6 quase concluída** — `core/ui`, conserto do
-> `deploy.sh`, script de migração canônica **ensaiado sobre uma cópia da produção** e **a CSA já
-> roda sobre o engine** (o `server/routes/` dos dois apps sumiu). Resta o **evento único**:
-> migrar a produção na janela e deployar os dois apps. Branch
+> Estado: **tasks 1–6 concluídas**. Os dois apps rodam do monorepo em produção e a migração
+> canônica da CSA foi executada (2026-08-21) — `tenants`/`tenantId` no lugar, `colmeiaId`
+> preservado para rollback. Pendente só a **limpeza do legado** (`--limpar-legado`), depois de
+> alguns dias de uso verde. Branch
 > `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
 > `~/repos/pedidos-app`) seguem **intactos** como fonte da verdade até este monorepo substituí-los.
 
@@ -310,6 +310,26 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
     o código roda de verdade é o deploy — então é o deploy que tem de dizer se subiu. Os três
     bugs desta fatia estavam latentes desde a task 5 e nenhum aparecia em teste ou build.
 
+- ✅ **Janela executada: migração + deploy da CSA** (9ª fatia — fecha a task 6, 2026-08-21):
+  `pm2 stop` → backup (463 docs, 300 KB, fora do repo) → dry-run → passada aditiva → deploy.
+  - **O dry-run em produção bateu com o ensaio nos 8 números** (43/215/2/99/4/39/14/42 = 458),
+    2 tenants, 18 `deliveryType`, zero órfãos e zero avisos. O ensaio em memória sobre a cópia
+    tinha previsto exatamente o que aconteceu.
+  - **Conferência pós-migração contra o backup, doc a doc:** 0 docs perdidos, 0 campos alterados
+    fora do escopo, 458 `tenantId` escritos, **458 `colmeiaId` preservados**, ids dos tenants
+    iguais aos das colmeias, 18 `retirada` + 21 `entrega`, zero `colmeia`. Repetir o dry-run
+    depois reportou tudo como "já canônico" — **idempotência confirmada em produção**, não só
+    no ensaio.
+  - **`pm2 stop` antes da migração** entrou no roteiro na hora certa: com o código antigo de pé,
+    qualquer pedido gravado durante a passada nasceria com `colmeiaId` e sem `tenantId`, e
+    sumiria do app novo. Alguns minutos de 502 valem mais que um pedido órfão.
+  - CSA no ar do monorepo: `restarts 0`, log de erro **vazio**, front 200, `/api/tenants` 401,
+    os dois jobs agendados. Os três bugs que o deploy do fermentou achou não reapareceram —
+    era exatamente para isso que ele veio antes.
+  - **Falta a 2ª passada** (`--limpar-legado`), que apaga o `colmeiaId` e encerra o rollback
+    sem backup. Deliberadamente adiada: enquanto ela não roda, voltar para `~/repos/pedidos-csa`
+    é um redeploy.
+
 ### Como o server consome o core (o ponto que exigia decisão)
 `@pedidos/core` **builda para `dist`** (`tsc` NodeNext → `.js` + `.d.ts`); imports internos com
 extensão `.js` (ESM válido no node). Assim **todos os consumidores resolvem igual** via
@@ -468,12 +488,16 @@ lá — só os 18 `deliveryType` ficam com o rótulo trocado na tela, sem efeito
 
 ## 5. O que falta
 
-- **Task 6 — ui kit + apps finos + migração** (a única restante): ~~`config-csa.ts`~~,
-  ~~`core/ui`~~, ~~script de migração canônica + validação em cópia~~, ~~CSA adota o engine~~ e
-  ~~consertar o `deploy.sh`~~ (feitos). Falta **um evento só**: na janela, rodar a migração
-  (roteiro em §4.5) e deployar os dois apps — o `deploy.sh` nunca rodou de verdade, então o
-  primeiro deploy é o teste dele. ~~Sugestão de ordem: **fermentou primeiro**~~ — feito, e valeu
-  a pena: achou **3 bugs** que teriam derrubado a CSA dentro da janela, com os dados já migrados.
+- ~~**Task 6**~~ **concluída.** Os dois apps rodam do monorepo em produção e a CSA está no
+  modelo canônico. O deploy do fermentou primeiro valeu a pena: achou **3 bugs** que teriam
+  derrubado a CSA dentro da janela, com os dados já migrados.
+- **Pendências, em ordem:**
+  1. **Limpeza do legado** (`--limpar-legado`) depois de alguns dias de CSA verde — até lá o
+     rollback é um redeploy do repo antigo.
+  2. **Aposentar os repos originais** (`~/repos/pedidos-csa`, `~/repos/pedidos-app`): eles ainda
+     são o plano de rollback, então só depois do item 1. Arquivar, não apagar.
+  3. Apagar o backup com dados pessoais (`~/backup-csa-2026-08-21.json`) quando não for mais
+     necessário.
 
 ### Questões em aberto (decidir na task 6)
 
