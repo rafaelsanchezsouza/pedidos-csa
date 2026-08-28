@@ -51,18 +51,24 @@ node -e "
 echo "==> [3/6] Copiando artefatos para a VM..."
 # Tarballs antigos e a cópia instalada do core saem juntos: o npm não tem como reaproveitar
 # uma árvore obsoleta se ela não existe mais.
-$SSH "rm -rf $VM_DIR/dist $VM_DIR/dist-server $VM_DIR/package-lock.json \
+# `.env` entra no rm: é o arquivo que o deploy antigo escrevia e que o app não lê — deixá-lo
+# na VM só mantém uma cópia de segredos desatualizada confundindo quem for depurar.
+$SSH "rm -rf $VM_DIR/dist $VM_DIR/dist-server $VM_DIR/package-lock.json $VM_DIR/.env \
   $VM_DIR/pedidos-core-*.tgz $VM_DIR/node_modules/@pedidos/core"
 scp -i "$SSH_KEY" -r dist/        "$VM_USER@$VM_HOST:$VM_DIR/dist"
 scp -i "$SSH_KEY" -r dist-server/ "$VM_USER@$VM_HOST:$VM_DIR/dist-server"
 scp -i "$SSH_KEY" "$CORE_TGZ"     "$VM_USER@$VM_HOST:$VM_DIR/$CORE_TGZ"
 scp -i "$SSH_KEY" package.deploy.json "$VM_USER@$VM_HOST:$VM_DIR/package.json"
-scp -i "$SSH_KEY" "$ENV_FILE" "$VM_USER@$VM_HOST:$VM_DIR/.env"
+# env.ts em produção carrega `.env.production` (NODE_ENV=production); copiar com esse nome.
+# Até 2026-08-28 este scp escrevia `.env`: o deploy atualizava um arquivo que o app NUNCA lê, e
+# o boot seguia com um `.env.production` obsoleto largado na VM. Variável nova (foi o caso do
+# EVOLUTION_INSTANCE_NAME) simplesmente não chegava, e o erro só aparecia no uso.
+scp -i "$SSH_KEY" "$ENV_FILE" "$VM_USER@$VM_HOST:$VM_DIR/.env.production"
 scp -i "$SSH_KEY" docker-compose.yml "$VM_USER@$VM_HOST:$VM_DIR/docker-compose.yml"
 rm -f package.deploy.json
 
 echo "==> [4/6] Ajustando permissões do .env na VM..."
-$SSH "chmod 600 $VM_DIR/.env"
+$SSH "chmod 600 $VM_DIR/.env.production"
 
 echo "==> [5/6] Instalando dependências de produção..."
 $SSH "cd $VM_DIR && npm install --omit=dev --no-audit --no-fund"

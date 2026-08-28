@@ -131,7 +131,7 @@ de membros** — fora do repo, apagar quando não for mais necessário.
 - A paleta da CSA está **espelhada** em `src/config.ts` e `src/index.css` — o CSS é o fallback
   que evita o flash antes do JS. Mexeu num, mexa no outro.
 
-**De deploy** (as três armadilhas que derrubaram o primeiro deploy real)
+**De deploy** (as armadilhas que já custaram um deploy inteiro)
 - `pm2 restart` **reusa o script da primeira subida** e ignora caminho novo. Por isso o script
   faz `pm2 delete` + `pm2 start`.
 - `dotenv` **não reclama de path inexistente** — o boot seguia sem variável nenhuma e só
@@ -139,6 +139,12 @@ de membros** — fora do repo, apagar quando não for mais necessário.
   dizendo o que faltou**.
 - `@pedidos/core` é workspace e `npm install` não o resolve na VM: o deploy leva um **tarball**
   (`npm pack`) e reescreve a dep para `file:`. É `npm pack <caminho>`, **não** `npm --prefix`.
+- **O nome do arquivo de env tem que bater dos dois lados.** `env.ts` carrega `.env.production`
+  (com `NODE_ENV=production`); o `deploy.sh` da CSA copiava para `.env` — o deploy atualizava um
+  arquivo que o app nunca lê, e o boot pegava um `.env.production` obsoleto largado na VM.
+  Sintoma: variável nova não chega e o erro só aparece no uso (foi assim que o
+  `EVOLUTION_INSTANCE_NAME` sumiu e o login quebrou com 404 da Evolution em 2026-08-28).
+  Corrigido nos dois apps; o `.env` velho entra no `rm` do deploy.
 
 ## 6. Pendências, em ordem
 
