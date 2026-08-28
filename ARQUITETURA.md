@@ -549,12 +549,33 @@ lá — só os 18 `deliveryType` ficam com o rótulo trocado na tela, sem efeito
      esse acesso a alguém de fora.
   5. Resto em `HANDOFF.md` §6 (WhatsApp dedicado, Pix, `.env.development`).
 
-### Questões em aberto — todas resolvidas
+### Questões em aberto
 
 1. ~~Migração da CSA: janela ou zero-downtime?~~ **Janela de manutenção** (decisão 4), executada
    em 2026-08-21 com passada aditiva.
 2. ~~**Port-backs do `MERGE.md` §6**~~: entraram na adoção do engine (7ª fatia) — `/api/setup`
    robusto e as correções de deploy. O `NODE_ENV`/`--update-env` do §6.3 foi junto.
+3. **Isolamento por cliente e onboarding de cliente novo** — *aberta* (2026-08-28). Hoje os dois
+   apps vivem num repo **público** (`github.com/rafaelsanchezsouza/pedidos-csa`), e o código de um
+   cliente é visível a quem olhar o outro. Requisito do usuário: a resposta tem que **escalar para
+   N clientes sem criar código novo** a cada um — não um remendo pro Fermentou.
+
+   O que trava hoje: cliente novo **não** é só configuração. `apps/csa` tem 6.117 linhas e
+   `apps/fermentou` 6.250 (contra 5.952 no core), com **12 páginas duplicadas** por nome nos dois
+   (`AdminPage`, `OfertasPage`, `PedidosPage`, `PagamentosPage`, …). Enquanto isso for verdade,
+   qualquer estratégia de repo só empurra o problema.
+
+   Caminhos considerados, nenhum escolhido:
+   - **Repo único privado**: resolve a exposição pública, **não** resolve isolamento entre
+     clientes (quem tem acesso vê todos) nem o custo de onboarding. É o remendo barato.
+   - **Core publicado (npm privado/GitHub Packages) + 1 repo por cliente**: isolamento real, ao
+     preço de versionar o motor e manter N deploys. Só vale quando o app for fino.
+   - **Monorepo + app = só `AppConfig`/brand/adapters**: a direção que a arquitetura já aponta
+     (§4.2). Cliente novo vira uma pasta de configuração; o isolamento por repo passa a ser
+     opcional, não estrutural. Exige subir as páginas duplicadas para `@pedidos/core/ui`.
+
+   `.gitignore` **não** é opção: o código já está rastreado e no histórico, e sumir com
+   `apps/fermentou` quebraria build e deploy.
 
 ---
 

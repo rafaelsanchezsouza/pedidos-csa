@@ -152,6 +152,10 @@ de membros** — fora do repo, apagar quando não for mais necessário.
 5. **Pix pré-entrega** — decisão de produto antes de codar (`apps/fermentou/PENDENCIAS.md` B1/B2).
 6. **`.env.development`** não existe em nenhum dos dois apps — `npm run dev` quebra no boot do
    Firebase. Decidir se dev aponta para o mesmo projeto ou um separado.
+7. **Isolamento por cliente + onboarding sem código novo** — questão em aberto, ver
+   `ARQUITETURA.md` §5 "Questões em aberto" #3. Hoje o repo é **público** e um cliente novo
+   custa ~6k linhas copiadas. Decisão adiada conscientemente em 2026-08-28: a solução tem que
+   servir a N clientes, não ser um remendo pro Fermentou.
 
 ## 7. Riscos conhecidos
 
