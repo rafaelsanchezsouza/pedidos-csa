@@ -22,6 +22,11 @@ Leia junto: **`ARQUITETURA.md`** (decisões, histórico fatia a fatia, o porquê
 | **Oferta nasce de** | mensagem do produtor (`parse-message`, parser `fuzzy`) | catálogo (`from-catalog`) |
 | **Rótulo da não-entrega** | `Colmeia` | `Retirada` |
 
+O código dos **dois** apps vive em `github.com/rafaelsanchezsouza/pedidos-csa` (o repo da CSA
+foi reaproveitado; a `main` de lá é este monorepo desde 2026-08-28). A tag **`pre-monorepo`**
+marca o último commit do layout antigo — é o rollback no remoto. `~/repos/pedidos-app` nunca
+teve remote; agora tem backup por tabela, dentro deste repo.
+
 VM Oracle única (`csaparahyba.com.br`), nginx na frente, cert Let's Encrypt compartilhado.
 O `evolution-api` (WhatsApp) é **infra da VM**, na 8080 — não é deployado por nenhum dos apps.
 Hoje os dois usam a **mesma instância** do WhatsApp (número da CSA); número dedicado para o
@@ -139,7 +144,8 @@ de membros** — fora do repo, apagar quando não for mais necessário.
 
 1. **Limpeza do legado da CSA** (`--limpar-legado`), depois de alguns dias de uso verde. Até lá o
    rollback existe.
-2. **Aposentar os repos originais** (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) — só depois do
+2. **Aposentar os repos originais** (`~/repos/pedidos-csa`, `~/repos/pedidos-app` — os clones
+   locais pré-monorepo) — só depois do
    item 1, porque são o plano de rollback. Arquivar, não apagar.
 3. **Apagar o backup** com dados pessoais (`~/backup-csa-2026-08-21.json`).
 4. **WhatsApp dedicado para o Fermentou** (hoje divide o número da CSA; ver `~/repos/ZAP-PROTOCOL.md`).
