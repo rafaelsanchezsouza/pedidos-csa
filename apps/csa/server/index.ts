@@ -5,6 +5,7 @@ import {
   createTenantMiddleware, createTenantsRouter, createRolesRouter,
   createProducersRouter, createProductsRouter, createIssuesRouter, createUsersRouter,
   createPaymentsRouter, createOrdersRouter, createWhatsappAuthRouter, createOfferingsRouter,
+  createWhatsappWebhookRouter,
 } from '@pedidos/core/server'
 import { config } from '../src/config.js'
 import { firebaseAuth, whatsapp } from './adapters.js'
@@ -71,14 +72,30 @@ app.post('/api/setup', async (req, res) => {
 // Rotas públicas (sem auth)
 app.use('/api/auth/whatsapp', createWhatsappAuthRouter({ repo, auth: firebaseAuth, whatsapp }, config))
 
-app.use('/api', authMiddleware)
-app.use('/api', createTenantMiddleware({ repo }))
-
 // Integração GitHub (report de bug): lida do .env aqui no boot — o engine não lê env.
 const { GITHUB_OWNER, GITHUB_REPO, GITHUB_TOKEN } = process.env
 const github = GITHUB_OWNER && GITHUB_REPO && GITHUB_TOKEN
   ? { owner: GITHUB_OWNER, repo: GITHUB_REPO, token: GITHUB_TOKEN }
   : undefined
+
+// Webhook da Evolution: grupo do WhatsApp vira issue no GitHub. Montado FORA de `/api` e ANTES
+// do authMiddleware de propósito — quem chama é a Evolution (mesma VM, via 127.0.0.1), que não
+// tem token do Firebase. Fora de `/api` o nginx não proxia, então o endpoint não existe pela
+// internet; o secret é a segunda tranca, não a primeira.
+const { WHATSAPP_ISSUES_GROUP_JID, WHATSAPP_ISSUES_PREFIX, WHATSAPP_WEBHOOK_SECRET } = process.env
+if (WHATSAPP_ISSUES_GROUP_JID) {
+  app.use('/webhooks/whatsapp', createWhatsappWebhookRouter(
+    { github, whatsapp },
+    {
+      groupJid: WHATSAPP_ISSUES_GROUP_JID,
+      prefixo: WHATSAPP_ISSUES_PREFIX ?? '/issue',
+      secret: WHATSAPP_WEBHOOK_SECRET,
+    },
+  ))
+}
+
+app.use('/api', authMiddleware)
+app.use('/api', createTenantMiddleware({ repo }))
 
 app.use('/api/tenants', createTenantsRouter({ repo }, config))
 app.use('/api/products', createProductsRouter({ repo }))

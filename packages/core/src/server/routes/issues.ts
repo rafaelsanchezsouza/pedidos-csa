@@ -1,13 +1,10 @@
 import { Router, type Request, type Response } from 'express'
+import { criarIssueNoGithub, type GithubIssuesIntegration } from '../services/issues.js'
 
-// Report de bug vira issue no GitHub do app. A integração (owner/repo/token) é injetada no
-// boot — o engine não lê process.env (segredo é runtime do server de cada app).
-export interface GithubIssuesIntegration {
-  owner: string
-  repo: string
-  token: string
-}
+export type { GithubIssuesIntegration }
 
+// Report de bug da tela vira issue no GitHub do app. A criação em si mora em
+// services/issues.ts — o webhook do WhatsApp usa o mesmo caminho.
 export function createIssuesRouter(github?: GithubIssuesIntegration): Router {
   const router = Router()
 
@@ -18,25 +15,9 @@ export function createIssuesRouter(github?: GithubIssuesIntegration): Router {
 
       if (!github) { res.status(500).json({ message: 'Configuração GitHub ausente no servidor' }); return }
 
-      const ghRes = await fetch(`https://api.github.com/repos/${github.owner}/${github.repo}/issues`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${github.token}`,
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ title, body, labels: ['bug'] }),
-      })
-
-      if (!ghRes.ok) {
-        const err = await ghRes.json().catch(() => ({}))
-        res.status(502).json({ message: (err as { message?: string }).message || 'Erro ao criar issue no GitHub' })
-        return
-      }
-
-      const issue = await ghRes.json() as { html_url: string; number: number }
-      res.status(201).json({ url: issue.html_url, number: issue.number })
+      const r = await criarIssueNoGithub(github, { title, body })
+      if (!r.ok) { res.status(502).json({ message: r.message }); return }
+      res.status(201).json(r.issue)
     } catch (err) {
       res.status(500).json({ message: String(err) })
     }

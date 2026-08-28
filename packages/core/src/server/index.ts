@@ -12,7 +12,14 @@ export { createTenantsRouter, type TenantDoc } from './routes/tenants.js'
 export { createRolesRouter, type RoleDoc } from './routes/roles.js'
 export { createProducersRouter, type ProducerDoc } from './routes/producers.js'
 export { createProductsRouter, type ProductDoc } from './routes/products.js'
-export { createIssuesRouter, type GithubIssuesIntegration } from './routes/issues.js'
+export { createIssuesRouter } from './routes/issues.js'
+export {
+  criarIssueNoGithub, type GithubIssuesIntegration, type IssueCriada, type ResultadoIssue,
+} from './services/issues.js'
+export {
+  createWhatsappWebhookRouter, issueDaMensagem,
+  type WhatsappWebhookDeps, type WhatsappWebhookConfig,
+} from './routes/whatsappWebhook.js'
 export { createUsersRouter, type UsersDeps, type UserDoc } from './routes/users.js'
 export {
   createPaymentService, PRODUCER_COTA, PRODUCER_FRETE,

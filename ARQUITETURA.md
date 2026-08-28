@@ -530,6 +530,29 @@ lá — só os 18 `deliveryType` ficam com o rótulo trocado na tela, sem efeito
 
 ---
 
+### 4.6 Webhook do WhatsApp → issue no GitHub (2026-08-28)
+
+Grupo dedicado no WhatsApp vira caixa de entrada de bug: mensagem com prefixo (`/issue` por
+padrão) abre issue no repo do app e o bot responde no grupo com o link. Motivação: reportar bug
+onde o bug é percebido, sem trocar de ferramenta.
+
+Decisões:
+- **A lógica é do engine** (`server/routes/whatsappWebhook.ts`, factory `(deps, config)`); a
+  Evolution e os segredos entram pelo boot do app. A criação da issue saiu da rota para
+  `server/services/issues.ts`, usada tanto pelo webhook quanto pelo "Reportar problema" da tela.
+- **Montado fora de `/api` e antes do `authMiddleware`**: quem chama é a Evolution, que roda na
+  **mesma VM** e posta em `127.0.0.1` — não tem token do Firebase. Fora de `/api` o nginx não
+  proxia, então o endpoint não existe pela internet. `WHATSAPP_WEBHOOK_SECRET` é a segunda
+  tranca, não a primeira.
+- **Prefixo em vez de "toda mensagem vira issue"** (decisão do usuário): o grupo continua
+  servindo para conversar; só o que é marcado vira issue.
+- **Tudo que é ignorado responde 200.** 4xx/5xx faria a Evolution reenviar o mesmo evento para
+  sempre. Erro do GitHub responde 200 com `{erro}` e **esquece** o id, para que o reenvio tente
+  de novo — o dedupe (`key.id`, em memória) só vale para o que virou issue de verdade.
+- **`normalizePhone` passa JID intacto.** A resposta vai para o grupo (`...@g.us`); a regra de
+  telefone BR transformaria isso em `55120363...` e o envio sumiria. O adapter normaliza tudo o
+  que sai, então a guarda tem que morar na função do core.
+
 ## 5. O que falta
 
 - ~~**Task 6**~~ **concluída.** Os dois apps rodam do monorepo em produção e a CSA está no
