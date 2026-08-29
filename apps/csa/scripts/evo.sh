@@ -29,10 +29,12 @@ rota="$1"; corpo="$2"; verbo="$3"
 chave="$(sudo grep '^EVOLUTION_API_KEY' /opt/pedidos-csa/.env.production | cut -d= -f2- | tr -d "\"' ")"
 if [[ -z "$chave" ]]; then echo "Erro: EVOLUTION_API_KEY não encontrada no .env.production da VM"; exit 1; fi
 [[ -z "$verbo" ]] && { [[ -n "$corpo" ]] && verbo=POST || verbo=GET; }
+# -w com o status: a evolution responde corpo vazio em alguns erros, e sem o código não dá
+# para distinguir "deu certo e não devolveu nada" de "recusou em silêncio".
 if [[ -n "$corpo" ]]; then
-  curl -s -X "$verbo" -H "apikey: $chave" -H 'Content-Type: application/json' -d "$corpo" "localhost:8080/$rota"
+  curl -s -w '\n[HTTP %{http_code}]\n' -X "$verbo" -H "apikey: $chave" -H 'Content-Type: application/json' -d "$corpo" "localhost:8080/$rota"
 else
-  curl -s -X "$verbo" -H "apikey: $chave" "localhost:8080/$rota"
+  curl -s -w '\n[HTTP %{http_code}]\n' -X "$verbo" -H "apikey: $chave" "localhost:8080/$rota"
 fi
 echo
 REMOTO
