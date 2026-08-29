@@ -35,12 +35,16 @@ Eram bugs independentes, não a mesma raiz:
 
 ## ✅ Concluído e VALIDADO — na `main` (2026-07-29)
 
-- **#45 — quantidade de cotas por membro** (`quotaQty`, PR #57). Cobrança = `valor semanal ×
+- **#45 — quantidade de cotas por membro** (`quotaQty`, PR #57). **Issue fechada em
+  2026-08-28**: está em produção desde a migração para o monorepo (21/08) — a nota antiga
+  dizendo que faltava o deploy manual estava desatualizada. Cobrança = `valor semanal ×
   quotaQty × nº de entregas do mês`. Decisão: **tipo + quantidade** (não mistura inteira+meia;
-  usa 2 cadastros). 83 testes verdes. **Validado pelo usuário 2026-07-29.** Na `main`;
-  **falta só o deploy manual** (`deploy.sh`) pra chegar à produção.
-- **#47 — fatura de frete da entrega** (PR #56). Deployado em prod desde 2026-07-19 e
-  **validado pelo usuário 2026-07-29** — pode fechar a issue #47.
+  usa 2 cadastros). 83 testes verdes. **Validado pelo usuário 2026-07-29.**
+- **Fatura de frete da entrega** (PR #56). Deployado em prod desde 2026-07-19 e **validado
+  pelo usuário 2026-07-29**. (Esta linha atribuía o frete à issue #47 — era engano: a #47 é o
+  upload de comprovante, ver abaixo.)
+- **#47 — upload de comprovante de pagamento** pelo membro. Feito e em produção; **issue
+  fechada em 2026-08-28**.
 - **Import de catálogo via CSV** (entrou junto no PR #57).
 
 ## P1 — feedback de usuário
@@ -69,7 +73,7 @@ cosmético.
 | # | Item | Issue |
 |---|------|-------|
 | 11 | Sanitizar mensagens de erro nos handlers | #10 |
-| 12 | ~~Extrair PaymentService + cron job para cotas~~ ✅ concluído e depois **movido para o motor** (`@pedidos/core/server`, serviço unificado com o fork); o `quotaJob` fica no app porque cron é infra | #18 |
+| 12 | ~~Extrair PaymentService + cron job para cotas~~ ✅ concluído e depois **movido para o motor** (`@pedidos/core/server`, serviço unificado com o fork); o `quotaJob` fica no app porque cron é infra — **issue fechada em 2026-08-28** | #18 |
 | 13 | Observabilidade — Sentry, Pino, métricas | #22 |
 | 14 | `npm run lint` quebrado (eslint fora das devDeps; nunca rodou) — segue valendo no monorepo | sem issue |
 | 15 | CatalogoPage esconde o header no load (empty-state em `<TableRow>`, migrar p/ Card) | sem issue |
