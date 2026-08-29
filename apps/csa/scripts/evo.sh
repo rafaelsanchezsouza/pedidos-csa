@@ -24,8 +24,14 @@ esac
 ROTA="${1:?uso: evo.sh [METODO] <rota-da-api> [json-do-corpo]}"
 CORPO="${2:-}"
 
-ssh -i "$SSH_KEY" "$VM_USER@$VM_HOST" bash -s -- "$ROTA" "$CORPO" "$VERBO" <<'REMOTO'
-rota="$1"; corpo="$2"; verbo="$3"
+# base64 nos argumentos: o ssh junta tudo numa string única e o shell REMOTO divide de novo
+# nos espaços. Um JSON com espaço (o normal) chegava picado do outro lado, e a evolution
+# respondia 400 com corpo vazio — parecia recusa da API, era o transporte.
+B64_ROTA="$(printf '%s' "$ROTA" | base64 -w0)"
+B64_CORPO="$(printf '%s' "$CORPO" | base64 -w0)"
+
+ssh -i "$SSH_KEY" "$VM_USER@$VM_HOST" bash -s -- "$B64_ROTA" "$B64_CORPO" "$VERBO" <<'REMOTO'
+rota="$(printf '%s' "$1" | base64 -d)"; corpo="$(printf '%s' "$2" | base64 -d)"; verbo="$3"
 chave="$(sudo grep '^EVOLUTION_API_KEY' /opt/pedidos-csa/.env.production | cut -d= -f2- | tr -d "\"' ")"
 if [[ -z "$chave" ]]; then echo "Erro: EVOLUTION_API_KEY não encontrada no .env.production da VM"; exit 1; fi
 [[ -z "$verbo" ]] && { [[ -n "$corpo" ]] && verbo=POST || verbo=GET; }
