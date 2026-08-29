@@ -78,18 +78,20 @@ const github = GITHUB_OWNER && GITHUB_REPO && GITHUB_TOKEN
   ? { owner: GITHUB_OWNER, repo: GITHUB_REPO, token: GITHUB_TOKEN }
   : undefined
 
-// Webhook da Evolution: grupo do WhatsApp vira issue no GitHub. Montado FORA de `/api` e ANTES
-// do authMiddleware de propósito — quem chama é a Evolution (mesma VM, via 127.0.0.1), que não
-// tem token do Firebase. Fora de `/api` o nginx não proxia, então o endpoint não existe pela
-// internet; o secret é a segunda tranca, não a primeira.
-const { WHATSAPP_ISSUES_GROUP_JID, WHATSAPP_ISSUES_PREFIX, WHATSAPP_WEBHOOK_SECRET } = process.env
+// Webhook do WhatsApp (protocolo zap-in/1): grupo vira issue no GitHub.
+// Quem entrega é o **zap-hub**, não a evolution direto — a evolution aceita um webhook por
+// instância e o note-app já ocupava o slot. O hub roda no host e alcança este backend em
+// 127.0.0.1; a evolution, que é container, nunca alcançaria (o app só escuta em loopback).
+// Montado no caminho da spec e ANTES do authMiddleware: quem chama se autentica por
+// `x-zap-secret`, não por token do Firebase.
+const { WHATSAPP_ISSUES_GROUP_JID, WHATSAPP_ISSUES_PREFIX, ZAP_WEBHOOK_SECRET } = process.env
 if (WHATSAPP_ISSUES_GROUP_JID) {
-  app.use('/webhooks/whatsapp', createWhatsappWebhookRouter(
+  app.use('/api/whatsapp/webhook', createWhatsappWebhookRouter(
     { github, whatsapp },
     {
       groupJid: WHATSAPP_ISSUES_GROUP_JID,
       prefixo: WHATSAPP_ISSUES_PREFIX ?? '/issue',
-      secret: WHATSAPP_WEBHOOK_SECRET,
+      secret: ZAP_WEBHOOK_SECRET,
     },
   ))
 }

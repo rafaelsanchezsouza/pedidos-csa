@@ -530,28 +530,44 @@ lá — só os 18 `deliveryType` ficam com o rótulo trocado na tela, sem efeito
 
 ---
 
-### 4.6 Webhook do WhatsApp → issue no GitHub (2026-08-28)
+### 4.6 Webhook do WhatsApp → issue no GitHub (2026-08-28/29)
 
-Grupo dedicado no WhatsApp vira caixa de entrada de bug: mensagem com prefixo (`/issue` por
-padrão) abre issue no repo do app e o bot responde no grupo com o link. Motivação: reportar bug
-onde o bug é percebido, sem trocar de ferramenta.
+Grupo dedicado no WhatsApp (`dev-csa`) vira caixa de entrada de bug: mensagem com prefixo
+(`/issue` por padrão) abre issue no repo e o bot responde no grupo com o link. Motivação:
+reportar bug onde o bug é percebido, sem trocar de ferramenta.
+
+**A entrada é o envelope `zap-in/1`, não o payload do evolution.** A spec canônica é
+`~/repos/ZAP-PROTOCOL.md`, de julho/2026, e ela já previa este caso: a evolution aceita **um
+webhook por instância**, o `note-app` já ocupava o slot da instância `pedidos-csa`, e o §7 lista
+"hub de distribuição" como a evolução prevista. O hub foi escrito em `~/repos/zap-hub`.
+
+```
+evolution (container) ──▶ zap-hub :3010 ──┬──▶ note-app    (payload cru, não mudou)
+                                          └──▶ pedidos-csa (envelope, só o grupo dev-csa)
+```
 
 Decisões:
-- **A lógica é do engine** (`server/routes/whatsappWebhook.ts`, factory `(deps, config)`); a
-  Evolution e os segredos entram pelo boot do app. A criação da issue saiu da rota para
+- **A lógica é do engine** (`server/routes/whatsappWebhook.ts`, factory `(deps, config)`); os
+  segredos entram pelo boot do app. A criação da issue saiu da rota para
   `server/services/issues.ts`, usada tanto pelo webhook quanto pelo "Reportar problema" da tela.
-- **Montado fora de `/api` e antes do `authMiddleware`**: quem chama é a Evolution, que roda na
-  **mesma VM** e posta em `127.0.0.1` — não tem token do Firebase. Fora de `/api` o nginx não
-  proxia, então o endpoint não existe pela internet. `WHATSAPP_WEBHOOK_SECRET` é a segunda
-  tranca, não a primeira.
-- **Prefixo em vez de "toda mensagem vira issue"** (decisão do usuário): o grupo continua
-  servindo para conversar; só o que é marcado vira issue.
-- **Tudo que é ignorado responde 200.** 4xx/5xx faria a Evolution reenviar o mesmo evento para
-  sempre. Erro do GitHub responde 200 com `{erro}` e **esquece** o id, para que o reenvio tente
-  de novo — o dedupe (`key.id`, em memória) só vale para o que virou issue de verdade.
+- **O engine depende só do envelope.** Payload cru é vocabulário do evolution e fica confinado
+  no adaptador do hub — mesmo DIP que o `CLAUDE.md` já exige para as outras portas. Payload cru
+  chegando aqui é **400**.
+- **Montado em `/api/whatsapp/webhook` (convenção da spec) e antes do `authMiddleware`**: quem
+  chama se autentica por `x-zap-secret` (§2.3), não por token do Firebase.
+- **Descarte é 204, erro de processamento é 200 com log.** 4xx faria a evolution reenviar o
+  evento para sempre. Secret ausente é 503 (erro de configuração, não do chamador).
+- **Dedupe nos dois lados.** O hub deduplica por `messageId` para todos; a rota repete a guarda
+  porque o hub pode reiniciar e issue duplicada é cara.
 - **`normalizePhone` passa JID intacto.** A resposta vai para o grupo (`...@g.us`); a regra de
   telefone BR transformaria isso em `55120363...` e o envio sumiria. O adapter normaliza tudo o
-  que sai, então a guarda tem que morar na função do core.
+  que sai, então a guarda mora na função do core.
+
+**Correção do que ficou escrito aqui em 28/08:** a primeira versão dizia que a evolution postaria
+em `127.0.0.1:3001` e que o endpoint ficaria fora de `/api` porque "o nginx não proxia". Os dois
+estavam errados — a evolution é container e alcança o host por `172.17.0.1`, e o backend só
+escuta em loopback, então aquele caminho nunca funcionaria. Quem alcança `127.0.0.1:3001` é o
+hub, que roda no host.
 
 ## 5. O que falta
 

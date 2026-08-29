@@ -18,7 +18,7 @@ export {
 } from './services/issues.js'
 export {
   createWhatsappWebhookRouter, issueDaMensagem,
-  type WhatsappWebhookDeps, type WhatsappWebhookConfig,
+  type WhatsappWebhookDeps, type WhatsappWebhookConfig, type ZapInboundMessage,
 } from './routes/whatsappWebhook.js'
 export { createUsersRouter, type UsersDeps, type UserDoc } from './routes/users.js'
 export {

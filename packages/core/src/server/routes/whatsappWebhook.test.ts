@@ -1,37 +1,43 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { createWhatsappWebhookRouter, issueDaMensagem } from './whatsappWebhook'
+import { createWhatsappWebhookRouter, issueDaMensagem, type ZapInboundMessage } from './whatsappWebhook'
 import { normalizePhone } from '../phone'
 import { withRouter, json } from '../testutil'
 
-const GRUPO = '120363111222333@g.us'
+const GRUPO = '120363427262412803@g.us'
+const SECRET = 'zap-secret'
 const github = { owner: 'o', repo: 'r', token: 't' }
-const config = { groupJid: GRUPO, prefixo: '/issue' }
+const config = { groupJid: GRUPO, prefixo: '/issue', secret: SECRET }
 
-const evento = (over: Record<string, unknown> = {}, key: Record<string, unknown> = {}) => ({
-  event: 'messages.upsert',
-  data: {
-    key: { remoteJid: GRUPO, fromMe: false, id: 'MSG1', ...key },
-    pushName: 'Rafael',
-    message: { conversation: '/issue login quebrado' },
-    ...over,
-  },
+// Entrada é o envelope zap-in/1 entregue pelo zap-hub, não o payload do evolution.
+const envelope = (over: Partial<ZapInboundMessage> = {}): ZapInboundMessage => ({
+  protocol: 'zap-in/1',
+  messageId: 'MSG1',
+  chatJid: GRUPO,
+  senderJid: '5583999998888@s.whatsapp.net',
+  senderNumber: '5583999998888',
+  isGroup: true,
+  senderName: 'Rafael',
+  text: '/issue login quebrado',
+  timestamp: 1756400000000,
+  ...over,
 })
 
-const post = (get: (p: string, i?: RequestInit) => Promise<Response>, body: unknown) =>
-  get('/api/webhooks/whatsapp', { method: 'POST', body: JSON.stringify(body), ...json })
+const post = (get: (p: string, i?: RequestInit) => Promise<Response>, body: unknown, secret = SECRET) =>
+  get('/api/whatsapp/webhook', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'content-type': 'application/json', 'x-zap-secret': secret },
+  })
 
-// A criação da issue é um fetch para api.github.com — o que interessa testar é o que o engine
-// decide antes e depois dela. Só as chamadas ao GitHub são interceptadas: o próprio withRouter
-// usa fetch para falar com o servidor de teste, e um mock cego responderia por ele também.
+// A criação da issue é um fetch para api.github.com — só ele é interceptado: o withRouter
+// também usa fetch para falar com o servidor de teste.
 function mockGithub(resposta: { number: number; html_url: string } | null, status = 201) {
   const real = globalThis.fetch
   const chamadas: RequestInit[] = []
   vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
     if (!String(input).includes('api.github.com')) return real(input, init)
     chamadas.push(init ?? {})
-    return Promise.resolve(
-      new Response(JSON.stringify(resposta ?? { message: 'Bad credentials' }), { status }),
-    )
+    return Promise.resolve(new Response(JSON.stringify(resposta ?? { message: 'Bad credentials' }), { status }))
   })
   return chamadas
 }
@@ -39,48 +45,54 @@ function mockGithub(resposta: { number: number; html_url: string } | null, statu
 afterEach(() => vi.restoreAllMocks())
 
 describe('createWhatsappWebhookRouter', () => {
-  it('mensagem com prefixo no grupo vira issue e o bot responde no grupo', async () => {
+  it('envelope com prefixo no grupo vira issue e o bot responde no grupo', async () => {
     const chamadas = mockGithub({ number: 42, html_url: 'https://gh/42' })
     const enviadas: Array<[string, string]> = []
     const whatsapp = { sendMessage: async (to: string, m: string) => { enviadas.push([to, m]) } }
-    const router = createWhatsappWebhookRouter({ github, whatsapp }, config)
 
-    await withRouter('/api/webhooks/whatsapp', router, async (get) => {
-      const r = await post(get, evento())
+    await withRouter('/api/whatsapp/webhook', createWhatsappWebhookRouter({ github, whatsapp }, config), async (get) => {
+      const r = await post(get, envelope())
       expect(await r.json()).toEqual({ criada: 42, url: 'https://gh/42' })
     })
 
     const corpo = JSON.parse(String(chamadas[0].body))
-    expect(corpo.title).toBe('login quebrado')       // prefixo não entra no título
-    expect(corpo.body).toContain('Rafael')           // autor no rodapé
+    expect(corpo.title).toBe('login quebrado')       // prefixo fora do título
+    expect(corpo.body).toContain('Rafael')           // senderName no rodapé
     expect(enviadas[0][0]).toBe(GRUPO)               // resposta vai para o grupo
     expect(enviadas[0][1]).toContain('https://gh/42')
   })
 
-  it('ignora (200) mensagem sem prefixo, de outro chat e do próprio bot', async () => {
+  it('descarta com 204: outro chat, sem prefixo, prefixo sozinho', async () => {
     const chamadas = mockGithub({ number: 1, html_url: 'x' })
-    const router = createWhatsappWebhookRouter({ github }, config)
-    await withRouter('/api/webhooks/whatsapp', router, async (get) => {
-      const semPrefixo = await post(get, evento({ message: { conversation: 'bom dia' } }))
-      expect(semPrefixo.status).toBe(200)
-      expect(await semPrefixo.json()).toEqual({ ignorado: 'sem prefixo' })
-
-      const outroChat = await post(get, evento({}, { remoteJid: '5583999@s.whatsapp.net' }))
-      expect(await outroChat.json()).toEqual({ ignorado: 'outro chat' })
-
-      const doBot = await post(get, evento({}, { fromMe: true }))
-      expect(await doBot.json()).toEqual({ ignorado: 'mensagem do próprio bot' })
+    await withRouter('/api/whatsapp/webhook', createWhatsappWebhookRouter({ github }, config), async (get) => {
+      expect((await post(get, envelope({ chatJid: '120363000@g.us' }))).status).toBe(204)
+      expect((await post(get, envelope({ text: 'bom dia' }))).status).toBe(204)
+      expect((await post(get, envelope({ text: '/issue   ' }))).status).toBe(204)
     })
     expect(chamadas).toHaveLength(0)
   })
 
-  it('reenvio do mesmo evento não abre uma segunda issue', async () => {
+  it('exige o envelope: payload cru do evolution é 400', async () => {
+    await withRouter('/api/whatsapp/webhook', createWhatsappWebhookRouter({ github }, config), async (get) => {
+      const cru = { event: 'messages.upsert', data: { key: { remoteJid: GRUPO }, message: { conversation: '/issue x' } } }
+      expect((await post(get, cru)).status).toBe(400)
+    })
+  })
+
+  it('secret: errado é 401; não configurado é 503', async () => {
+    await withRouter('/api/whatsapp/webhook', createWhatsappWebhookRouter({ github }, config), async (get) => {
+      expect((await post(get, envelope(), 'errado')).status).toBe(401)
+    })
+    await withRouter('/api/whatsapp/webhook', createWhatsappWebhookRouter({ github }, { ...config, secret: undefined }), async (get) => {
+      expect((await post(get, envelope())).status).toBe(503)
+    })
+  })
+
+  it('reenvio do mesmo messageId não abre uma segunda issue', async () => {
     const chamadas = mockGithub({ number: 7, html_url: 'https://gh/7' })
-    const router = createWhatsappWebhookRouter({ github }, config)
-    await withRouter('/api/webhooks/whatsapp', router, async (get) => {
-      await post(get, evento())
-      const repetido = await post(get, evento())
-      expect(await repetido.json()).toEqual({ ignorado: 'duplicado' })
+    await withRouter('/api/whatsapp/webhook', createWhatsappWebhookRouter({ github }, config), async (get) => {
+      await post(get, envelope())
+      expect((await post(get, envelope())).status).toBe(204)
     })
     expect(chamadas).toHaveLength(1)
   })
@@ -89,27 +101,12 @@ describe('createWhatsappWebhookRouter', () => {
     const chamadas = mockGithub(null, 401)
     const enviadas: string[] = []
     const whatsapp = { sendMessage: async (_to: string, m: string) => { enviadas.push(m) } }
-    const router = createWhatsappWebhookRouter({ github, whatsapp }, config)
-    await withRouter('/api/webhooks/whatsapp', router, async (get) => {
-      const r = await post(get, evento())
-      expect(await r.json()).toEqual({ erro: 'Bad credentials' })
-      await post(get, evento())            // reenvio: tenta de novo, não é tratado como duplicado
+    await withRouter('/api/whatsapp/webhook', createWhatsappWebhookRouter({ github, whatsapp }, config), async (get) => {
+      expect(await (await post(get, envelope())).json()).toEqual({ erro: 'Bad credentials' })
+      await post(get, envelope())          // reenvio tenta de novo, não é tratado como duplicado
     })
     expect(enviadas[0]).toContain('Não consegui abrir a issue')
     expect(chamadas).toHaveLength(2)
-  })
-
-  it('secret configurado é exigido no header', async () => {
-    const router = createWhatsappWebhookRouter({ github }, { ...config, secret: 's3cr3t' })
-    await withRouter('/api/webhooks/whatsapp', router, async (get) => {
-      expect((await post(get, evento())).status).toBe(401)
-      const ok = await get('/api/webhooks/whatsapp', {
-        method: 'POST',
-        body: JSON.stringify(evento({ message: { conversation: 'oi' } })),
-        headers: { 'content-type': 'application/json', 'x-webhook-secret': 's3cr3t' },
-      })
-      expect(ok.status).toBe(200)
-    })
   })
 })
 
