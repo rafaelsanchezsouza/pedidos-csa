@@ -6,7 +6,7 @@ import { usersApi, producersApi, tenantsApi, rolesApi } from '@/services/api'
 import type { BatchResult } from '@/services/api'
 import type { User, Producer, TenantRole } from '@/types'
 import { formatQuota } from '@/lib/quota'
-import { parseCsvLine, isSuperadmin, isEntrega, type DeliveryType } from '@pedidos/core'
+import { parseCsvLine, isSuperadmin, isEntrega, fimDaAcolhida, UTC_OFFSET_PADRAO, type DeliveryType } from '@pedidos/core'
 import { config } from '@/config'
 import { Button, Input, Label, Card, CardContent, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
@@ -77,6 +77,11 @@ function parseGoogleFormCsv(text: string): ParsedRow[] {
   }).filter(r => r.name && r.email)
 }
 
+// 30 dias a partir de hoje, no fuso do tenant. Cadastro avulso e import por CSV usam a MESMA
+// conta — duas implementações dariam datas diferentes na virada do dia.
+const expiryAcolhida = () =>
+  fimDaAcolhida(new Date(), config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
+
 export function AdminPage() {
   const { colmeia, colmeias, user, refreshUser } = useAuth()
   const [tab, setTab] = useState('usuarios')
@@ -135,6 +140,9 @@ export function AdminPage() {
   const [csvDialog, setCsvDialog] = useState(false)
   const [csvRows, setCsvRows] = useState<ParsedRow[]>([])
   const [csvImporting, setCsvImporting] = useState(false)
+  // Marcado por padrão: quem chega pelo formulário de inscrição é novato, e a acolhida é a
+  // regra da casa para novato — desmarcar é a exceção (migração de membro que já é de casa).
+  const [csvAcolhida, setCsvAcolhida] = useState(true)
   const [csvResults, setCsvResults] = useState<BatchResult[] | null>(null)
 
   const load = useCallback(async () => {
@@ -283,9 +291,7 @@ export function AdminPage() {
     setSavingMember(true)
     setMemberError('')
     try {
-      const acolhidaExpiry = inAcolhida
-        ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        : undefined
+      const acolhidaExpiry = inAcolhida ? expiryAcolhida() : undefined
       const result = await usersApi.createMember(
         { ...memberForm, tenantId: colmeia.id, ...(acolhidaExpiry ? { acolhidaExpiry } : {}) },
         colmeia.id
@@ -314,7 +320,12 @@ export function AdminPage() {
     if (!colmeia || csvRows.length === 0) return
     setCsvImporting(true)
     try {
-      const members = csvRows.map(r => ({ ...r, tenantId: colmeia.id }))
+      const acolhidaExpiry = csvAcolhida ? expiryAcolhida() : undefined
+      const members = csvRows.map(r => ({
+        ...r,
+        tenantId: colmeia.id,
+        ...(acolhidaExpiry ? { acolhidaExpiry } : {}),
+      }))
       const { results } = await usersApi.createMemberBatch(members, colmeia.id)
       setCsvResults(results)
       await load()
@@ -327,6 +338,7 @@ export function AdminPage() {
     setCsvDialog(false)
     setCsvRows([])
     setCsvResults(null)
+    setCsvAcolhida(true)
   }
 
   function setMember(field: keyof MemberForm, value: string) {
@@ -1032,6 +1044,21 @@ export function AdminPage() {
                   </tbody>
                 </table>
               </div>
+              <label className="flex items-center gap-2 py-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="csvAcolhida"
+                  checked={csvAcolhida}
+                  onChange={(e) => setCsvAcolhida(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <span className="text-sm">
+                  Em acolhida (30 dias) —{' '}
+                  <span className="text-muted-foreground">
+                    paga por semana confirmada; desmarque para quem já é de casa
+                  </span>
+                </span>
+              </label>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setCsvRows([])}>Voltar</Button>
                 <Button onClick={handleCsvImport} disabled={csvImporting}>

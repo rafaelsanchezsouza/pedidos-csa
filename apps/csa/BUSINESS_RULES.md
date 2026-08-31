@@ -39,7 +39,8 @@
 
 ## Período de Acolhida
 
-- Novos membros entram no período de acolhida de **30 dias** por padrão ao ser cadastrados (checkbox pré-marcado na criação)
+- Novos membros entram no período de acolhida de **30 dias** por padrão — checkbox pré-marcado **tanto no cadastro avulso quanto no import por CSV**; desmarcar é a exceção (membro que já é de casa)
+- A data de encerramento sai de `fimDaAcolhida` (motor), no fuso do tenant — os dois caminhos usam a mesma conta
 - Campo `acolhidaExpiry` (ISO date, ex: `"2026-07-15"`) registra a data de encerramento; vale **até o fim** desse dia, no fuso do tenant
 - **Cobrança é por semana confirmada, não pelo mês** (desde 2026-08-30): quem está em acolhida experimenta a CSA pagando só o que vai consumir, em vez de assinar o mês adiantado
   - O membro **confirma a semana** ("desejo receber esta semana") na tela principal

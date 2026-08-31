@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { emAcolhida, hojeNoFuso, prazoConfirmacao, podeConfirmar, semanasConfirmadas } from './acolhida'
+import { emAcolhida, hojeNoFuso, prazoConfirmacao, podeConfirmar, semanasConfirmadas, fimDaAcolhida } from './acolhida'
 
 const BR = -3
 
@@ -71,5 +71,19 @@ describe('semanasConfirmadas', () => {
 
   it('sem confirmação nenhuma, não há o que cobrar', () => {
     expect(semanasConfirmadas([], '2026-09')).toBe(0)
+  })
+})
+
+describe('fimDaAcolhida', () => {
+  it('conta 30 dias no fuso do tenant, não no do servidor', () => {
+    // 01:25Z de 31/08 ainda é 30/08 em Brasília → 30 dias a partir de 30/08.
+    expect(fimDaAcolhida(new Date('2026-08-31T01:25:00Z'), BR)).toBe('2026-09-29')
+    expect(fimDaAcolhida(new Date('2026-08-31T01:25:00Z'), 0)).toBe('2026-09-30')
+  })
+
+  it('o membro cadastrado hoje ainda está em acolhida no último dia', () => {
+    const agora = new Date('2026-08-31T15:00:00Z')
+    const fim = fimDaAcolhida(agora, BR)
+    expect(emAcolhida({ acolhidaExpiry: fim }, new Date(`${fim}T23:00:00Z`), BR)).toBe(true)
   })
 })

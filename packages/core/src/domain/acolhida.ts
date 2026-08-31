@@ -54,3 +54,13 @@ export function semanasConfirmadas(
 ): number {
   return docs.filter((d) => d.confirmado && d.weekId.startsWith(month)).length
 }
+
+/**
+ * Data de encerramento de uma acolhida que começa agora: hoje + `dias`, no fuso do tenant.
+ * Existe para o cadastro e o import por CSV não repetirem a conta — e para ela ser feita no
+ * mesmo fuso que `emAcolhida` usa na comparação. Calculada em UTC, a virada do dia num fuso
+ * negativo daria um dia a mais ou a menos de acolhida.
+ */
+export function fimDaAcolhida(agora: Date, utcOffset: number, dias = 30): string {
+  return hojeNoFuso(new Date(agora.getTime() + dias * 86400_000), utcOffset)
+}
