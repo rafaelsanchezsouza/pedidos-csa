@@ -161,7 +161,16 @@ export interface PaymentDoc {
   producerName: string
   amount: number
   dueDate?: string
+  /**
+   * Último comprovante enviado. Mantido porque a produção inteira já tem esse campo e as
+   * telas antigas leem dele — quem paga por mês continua com um comprovante só.
+   */
   proofUrl?: string
+  /**
+   * Comprovantes por semana (acolhida). Quem paga semana a semana manda vários no mesmo mês,
+   * e o admin precisa saber qual semana cada um quita — um campo único não comporta isso.
+   */
+  proofs?: Array<{ weekId: string; url: string; dateUploaded: string }>
   verified: boolean
   dateCreated: string
   dateUpdated: string

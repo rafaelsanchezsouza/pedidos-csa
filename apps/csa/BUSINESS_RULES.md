@@ -166,6 +166,8 @@
 - Uma fatura (`PaymentDoc`) por usuário **por produtor** por mês — chave única: `(userId, tenantId, month, producerName)`
 - Mês representado como string `"YYYY-MM"`
 - Usuário envia comprovante por fatura → URL em `proofUrl`; admin verifica → `verified: true`
+- **Comprovante por semana** (acolhida): `proofs[]` guarda `{ weekId, url, dateUploaded }`. `proofUrl` continua com o último enviado (telas antigas leem dele). Reenviar a mesma semana **substitui**; o dono acrescenta via `POST /payments/:id/comprovante`, nunca reescreve a lista
+- Arquivo no Storage: `comprovantes/{tenantId}/{userId}/{mês}/{timestamp}-{nome}` — o carimbo evita que dois envios de mesmo nome no mês se sobrescrevam
 
 ### Extras (pedidos semanais)
 - Fatura criada/atualizada automaticamente ao salvar pedido com `status: 'enviado'`

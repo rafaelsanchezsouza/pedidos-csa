@@ -102,6 +102,36 @@ export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
     }
   })
 
+  // POST /:id/comprovante — o dono anexa o comprovante de UMA semana (acolhida).
+  // Endpoint próprio em vez de deixar o dono escrever `proofs` inteiro no PUT: assim ele
+  // acrescenta, nunca reescreve a lista (nem apaga um comprovante já conferido).
+  router.post('/:id/comprovante', async (req: Request, res: Response) => {
+    try {
+      const id = req.params['id'] as string
+      const { weekId, url } = req.body as { weekId?: string; url?: string }
+      if (!weekId || !/^\d{4}-\d{2}-\d{2}$/.test(weekId)) { res.status(400).json({ message: 'weekId inválido' }); return }
+      if (!url) { res.status(400).json({ message: 'url do comprovante é obrigatória' }); return }
+
+      const atual = await repo.getDoc<PaymentDoc>('payments', id)
+      if (!atual) { res.status(404).json({ message: 'Fatura não encontrada' }); return }
+      const ator = await carregarAtor(repo, req.user!.uid)
+      if (atual.userId !== ator.uid && !ehAdmin(ator, atual.tenantId)) { negar(res); return }
+
+      const agora = new Date().toISOString()
+      // Reenviar a mesma semana SUBSTITUI (o membro mandou o arquivo errado) em vez de
+      // empilhar duas linhas para a mesma semana na tela de conferência.
+      const proofs = [
+        ...(atual.proofs ?? []).filter((p) => p.weekId !== weekId),
+        { weekId, url, dateUploaded: agora },
+      ].sort((a, b) => a.weekId.localeCompare(b.weekId))
+
+      await repo.updateDoc<PaymentDoc>('payments', id, { proofs, proofUrl: url, dateUpdated: agora })
+      res.json({ id, proofs })
+    } catch (err) {
+      res.status(500).json({ message: String(err) })
+    }
+  })
+
   // PUT /:id — atualiza proofUrl (usuário) ou verified (admin).
   // A regra estava só no comentário: qualquer um marcava a PRÓPRIA fatura como paga.
   router.put('/:id', async (req: Request, res: Response) => {
