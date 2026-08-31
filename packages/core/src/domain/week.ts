@@ -160,3 +160,27 @@ export function paridadeDaSemanaDe(dataISO: string): 'par' | 'impar' {
   const semana = getWeekStart(new Date(ano, mes - 1, dia, 12))
   return isFixoWeek(semana) ? 'impar' : 'par'
 }
+
+/**
+ * Relógio de parede do tenant a partir de um instante — dia da semana, hora e data.
+ *
+ * Existe porque o servidor roda em UTC e os membros vivem em BRT: `now.getHours()` no processo
+ * responde 3 horas à frente do relógio de quem usa o app. Era assim que o envio do pedido ao
+ * produtor, configurado para 6h, saía às 3h da manhã.
+ *
+ * Desloca o instante e lê com getters UTC — assim o resultado não depende do fuso do processo,
+ * e o `test:tz` prova isso em BR/UTC/UTC+14.
+ */
+export function relogioDoTenant(
+  agora: Date,
+  utcOffset: number,
+): { data: string; diaDaSemana: number; hora: number } {
+  const d = new Date(agora.getTime() + utcOffset * 3600_000)
+  return { data: d.toISOString().slice(0, 10), diaDaSemana: d.getUTCDay(), hora: d.getUTCHours() }
+}
+
+/** Semana corrente no fuso do tenant (segunda-feira, 'YYYY-MM-DD'). */
+export function semanaDoTenant(agora: Date, utcOffset: number): string {
+  const [ano, mes, dia] = relogioDoTenant(agora, utcOffset).data.split('-').map(Number) as [number, number, number]
+  return getWeekStart(new Date(ano, mes - 1, dia, 12))
+}

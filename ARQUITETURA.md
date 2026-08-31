@@ -581,10 +581,16 @@ desde 2019), e **toda regra com hora do dia recebe o offset**, nunca usa getter 
 puras vivem em `domain/acolhida.ts` e os testes rodam sob BR/UTC/UTC+14 — se alguma conta
 escorregar para o relógio do processo, o `test:tz` quebra.
 
-⚠️ **Dívida encontrada, não corrigida:** `sendOrdersJob` compara `now.getHours()` com
-`orderSendHour`. Com a VM em UTC, `orderSendHour: 6` dispara às **03:00 de Brasília**. Não
-conflita com o prazo da acolhida (o prazo fecha 23:59 BRT de segunda, o envio sai depois), mas o
-job faz outra coisa do que a config diz. Mesma classe do #43.
+~~**Dívida encontrada, não corrigida:** `sendOrdersJob` compara `now.getHours()`…~~
+**Corrigido em 2026-08-31.** Os jobs dos dois apps passaram a ler o relógio do tenant
+(`relogioDoTenant`/`semanaDoTenant`, em `domain/week.ts`) em vez dos getters locais do processo.
+`orderSendHour: 6` agora dispara às 6h de Brasília, não às 3h. O `quotaJob` teve o mês
+convertido junto — lá o erro ainda não aparecia (dispara 05:00 BRT do dia 1), mas a virada do
+dia 1 é exatamente onde 3 horas de diferença mudam o mês da fatura.
+
+⚠️ O **agendamento** do cron segue em UTC (`0 8 1 * *` = 05:00 BRT). Não é bug — o job confere o
+relógio do tenant antes de agir — mas quem for mexer no horário precisa saber que a expressão
+não está no fuso do membro.
 
 ## 5. O que falta
 

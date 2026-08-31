@@ -6,6 +6,8 @@ import {
   getWeekStart,
   getWeekDelivery,
   shiftWeek,
+  relogioDoTenant,
+  semanaDoTenant,
 } from './week'
 
 function comTZ(tz: string) {
@@ -186,5 +188,28 @@ describe('shiftWeek', () => {
 
   it('atravessa virada de ano', () => {
     expect(shiftWeek('2026-12-28', 1)).toBe('2027-01-04')
+  })
+})
+
+describe('relógio do tenant (servidor em UTC, membro em BRT)', () => {
+  const BR = -3
+
+  it('terça 02:00 UTC ainda é segunda 23h em Brasília', () => {
+    const r = relogioDoTenant(new Date('2026-09-01T02:00:00Z'), BR)
+    expect(r).toMatchObject({ data: '2026-08-31', diaDaSemana: 1, hora: 23 })
+  })
+
+  it('a hora configurada é a do membro: 6h BRT = 09:00 UTC', () => {
+    expect(relogioDoTenant(new Date('2026-09-01T09:00:00Z'), BR).hora).toBe(6)
+    // 06:00 UTC — que é quando o job disparava — são 3h da manhã para o membro.
+    expect(relogioDoTenant(new Date('2026-09-01T06:00:00Z'), BR).hora).toBe(3)
+  })
+
+  it('a semana corrente não vira antes da hora por causa do fuso', () => {
+    // 00:30 UTC de segunda ainda é domingo 21:30 em Brasília: semana anterior.
+    const domingoTarde = semanaDoTenant(new Date('2026-08-31T00:30:00Z'), BR)
+    const segundaManha = semanaDoTenant(new Date('2026-08-31T13:00:00Z'), BR)
+    expect(domingoTarde).toBe('2026-08-24')
+    expect(segundaManha).toBe('2026-08-31')
   })
 })

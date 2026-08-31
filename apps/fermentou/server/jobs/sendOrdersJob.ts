@@ -1,5 +1,5 @@
 import cron from 'node-cron'
-import { getWeekStart } from '@pedidos/core'
+import { relogioDoTenant, semanaDoTenant, UTC_OFFSET_PADRAO } from '@pedidos/core'
 import { listDocs } from '../repositories/firestore.js'
 import { ordersService } from '../services/orders.js'
 import { whatsapp } from '../adapters.js'
@@ -31,10 +31,13 @@ async function enviarParaTenant(tenant: TenantDoc & { id: string }, weekId: stri
 export function startSendOrdersJob(): void {
   // Executa toda hora; cada tenant define seu próprio dia/hora de envio
   cron.schedule('0 * * * *', async () => {
-    const now = new Date()
-    const currentDay = now.getDay()    // 0-6
-    const currentHour = now.getHours() // 0-23
-    const weekId = getWeekStart()
+    // Relógio do MEMBRO, não o do processo. A VM roda em UTC: `now.getHours()` respondia 3
+    // horas à frente, e `orderSendHour: 6` disparava às 03:00 de Brasília — o pedido saía de
+    // madrugada, antes do prazo que o membro enxerga na tela.
+    const utcOffset = config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO
+    const agora = new Date()
+    const { diaDaSemana: currentDay, hora: currentHour } = relogioDoTenant(agora, utcOffset)
+    const weekId = semanaDoTenant(agora, utcOffset)
 
     const tenants = await listDocs<TenantDoc>('tenants')
     for (const tenant of tenants) {
