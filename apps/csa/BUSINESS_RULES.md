@@ -40,8 +40,17 @@
 ## Período de Acolhida
 
 - Novos membros entram no período de acolhida de **30 dias** por padrão ao ser cadastrados (checkbox pré-marcado na criação)
-- Campo `acolhidaExpiry` (ISO date, ex: `"2026-07-15"`) registra a data de encerramento
-- Apenas informativo: não afeta pedidos, cotas, pagamentos nem permissões de sistema
+- Campo `acolhidaExpiry` (ISO date, ex: `"2026-07-15"`) registra a data de encerramento; vale **até o fim** desse dia, no fuso do tenant
+- **Cobrança é por semana confirmada, não pelo mês** (desde 2026-08-30): quem está em acolhida experimenta a CSA pagando só o que vai consumir, em vez de assinar o mês adiantado
+  - O membro **confirma a semana** e escolhe, naquela semana, se **retira ou recebe em casa** — `deliveryType` passa a ser da semana, não do cadastro
+  - Prazo: **segunda-feira até 23h59** no fuso do tenant (antes do pedido consolidado ir ao produtor)
+  - Não confirmou → não entra na lista de entrega, não entra no pedido ao produtor, não gera valor
+  - Cota do mês = `valor semanal × quotaQty × semanas confirmadas`
+  - Frete = `frete × semanas confirmadas com entrega` — a elegibilidade sai das semanas, **não** do `deliveryType` do cadastro
+  - Faturas da acolhida **não têm vencimento** (`dueDate` ausente): o membro anexa o comprovante da semana
+  - Encerrada a acolhida, volta à cobrança mensal cheia automaticamente
+- Registro: coleção `acolhidaWeeks`, chave `(userId, tenantId, weekId)`; `confirmado: false` distingue "disse que não" de "não respondeu"
+- Permissões de sistema: inalteradas (acolhida não muda acesso)
 - Admin pode ajustar a data ou remover o período via dialog de edição
 - Badge exibido na lista de membros da AdminPage:
   - **Ativo** (`acolhidaExpiry >= hoje`): texto amarelo `"Acolhida até DD/MM"`

@@ -1,8 +1,9 @@
 import { countDeliveryWeeks } from '../../domain/week.js'
+import { emAcolhida, semanasConfirmadas, UTC_OFFSET_PADRAO } from '../../domain/acolhida.js'
 import { weeklyRate, quotaAmount } from '../../domain/quota.js'
 import { resolveFrete } from '../../domain/frete.js'
 import { isEntrega } from '../../domain/delivery.js'
-import type { OrderDoc, PaymentDoc, UserDoc, TenantDoc } from '../../types.js'
+import type { AcolhidaWeekDoc, OrderDoc, PaymentDoc, UserDoc, TenantDoc } from '../../types.js'
 import type { AppConfig } from '../../config.js'
 import type { EngineDeps } from '../repo.js'
 
@@ -115,7 +116,7 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
     tenantId: string,
     month: string,
     amount: number,
-    dueDate: string,
+    dueDate: string | undefined,
   ): Promise<{ doc: PaymentDoc & { id: string }; created: boolean }> {
     const existing = await repo.listDocs<PaymentDoc>('payments', [
       ['userId', '==', uid],
@@ -124,29 +125,57 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
       ['producerName', '==', producerName],
     ])
     const now = new Date().toISOString()
+    // Firestore recusa `undefined` em campo: fatura sem vencimento OMITE a chave.
+    const comVenc = dueDate === undefined ? {} : { dueDate }
     if (existing.length > 0) {
       const prev = existing[0]!
-      await repo.updateDoc<PaymentDoc>('payments', prev.id, { amount, dueDate, dateUpdated: now })
-      return { doc: { ...prev, amount, dueDate, dateUpdated: now }, created: false }
+      await repo.updateDoc<PaymentDoc>('payments', prev.id, { amount, ...comVenc, dateUpdated: now })
+      return { doc: { ...prev, amount, ...comVenc, dateUpdated: now }, created: false }
     }
     const doc = await repo.createDoc<PaymentDoc>('payments', {
-      userId: uid, userName, tenantId, month, producerName, amount, dueDate,
+      userId: uid, userName, tenantId, month, producerName, amount, ...comVenc,
       verified: false, dateCreated: now, dateUpdated: now,
     })
     return { doc, created: true }
   }
 
-  // Valor mensal da cota: tier do usuário (tiers dinâmicos, com legado inteira/meia por
-  // baixo) × quotaQty (CSA #45; ausente = 1) × entregas do mês. Fórmula única dos dois apps.
-  const valorCota = (u: UserDoc, settings: TenantSettings, month: string): number => {
-    const weeks = countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
-    return quotaAmount(weeklyRate(u.quota, settings), u.quotaQty, weeks)
+  // Quantas semanas cobrar deste membro neste mês — e quantas delas são entrega.
+  //
+  // Membro efetivo: o calendário decide (todas as entregas do mês, quinzenal respeitado) e o
+  // frete segue o `deliveryType` do cadastro. Membro em acolhida: só o que ele CONFIRMOU, e o
+  // tipo de entrega é o daquela semana — ele escolhe toda semana se retira ou recebe em casa.
+  // Sem confirmação não há semana, e sem semana não há valor: é o que faz a acolhida ser
+  // experimentação de verdade, em vez de um mês assinado adiantado.
+  async function semanasDeCobranca(
+    u: UserDoc & { id?: string },
+    uid: string,
+    tenantId: string,
+    month: string,
+    agora: Date,
+  ): Promise<{ cota: number; entrega: number }> {
+    const utcOffset = config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO
+    if (!emAcolhida(u, agora, utcOffset)) {
+      const weeks = countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
+      return { cota: weeks, entrega: isEntrega(u) ? weeks : 0 }
+    }
+    const docs = await repo.listDocs<AcolhidaWeekDoc>('acolhidaWeeks', [
+      ['userId', '==', uid],
+      ['tenantId', '==', tenantId],
+    ])
+    const { total, entregas } = semanasConfirmadas(docs, month)
+    return { cota: total, entrega: entregas }
   }
+
+  // Valor da cota: tier do usuário (tiers dinâmicos, com legado inteira/meia por baixo) ×
+  // quotaQty (CSA #45; ausente = 1) × semanas cobráveis. Fórmula única dos dois apps.
+  const valorCota = (u: UserDoc, settings: TenantSettings, semanas: number): number =>
+    quotaAmount(weeklyRate(u.quota, settings), u.quotaQty, semanas)
 
   async function generateQuotaForUser(
     uid: string,
     tenantId: string,
     month: string,
+    agora = new Date(),
   ): Promise<(PaymentDoc & { id: string }) | { skipped: true }> {
     const [userDoc, tenantDoc] = await Promise.all([
       repo.getDoc<UserDoc>('users', uid),
@@ -156,12 +185,17 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
     if (userDoc.isentoCotas) return { skipped: true }
 
     const settings = settingsDe(tenantDoc)
-    const amount = valorCota(userDoc, settings, month)
-    const dueDate = buildDueDate(month, 'cota', settings.dueDay!)
+    const semanas = await semanasDeCobranca(userDoc, uid, tenantId, month, agora)
+    const amount = valorCota(userDoc, settings, semanas.cota)
+    // Acolhida não tem vencimento: o membro paga a semana que vai consumir, não uma fatura
+    // com prazo. `dueDate` ausente é o que a tela usa para não cobrar data dele.
+    const dueDate = emAcolhida(userDoc, agora, config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
+      ? undefined
+      : buildDueDate(month, 'cota', settings.dueDay!)
     return (await upsertGenerated(PRODUCER_COTA, uid, userDoc.name, tenantId, month, amount, dueDate)).doc
   }
 
-  async function generateQuotaForAll(tenantId: string, month: string): Promise<{ generated: number }> {
+  async function generateQuotaForAll(tenantId: string, month: string, agora = new Date()): Promise<{ generated: number }> {
     const [users, tenantDoc] = await Promise.all([
       repo.listDocs<UserDoc>('users', [['tenantId', '==', tenantId]]),
       repo.getDoc<TenantSettings>('tenants', tenantId),
@@ -171,8 +205,12 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
     const dueDate = buildDueDate(month, 'cota', settings.dueDay!)
     let generated = 0
     for (const u of eligible) {
+      const semanas = await semanasDeCobranca(u, u.id, tenantId, month, agora)
+      const venc = emAcolhida(u, agora, config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
+        ? undefined
+        : dueDate
       const { created } = await upsertGenerated(
-        PRODUCER_COTA, u.id, u.name, tenantId, month, valorCota(u, settings, month), dueDate,
+        PRODUCER_COTA, u.id, u.name, tenantId, month, valorCota(u, settings, semanas.cota), venc,
       )
       if (created) generated++
     }
@@ -185,6 +223,7 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
     uid: string,
     tenantId: string,
     month: string,
+    agora = new Date(),
   ): Promise<(PaymentDoc & { id: string }) | { skipped: true }> {
     const [userDoc, tenantDoc] = await Promise.all([
       repo.getDoc<UserDoc>('users', uid),
@@ -193,30 +232,44 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
     if (!userDoc) throw new Error('Usuário não encontrado')
     const settings = settingsDe(tenantDoc)
     const frete = resolveFrete(userDoc, settings)
-    // Só gera para quem recebe por entrega e tem frete > 0.
-    if (!isEntrega(userDoc) || frete <= 0) return { skipped: true }
+    if (frete <= 0) return { skipped: true }
 
-    const entregas = countDeliveryWeeks(month, userDoc.frequency ?? 'semanal', userDoc.quinzenalParity)
-    const dueDate = buildDueDate(month, 'frete', settings.dueDay!)
-    return (await upsertGenerated(PRODUCER_FRETE, uid, userDoc.name, tenantId, month, frete * entregas, dueDate)).doc
+    // Quem está em acolhida escolhe o tipo A CADA SEMANA, então a elegibilidade não pode sair
+    // do `deliveryType` do cadastro: sai das semanas em que ele pediu em casa.
+    const semanas = await semanasDeCobranca(userDoc, uid, tenantId, month, agora)
+    const naAcolhida = emAcolhida(userDoc, agora, config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
+    if (!naAcolhida && !isEntrega(userDoc)) return { skipped: true }
+    if (naAcolhida && semanas.entrega === 0) return { skipped: true }
+
+    const dueDate = naAcolhida ? undefined : buildDueDate(month, 'frete', settings.dueDay!)
+    return (await upsertGenerated(
+      PRODUCER_FRETE, uid, userDoc.name, tenantId, month, frete * semanas.entrega, dueDate,
+    )).doc
   }
 
-  async function generateFreteForAll(tenantId: string, month: string): Promise<{ generated: number }> {
+  async function generateFreteForAll(tenantId: string, month: string, agora = new Date()): Promise<{ generated: number }> {
     const [users, tenantDoc] = await Promise.all([
       repo.listDocs<UserDoc>('users', [['tenantId', '==', tenantId]]),
       repo.getDoc<TenantSettings>('tenants', tenantId),
     ])
     const settings = settingsDe(tenantDoc)
     const dueDate = buildDueDate(month, 'frete', settings.dueDay!)
+    const utcOffset = config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO
+    // Membro em acolhida entra na lista mesmo com `deliveryType: 'retirada'` no cadastro: o
+    // que vale é o que ele escolheu nas semanas. Filtrar por `isEntrega` aqui o deixaria de
+    // fora e o frete das semanas em que ele pediu em casa nunca seria cobrado.
     const eligible = users.filter(
-      (u) => isEntrega(u) && !u.disabled && !u.deleted && resolveFrete(u, settings) > 0,
+      (u) => !u.disabled && !u.deleted && resolveFrete(u, settings) > 0
+        && (isEntrega(u) || emAcolhida(u, agora, utcOffset)),
     )
     let generated = 0
     for (const u of eligible) {
       const frete = resolveFrete(u, settings)
-      const entregas = countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
+      const semanas = await semanasDeCobranca(u, u.id, tenantId, month, agora)
+      if (semanas.entrega === 0) continue
+      const venc = emAcolhida(u, agora, utcOffset) ? undefined : dueDate
       const { created } = await upsertGenerated(
-        PRODUCER_FRETE, u.id, u.name, tenantId, month, frete * entregas, dueDate,
+        PRODUCER_FRETE, u.id, u.name, tenantId, month, frete * semanas.entrega, venc,
       )
       if (created) generated++
     }

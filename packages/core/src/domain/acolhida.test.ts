@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { emAcolhida, hojeNoFuso, prazoConfirmacao, podeConfirmar } from './acolhida'
+import { emAcolhida, hojeNoFuso, prazoConfirmacao, podeConfirmar, semanasConfirmadas } from './acolhida'
 
 const BR = -3
 
@@ -50,5 +50,26 @@ describe('prazo de confirmação', () => {
 
   it('semana futura pode ser confirmada com antecedência', () => {
     expect(podeConfirmar('2026-09-07', new Date('2026-09-01T12:00:00Z'), BR)).toBe(true)
+  })
+})
+
+describe('semanasConfirmadas', () => {
+  const docs = [
+    { weekId: '2026-09-07', confirmado: true, deliveryType: 'entrega' },
+    { weekId: '2026-09-14', confirmado: true, deliveryType: 'retirada' },
+    { weekId: '2026-09-21', confirmado: false, deliveryType: 'entrega' },  // disse que não
+    { weekId: '2026-08-31', confirmado: true, deliveryType: 'entrega' },   // outro mês
+  ]
+
+  it('conta só as confirmadas do mês, e separa as de entrega', () => {
+    expect(semanasConfirmadas(docs, '2026-09')).toEqual({ total: 2, entregas: 1 })
+  })
+
+  it('a semana pertence ao mês da segunda, como nos pedidos', () => {
+    expect(semanasConfirmadas(docs, '2026-08')).toEqual({ total: 1, entregas: 1 })
+  })
+
+  it('sem confirmação nenhuma, não há o que cobrar', () => {
+    expect(semanasConfirmadas([], '2026-09')).toEqual({ total: 0, entregas: 0 })
   })
 })
