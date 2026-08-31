@@ -83,15 +83,22 @@ $SSH "cd $VM_DIR && export NODE_ENV=production && \
 # "Instalou" não é "instalou o NOSSO core": comparar o artefato local com o que ficou na VM é
 # a única prova. Sem isto, um core obsoleto passa despercebido por um deploy inteiro.
 echo "==> Verificando se o motor instalado é o que acabamos de buildar..."
-SHA_LOCAL="$(sha256sum "$RAIZ/packages/core/dist/server/index.js" | cut -d' ' -f1)"
-SHA_VM="$($SSH "sha256sum $VM_DIR/node_modules/@pedidos/core/dist/server/index.js 2>/dev/null | cut -d' ' -f1")"
+# Sha do dist INTEIRO, não de um arquivo. Comparar só `server/index.js` dizia "motor confere"
+# quando a mudança estava em `domain/` ou `ui/` — foi o caso do fimDaAcolhida (2026-08-31):
+# a prova passava verde sem provar nada sobre o que tinha mudado.
+# LC_ALL=C nos dois lados: `sort` respeita a locale, e a minha máquina não é a da VM. Sem
+# isto a MESMA lista de arquivos sai em ordens diferentes e o sha final diverge sempre —
+# a verificação falharia em todo deploy, por um motivo que não é o deploy.
+sha_arvore() { find "$1" -type f -exec sha256sum {} + | sed "s| .*/dist/| |" | LC_ALL=C sort -k2 | sha256sum | cut -d' ' -f1; }
+SHA_LOCAL="$(sha_arvore "$RAIZ/packages/core/dist")"
+SHA_VM="$($SSH "cd $VM_DIR/node_modules/@pedidos/core 2>/dev/null && find dist -type f -exec sha256sum {} + | sed 's| .*dist/| |' | LC_ALL=C sort -k2 | sha256sum | cut -d' ' -f1")"
 if [[ "$SHA_LOCAL" != "$SHA_VM" ]]; then
   echo "ERRO: @pedidos/core na VM não confere com o build local."
   echo "  local: ${SHA_LOCAL:-<ausente>}"
   echo "  VM:    ${SHA_VM:-<ausente>}"
   exit 1
 fi
-echo "OK: motor confere (sha256 ${SHA_LOCAL:0:12})."
+echo "OK: motor confere (dist inteiro, sha256 ${SHA_LOCAL:0:12})."
 
 echo "==> Verificando se o backend respondeu..."
 PORT_APP="$(grep -E '^PORT=' "$ENV_FILE" | head -1 | cut -d= -f2 | tr -d "\"' ")"

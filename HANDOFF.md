@@ -139,6 +139,11 @@ de membros** — fora do repo, apagar quando não for mais necessário.
   dizendo o que faltou**.
 - `@pedidos/core` é workspace e `npm install` não o resolve na VM: o deploy leva um **tarball**
   (`npm pack`) e reescreve a dep para `file:`. É `npm pack <caminho>`, **não** `npm --prefix`.
+- **A verificação do motor cobre o `dist` inteiro, não um arquivo.** Até 2026-08-31 ela
+  comparava só o sha de `dist/server/index.js`: mudança em `domain/` ou `ui/` passava com
+  "motor confere" sem que nada daquilo fosse verificado (pegou o `fimDaAcolhida`). Agora é o
+  sha da árvore — com `LC_ALL=C` no `sort` dos dois lados, senão a locale da sua máquina e a
+  da VM ordenam diferente e a verificação falha em todo deploy por um motivo que não é o deploy.
 - **O nome do arquivo de env tem que bater dos dois lados.** `env.ts` carrega `.env.production`
   (com `NODE_ENV=production`); o `deploy.sh` da CSA copiava para `.env` — o deploy atualizava um
   arquivo que o app nunca lê, e o boot pegava um `.env.production` obsoleto largado na VM.
