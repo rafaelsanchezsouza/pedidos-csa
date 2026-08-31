@@ -55,21 +55,21 @@ describe('prazo de confirmação', () => {
 
 describe('semanasConfirmadas', () => {
   const docs = [
-    { weekId: '2026-09-07', confirmado: true, deliveryType: 'entrega' },
-    { weekId: '2026-09-14', confirmado: true, deliveryType: 'retirada' },
-    { weekId: '2026-09-21', confirmado: false, deliveryType: 'entrega' },  // disse que não
-    { weekId: '2026-08-31', confirmado: true, deliveryType: 'entrega' },   // outro mês
+    { weekId: '2026-09-07', confirmado: true },
+    { weekId: '2026-09-14', confirmado: true },
+    { weekId: '2026-09-21', confirmado: false },   // disse que não
+    { weekId: '2026-08-31', confirmado: true },    // outro mês
   ]
 
-  it('conta só as confirmadas do mês, e separa as de entrega', () => {
-    expect(semanasConfirmadas(docs, '2026-09')).toEqual({ total: 2, entregas: 1 })
+  it('conta só as confirmadas do mês', () => {
+    expect(semanasConfirmadas(docs, '2026-09')).toBe(2)
   })
 
   it('a semana pertence ao mês da segunda, como nos pedidos', () => {
-    expect(semanasConfirmadas(docs, '2026-08')).toEqual({ total: 1, entregas: 1 })
+    expect(semanasConfirmadas(docs, '2026-08')).toBe(1)
   })
 
   it('sem confirmação nenhuma, não há o que cobrar', () => {
-    expect(semanasConfirmadas([], '2026-09')).toEqual({ total: 0, entregas: 0 })
+    expect(semanasConfirmadas([], '2026-09')).toBe(0)
   })
 })

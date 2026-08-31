@@ -141,14 +141,14 @@ export interface OrderDoc {
 // `confirmado` distingue "quero receber" de "não quero esta semana" — para o admin, não ter
 // respondido e ter dito não são coisas diferentes.
 //
-// `deliveryType` é DA SEMANA, não do usuário: quem está experimentando escolhe a cada semana
-// se retira ou recebe em casa, e é isso que decide a lista de entrega e o frete daquela semana.
+// Guarda SÓ a confirmação. `deliveryType` continua sendo do usuário (o membro em acolhida
+// troca o dele na tela principal, como qualquer outro): a regra de entrega/frete segue
+// perguntando `isEntrega(u)`, e a acolhida muda apenas QUANTAS semanas entram na conta.
 export interface AcolhidaWeekDoc {
   userId: string
   tenantId: string
   weekId: string // segunda-feira da semana ('YYYY-MM-DD'), mesmo vocabulário dos pedidos
   confirmado: boolean
-  deliveryType: DeliveryType
   dateCreated: string
   dateUpdated: string
 }

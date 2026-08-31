@@ -39,11 +39,11 @@ describe('createAcolhidaRouter', () => {
   it('confirmar a semana grava a escolha e já recalcula a fatura', async () => {
     const { repo, router } = monta({ u1: novato() })
     await withRouter('/api/acolhida', router, async (get) => {
-      const r = await post(get, { weekId: SEMANA_ABERTA, confirmado: true, deliveryType: 'entrega' })
+      const r = await post(get, { weekId: SEMANA_ABERTA, confirmado: true })
       expect(r.status).toBe(200)
     })
     const semanas = await repo.listDocs<AcolhidaWeekDoc>('acolhidaWeeks')
-    expect(semanas[0]).toMatchObject({ userId: 'u1', weekId: SEMANA_ABERTA, confirmado: true, deliveryType: 'entrega' })
+    expect(semanas[0]).toMatchObject({ userId: 'u1', weekId: SEMANA_ABERTA, confirmado: true })
     const cota = (await repo.listDocs<PaymentDoc>('payments')).find((p) => p.producerName === 'Cota')
     expect(cota).toMatchObject({ amount: 65, month: '2099-08' })   // 1 semana confirmada
     expect(cota).not.toHaveProperty('dueDate')
@@ -52,7 +52,7 @@ describe('createAcolhidaRouter', () => {
   it('desmarcar zera o valor da semana', async () => {
     const { repo, router } = monta({ u1: novato() })
     await withRouter('/api/acolhida', router, async (get) => {
-      await post(get, { weekId: SEMANA_ABERTA, confirmado: true, deliveryType: 'retirada' })
+      await post(get, { weekId: SEMANA_ABERTA, confirmado: true })
       await post(get, { weekId: SEMANA_ABERTA, confirmado: false })
     })
     const cota = (await repo.listDocs<PaymentDoc>('payments')).find((p) => p.producerName === 'Cota')
@@ -63,7 +63,7 @@ describe('createAcolhidaRouter', () => {
   it('depois do prazo o membro recebe 409 explicando', async () => {
     const { router } = monta({ u1: novato() })
     await withRouter('/api/acolhida', router, async (get) => {
-      const r = await post(get, { weekId: SEMANA_FECHADA, confirmado: true, deliveryType: 'entrega' })
+      const r = await post(get, { weekId: SEMANA_FECHADA, confirmado: true })
       expect(r.status).toBe(409)
       expect((await r.json()).message).toContain('segunda-feira')
     })
@@ -75,7 +75,7 @@ describe('createAcolhidaRouter', () => {
       adm: { name: 'Admin', tenantId: 't1', acesso: ['admin'] },
     })
     await withRouter('/api/acolhida', router, async (get) => {
-      const r = await post(get, { weekId: SEMANA_FECHADA, confirmado: true, deliveryType: 'entrega', userId: 'u1' })
+      const r = await post(get, { weekId: SEMANA_FECHADA, confirmado: true, userId: 'u1' })
       expect(r.status).toBe(200)
     }, { uid: 'adm' })
   })
@@ -83,16 +83,16 @@ describe('createAcolhidaRouter', () => {
   it('membro não confirma pelo outro', async () => {
     const { router } = monta({ u1: novato(), u2: novato({ name: 'Outro' }) })
     await withRouter('/api/acolhida', router, async (get) => {
-      const r = await post(get, { weekId: SEMANA_ABERTA, confirmado: true, deliveryType: 'entrega', userId: 'u2' })
+      const r = await post(get, { weekId: SEMANA_ABERTA, confirmado: true, userId: 'u2' })
       expect(r.status).toBe(403)
     }, { uid: 'u1' })
   })
 
-  it('confirmar sem dizer o tipo de entrega é 400', async () => {
+  it('weekId inválido e confirmado ausente são 400', async () => {
     const { router } = monta({ u1: novato() })
     await withRouter('/api/acolhida', router, async (get) => {
-      expect((await post(get, { weekId: SEMANA_ABERTA, confirmado: true })).status).toBe(400)
-      expect((await post(get, { weekId: 'agosto', confirmado: true, deliveryType: 'entrega' })).status).toBe(400)
+      expect((await post(get, { weekId: 'agosto', confirmado: true })).status).toBe(400)
+      expect((await post(get, { weekId: SEMANA_ABERTA })).status).toBe(400)
     })
   })
 

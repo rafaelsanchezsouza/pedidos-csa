@@ -43,18 +43,14 @@ export function podeConfirmar(weekId: string, agora: Date, utcOffset: number): b
 }
 
 /**
- * Semanas do mês em que o membro confirmou, e quantas delas ele pediu em casa.
+ * Quantas semanas do mês o membro confirmou.
  * A semana pertence ao mês do seu `weekId` (a segunda) — mesma convenção dos pedidos, que
  * filtram por `weekId.startsWith(month)`. Manter as duas iguais evita que uma semana caia num
  * mês na cobrança e noutro na entrega.
  */
 export function semanasConfirmadas(
-  docs: Array<{ weekId: string; confirmado: boolean; deliveryType?: string }>,
+  docs: Array<{ weekId: string; confirmado: boolean }>,
   month: string,
-): { total: number; entregas: number } {
-  const doMes = docs.filter((d) => d.confirmado && d.weekId.startsWith(month))
-  return {
-    total: doMes.length,
-    entregas: doMes.filter((d) => d.deliveryType === 'entrega').length,
-  }
+): number {
+  return docs.filter((d) => d.confirmado && d.weekId.startsWith(month)).length
 }

@@ -187,52 +187,47 @@ describe('acolhida — cobrança por semana confirmada', () => {
   })
 })
 
-describe('acolhida — frete segue a escolha da semana, não o cadastro', () => {
-  const users = {
+describe('acolhida — frete cobra as semanas confirmadas', () => {
+  const emCasa = {
     u1: {
       name: 'Novo', tenantId: 't1', quota: 'Cota inteira', frequency: 'semanal',
-      deliveryType: 'retirada',            // cadastro diz retirada...
-      ...emAcolhidaAte('2025-09-05'),
+      deliveryType: 'entrega', ...emAcolhidaAte('2025-09-05'),
     },
   }
 
-  it('cobra o frete das semanas em que ele pediu em casa, mesmo cadastrado como retirada', async () => {
+  it('paga o frete das semanas que confirmou, não das 4 do mês', async () => {
     const repo = createMemoryRepo({
-      users,
+      users: emCasa,
       tenants: { t1: { freteDelivery: 12 } },
       acolhidaWeeks: {
-        w1: { userId: 'u1', tenantId: 't1', weekId: '2025-08-04', confirmado: true, deliveryType: 'entrega' },
-        w2: { userId: 'u1', tenantId: 't1', weekId: '2025-08-11', confirmado: true, deliveryType: 'retirada' },
+        w1: { userId: 'u1', tenantId: 't1', weekId: '2025-08-04', confirmado: true },
+        w2: { userId: 'u1', tenantId: 't1', weekId: '2025-08-11', confirmado: true },
+        w3: { userId: 'u1', tenantId: 't1', weekId: '2025-08-18', confirmado: false },
       },
     })
     const svc = createPaymentService({ repo }, config)
     const doc = await svc.generateFreteForUser('u1', 't1', MONTH, AGORA)
-    expect(doc).toMatchObject({ producerName: PRODUCER_FRETE, amount: 12 })   // 1 semana de entrega
+    expect(doc).toMatchObject({ producerName: PRODUCER_FRETE, amount: 12 * 2 })
     expect(doc).not.toHaveProperty('dueDate')
   })
 
-  it('só retiradas: não gera fatura de frete', async () => {
+  it('quem retira segue sem fatura de frete, em acolhida ou não', async () => {
     const repo = createMemoryRepo({
-      users,
+      users: { u1: { ...emCasa.u1, deliveryType: 'retirada' } },
       tenants: { t1: { freteDelivery: 12 } },
-      acolhidaWeeks: {
-        w1: { userId: 'u1', tenantId: 't1', weekId: '2025-08-04', confirmado: true, deliveryType: 'retirada' },
-      },
+      acolhidaWeeks: { w1: { userId: 'u1', tenantId: 't1', weekId: '2025-08-04', confirmado: true } },
     })
     const svc = createPaymentService({ repo }, config)
     expect(await svc.generateFreteForUser('u1', 't1', MONTH, AGORA)).toEqual({ skipped: true })
   })
 
-  it('generateFreteForAll não deixa o membro em acolhida de fora por causa do cadastro', async () => {
+  it('membro efetivo em entrega segue cobrado pelo calendário (regressão)', async () => {
     const repo = createMemoryRepo({
-      users,
-      tenants: { t1: { freteDelivery: 12 } },
-      acolhidaWeeks: {
-        w1: { userId: 'u1', tenantId: 't1', weekId: '2025-08-04', confirmado: true, deliveryType: 'entrega' },
-      },
+      users: { u1: { name: 'Ana', tenantId: 't1', quota: 'Cota inteira', frequency: 'semanal', deliveryType: 'entrega' } },
+      tenants: { t1: { freteDelivery: 12, dueDay: 10 } },
     })
     const svc = createPaymentService({ repo }, config)
-    expect(await svc.generateFreteForAll('t1', MONTH, AGORA)).toEqual({ generated: 1 })
-    expect((await pagamentos(repo, PRODUCER_FRETE))[0]).toMatchObject({ amount: 12 })
+    expect(await svc.generateFreteForUser('u1', 't1', MONTH, AGORA))
+      .toMatchObject({ amount: 12 * 4, dueDate: '2025-09-10' })
   })
 })

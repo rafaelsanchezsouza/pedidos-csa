@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express'
 import { carregarAtor, ehAdmin, negar } from '../auth.js'
 import { podeConfirmar, prazoConfirmacao, UTC_OFFSET_PADRAO } from '../../domain/acolhida.js'
-import type { AcolhidaWeekDoc, DeliveryType, UserDoc } from '../../types.js'
+import type { AcolhidaWeekDoc, UserDoc } from '../../types.js'
 import type { AppConfig } from '../../config.js'
 import type { EngineDeps, WhereFilter } from '../repo.js'
 import type { PaymentService } from '../services/payments.js'
@@ -47,17 +47,14 @@ export function createAcolhidaRouter({ repo, payments }: AcolhidaDeps, config: A
   // POST /acolhida — confirma (ou desmarca) a semana e recalcula as faturas do mês.
   router.post('/', async (req: Request, res: Response) => {
     try {
-      const { weekId, confirmado, deliveryType, userId } = req.body as {
-        weekId?: string; confirmado?: boolean; deliveryType?: string; userId?: string
+      const { weekId, confirmado, userId } = req.body as {
+        weekId?: string; confirmado?: boolean; userId?: string
       }
       if (!weekId || !/^\d{4}-\d{2}-\d{2}$/.test(weekId)) {
         res.status(400).json({ message: 'weekId inválido' }); return
       }
       if (typeof confirmado !== 'boolean') {
         res.status(400).json({ message: 'confirmado é obrigatório' }); return
-      }
-      if (confirmado && deliveryType !== 'entrega' && deliveryType !== 'retirada') {
-        res.status(400).json({ message: 'Escolha entre receber em casa ou retirar' }); return
       }
 
       const ator = await carregarAtor(repo, req.user!.uid)
@@ -80,11 +77,9 @@ export function createAcolhidaRouter({ repo, payments }: AcolhidaDeps, config: A
       const tenantId = dono.tenantId
       const existentes = await repo.listDocs<AcolhidaWeekDoc>('acolhidaWeeks', chave(alvo, tenantId, weekId))
       const agora = new Date().toISOString()
-      const dados = {
-        userId: alvo, tenantId, weekId, confirmado,
-        deliveryType: (confirmado ? deliveryType : (existentes[0]?.deliveryType ?? dono.deliveryType)) as DeliveryType,
-        dateUpdated: agora,
-      }
+      // Só a confirmação. Como o membro recebe (retirada/entrega) é campo DELE, trocado na
+      // tela principal como qualquer outro membro — a acolhida não duplica esse dado.
+      const dados = { userId: alvo, tenantId, weekId, confirmado, dateUpdated: agora }
       if (existentes[0]) {
         await repo.updateDoc<AcolhidaWeekDoc>('acolhidaWeeks', existentes[0].id, dados)
       } else {
@@ -97,7 +92,7 @@ export function createAcolhidaRouter({ repo, payments }: AcolhidaDeps, config: A
       await payments.generateQuotaForUser(alvo, tenantId, month).catch(() => undefined)
       await payments.generateFreteForUser(alvo, tenantId, month).catch(() => undefined)
 
-      res.json({ ok: true, weekId, confirmado, deliveryType: dados.deliveryType })
+      res.json({ ok: true, weekId, confirmado })
     } catch (err) {
       res.status(500).json({ message: String(err) })
     }

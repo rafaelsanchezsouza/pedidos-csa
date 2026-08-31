@@ -139,31 +139,32 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
     return { doc, created: true }
   }
 
-  // Quantas semanas cobrar deste membro neste mês — e quantas delas são entrega.
+  // Quantas semanas cobrar deste membro neste mês.
   //
-  // Membro efetivo: o calendário decide (todas as entregas do mês, quinzenal respeitado) e o
-  // frete segue o `deliveryType` do cadastro. Membro em acolhida: só o que ele CONFIRMOU, e o
-  // tipo de entrega é o daquela semana — ele escolhe toda semana se retira ou recebe em casa.
-  // Sem confirmação não há semana, e sem semana não há valor: é o que faz a acolhida ser
-  // experimentação de verdade, em vez de um mês assinado adiantado.
+  // Membro efetivo: o calendário decide (todas as entregas do mês, quinzenal respeitado).
+  // Membro em acolhida: só as que ele CONFIRMOU — sem confirmação não há semana, e sem semana
+  // não há valor. É o que faz a acolhida ser experimentação de verdade, em vez de um mês
+  // assinado adiantado.
+  //
+  // O TIPO de entrega não entra aqui: continua sendo do usuário (`isEntrega`), como sempre foi.
+  // O membro em acolhida troca o dele na tela principal; a acolhida muda quantas semanas
+  // contam, não como ele recebe.
   async function semanasDeCobranca(
-    u: UserDoc & { id?: string },
+    u: UserDoc,
     uid: string,
     tenantId: string,
     month: string,
     agora: Date,
-  ): Promise<{ cota: number; entrega: number }> {
+  ): Promise<number> {
     const utcOffset = config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO
     if (!emAcolhida(u, agora, utcOffset)) {
-      const weeks = countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
-      return { cota: weeks, entrega: isEntrega(u) ? weeks : 0 }
+      return countDeliveryWeeks(month, u.frequency ?? 'semanal', u.quinzenalParity)
     }
     const docs = await repo.listDocs<AcolhidaWeekDoc>('acolhidaWeeks', [
       ['userId', '==', uid],
       ['tenantId', '==', tenantId],
     ])
-    const { total, entregas } = semanasConfirmadas(docs, month)
-    return { cota: total, entrega: entregas }
+    return semanasConfirmadas(docs, month)
   }
 
   // Valor da cota: tier do usuário (tiers dinâmicos, com legado inteira/meia por baixo) ×
@@ -186,7 +187,7 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
 
     const settings = settingsDe(tenantDoc)
     const semanas = await semanasDeCobranca(userDoc, uid, tenantId, month, agora)
-    const amount = valorCota(userDoc, settings, semanas.cota)
+    const amount = valorCota(userDoc, settings, semanas)
     // Acolhida não tem vencimento: o membro paga a semana que vai consumir, não uma fatura
     // com prazo. `dueDate` ausente é o que a tela usa para não cobrar data dele.
     const dueDate = emAcolhida(userDoc, agora, config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
@@ -210,7 +211,7 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
         ? undefined
         : dueDate
       const { created } = await upsertGenerated(
-        PRODUCER_COTA, u.id, u.name, tenantId, month, valorCota(u, settings, semanas.cota), venc,
+        PRODUCER_COTA, u.id, u.name, tenantId, month, valorCota(u, settings, semanas), venc,
       )
       if (created) generated++
     }
@@ -232,18 +233,15 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
     if (!userDoc) throw new Error('Usuário não encontrado')
     const settings = settingsDe(tenantDoc)
     const frete = resolveFrete(userDoc, settings)
-    if (frete <= 0) return { skipped: true }
+    // Elegibilidade inalterada: só quem recebe em casa e tem frete > 0.
+    if (!isEntrega(userDoc) || frete <= 0) return { skipped: true }
 
-    // Quem está em acolhida escolhe o tipo A CADA SEMANA, então a elegibilidade não pode sair
-    // do `deliveryType` do cadastro: sai das semanas em que ele pediu em casa.
+    // Em acolhida muda só a CONTAGEM: paga o frete das semanas que confirmou.
     const semanas = await semanasDeCobranca(userDoc, uid, tenantId, month, agora)
     const naAcolhida = emAcolhida(userDoc, agora, config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
-    if (!naAcolhida && !isEntrega(userDoc)) return { skipped: true }
-    if (naAcolhida && semanas.entrega === 0) return { skipped: true }
-
     const dueDate = naAcolhida ? undefined : buildDueDate(month, 'frete', settings.dueDay!)
     return (await upsertGenerated(
-      PRODUCER_FRETE, uid, userDoc.name, tenantId, month, frete * semanas.entrega, dueDate,
+      PRODUCER_FRETE, uid, userDoc.name, tenantId, month, frete * semanas, dueDate,
     )).doc
   }
 
@@ -255,21 +253,16 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
     const settings = settingsDe(tenantDoc)
     const dueDate = buildDueDate(month, 'frete', settings.dueDay!)
     const utcOffset = config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO
-    // Membro em acolhida entra na lista mesmo com `deliveryType: 'retirada'` no cadastro: o
-    // que vale é o que ele escolheu nas semanas. Filtrar por `isEntrega` aqui o deixaria de
-    // fora e o frete das semanas em que ele pediu em casa nunca seria cobrado.
     const eligible = users.filter(
-      (u) => !u.disabled && !u.deleted && resolveFrete(u, settings) > 0
-        && (isEntrega(u) || emAcolhida(u, agora, utcOffset)),
+      (u) => isEntrega(u) && !u.disabled && !u.deleted && resolveFrete(u, settings) > 0,
     )
     let generated = 0
     for (const u of eligible) {
       const frete = resolveFrete(u, settings)
       const semanas = await semanasDeCobranca(u, u.id, tenantId, month, agora)
-      if (semanas.entrega === 0) continue
       const venc = emAcolhida(u, agora, utcOffset) ? undefined : dueDate
       const { created } = await upsertGenerated(
-        PRODUCER_FRETE, u.id, u.name, tenantId, month, frete * semanas.entrega, venc,
+        PRODUCER_FRETE, u.id, u.name, tenantId, month, frete * semanas, venc,
       )
       if (created) generated++
     }
