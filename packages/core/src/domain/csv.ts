@@ -29,3 +29,23 @@ export function parsePrice(raw: string): number {
   const n = parseFloat(s)
   return Number.isFinite(n) ? n : 0
 }
+
+/**
+ * Data no formato brasileiro do Google Forms ('15/08/2026') para ISO ('2026-08-15').
+ * Devolve null para vazio ou malformado — no import, campo ruim vira "sem informação",
+ * nunca uma data inventada que decidiria ciclo de entrega errado.
+ *
+ * Parseia os componentes na mão: `new Date('15/08/2026')` é interpretação do runtime
+ * (nos EUA seria mês/dia) e `new Date('2026-08-15')` resolve para meia-noite UTC, que em
+ * fuso negativo recua um dia — os dois erros que já custaram o #43.
+ */
+export function parseDataBR(raw: string): string | null {
+  const m = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(raw ?? '')
+  if (!m) return null
+  const [, d, mes, ano] = m.map(Number) as [number, number, number, number]
+  if (mes < 1 || mes > 12 || d < 1 || d > 31) return null
+  const iso = `${ano}-${String(mes).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  // Rejeita 31/02 e afins: o Date normalizaria para 03/03 em silêncio.
+  const check = new Date(Date.UTC(ano, mes - 1, d))
+  return check.toISOString().slice(0, 10) === iso ? iso : null
+}

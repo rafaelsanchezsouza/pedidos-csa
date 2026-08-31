@@ -26,22 +26,30 @@ vi.mock('@/services/api', () => ({
 import { AdminPage } from './AdminPage'
 
 const CSV = [
-  'Timestamp,Nome,e-mail,Whatsapp,Logradouro,Complemento,Bairro,CEP,Retirada,Frequência,x,y,Tamanho Cota',
+  'Timestamp,Nome,e-mail,Whatsapp,Logradouro,Complemento,Bairro,CEP,Retirada,Frequência,1a entrega,y,Tamanho Cota',
   '2026-08-31 09:00,Rudá,r@ex.com,83999999999,Rua 1,,Centro,58000-000,Colmeia,Semanal,,,Cota inteira',
 ].join('\n')
 
-async function importar(desmarcar: boolean) {
+// Duas inscrições quinzenais que começam em semanas DIFERENTES — o caso que caía todo no
+// mesmo ciclo antes de o import ler a coluna da 1ª entrega.
+const CSV_QUINZENAL = [
+  'Timestamp,Nome,e-mail,Whatsapp,Logradouro,Complemento,Bairro,CEP,Retirada,Frequência,1a entrega,y,Tamanho Cota',
+  '2026-08-31 09:00,Ana,ana@ex.com,83999999991,Rua 1,,Centro,58000-000,Entrega,Quinzenal,17/08/2026,Sim,Inteira',
+  '2026-08-31 09:00,Bia,bia@ex.com,83999999992,Rua 2,,Centro,58000-000,Entrega,Quinzenal,24/08/2026,Sim,Meia Cota',
+].join('\n')
+
+async function importar(desmarcar: boolean, csv = CSV, quantos = 1) {
   render(<AdminPage />)
   await userEvent.click(await screen.findByRole('button', { name: /importar csv/i }))
 
   const input = document.querySelector('input[type="file"]') as HTMLInputElement
-  await userEvent.upload(input, new File([CSV], 'membros.csv', { type: 'text/csv' }))
+  await userEvent.upload(input, new File([csv], 'membros.csv', { type: 'text/csv' }))
 
   const check = await screen.findByLabelText(/em acolhida/i)
   expect(check).toBeChecked()                       // padrão
   if (desmarcar) await userEvent.click(check)
 
-  await userEvent.click(screen.getByRole('button', { name: /criar 1 membro/i }))
+  await userEvent.click(await screen.findByRole('button', { name: new RegExp(`criar ${quantos} membro`, 'i') }))
   await waitFor(() => expect(batchSpy).toHaveBeenCalled())
   return batchSpy.mock.calls[0]![0] as Array<Record<string, unknown>>
 }
@@ -63,5 +71,25 @@ describe('import por CSV — acolhida', () => {
   it('desmarcado: ninguém recebe acolhida', async () => {
     const membros = await importar(true)
     expect(membros[0]).not.toHaveProperty('acolhidaExpiry')
+  })
+
+  it('a acolhida conta da 1ª entrega informada, não do dia do import', async () => {
+    const membros = await importar(false, CSV_QUINZENAL, 2)
+    expect(membros[0]!.acolhidaExpiry).toBe('2026-09-16')   // 17/08 + 30
+    expect(membros[1]!.acolhidaExpiry).toBe('2026-09-23')   // 24/08 + 30
+  })
+})
+
+describe('import por CSV — ciclo quinzenal', () => {
+  it('quinzenais de semanas diferentes caem em ciclos diferentes', async () => {
+    const membros = await importar(false, CSV_QUINZENAL, 2)
+    expect(membros[0]!.quinzenalParity).toBeDefined()
+    expect(membros[1]!.quinzenalParity).toBeDefined()
+    expect(membros[0]!.quinzenalParity).not.toBe(membros[1]!.quinzenalParity)
+  })
+
+  it('semanal não recebe paridade, e sem data também não', async () => {
+    const membros = await importar(false)     // CSV base: semanal, sem data
+    expect(membros[0]).not.toHaveProperty('quinzenalParity')
   })
 })

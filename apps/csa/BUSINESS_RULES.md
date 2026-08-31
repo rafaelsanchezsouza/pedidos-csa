@@ -41,6 +41,7 @@
 
 - Novos membros entram no período de acolhida de **30 dias** por padrão — checkbox pré-marcado **tanto no cadastro avulso quanto no import por CSV**; desmarcar é a exceção (membro que já é de casa)
 - A data de encerramento sai de `fimDaAcolhida` (motor), no fuso do tenant — os dois caminhos usam a mesma conta
+- No import por CSV, a acolhida conta **30 dias a partir da 1ª entrega informada** no formulário (coluna 11), não do dia da importação; sem data, conta de hoje
 - Campo `acolhidaExpiry` (ISO date, ex: `"2026-07-15"`) registra a data de encerramento; vale **até o fim** desse dia, no fuso do tenant
 - **Cobrança é por semana confirmada, não pelo mês** (desde 2026-08-30): quem está em acolhida experimenta a CSA pagando só o que vai consumir, em vez de assinar o mês adiantado
   - O membro **confirma a semana** ("desejo receber esta semana") na tela principal
@@ -167,6 +168,8 @@
 - Implementação: `isUserDeliveryWeek(user, weekStart)` em `src/lib/weekUtils.ts`; espelho no backend em `server/services/weekMath.ts` (duplicação sai no #18), mantidos em sincronia por `server/services/weekMath.test.ts`
 - Na página de pedidos: itens fixos são ocultados quando não é a semana de entrega do usuário
 - Na visão de entregas: quinzenais são excluídos da lista quando não é sua semana de entrega
+- **Import por CSV define o ciclo quinzenal** a partir da 1ª entrega informada (`paridadeDaSemanaDe`): antes a coluna era descartada e todo quinzenal importado caía no mesmo ciclo (o fallback do `isUserDeliveryWeek`), com metade recebendo na semana errada. Sem data no formulário, o membro fica sem paridade e o admin define no cadastro
+- A conferência do import mostra a coluna **Semana (A/B)** antes de criar, para o erro aparecer ali e não na entrega
 
 ## Pagamentos
 

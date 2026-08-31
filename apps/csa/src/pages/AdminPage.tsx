@@ -6,7 +6,10 @@ import { usersApi, producersApi, tenantsApi, rolesApi } from '@/services/api'
 import type { BatchResult } from '@/services/api'
 import type { User, Producer, TenantRole } from '@/types'
 import { formatQuota } from '@/lib/quota'
-import { parseCsvLine, isSuperadmin, isEntrega, fimDaAcolhida, UTC_OFFSET_PADRAO, type DeliveryType } from '@pedidos/core'
+import {
+  parseCsvLine, parseDataBR, isSuperadmin, isEntrega, fimDaAcolhida, fimDaAcolhidaDesde,
+  paridadeDaSemanaDe, UTC_OFFSET_PADRAO, type DeliveryType,
+} from '@pedidos/core'
 import { config } from '@/config'
 import { Button, Input, Label, Card, CardContent, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
@@ -45,6 +48,11 @@ interface ParsedRow {
   frequency: 'semanal' | 'quinzenal'
   quota: 'Cota inteira' | 'Meia cota'
   acesso: 'user'
+  /** Ciclo quinzenal derivado da 1ª entrega informada. Ausente = o membro é semanal. */
+  quinzenalParity?: 'par' | 'impar'
+  /** Data da 1ª entrega (ISO), quando o formulário trouxe. Não vai para o cadastro: só ancora
+   *  o ciclo quinzenal e o fim da acolhida. */
+  inicio?: string
 }
 
 function acolhidaBadge(expiry: string) {
@@ -54,7 +62,13 @@ function acolhidaBadge(expiry: string) {
   return { active, label: active ? `Acolhida até ${d}/${m}` : 'Acolhida encerrada' }
 }
 
-// Formato: exportação do Google Forms (Timestamp,Nome,e-mail,Whatsapp,Logradouro,Complemento,Bairro,CEP,Retirada,Frequência,...,Tamanho Cota)
+// Formato: exportação do Google Forms
+// (Timestamp,Nome,e-mail,Whatsapp,Logradouro,Complemento,Bairro,CEP,Retirada,Frequência,
+//  1ª entrega,...,Tamanho Cota)
+//
+// A coluna da 1ª entrega (11ª) era descartada, e sem ela todo quinzenal importado caía no
+// MESMO ciclo (o fallback do isUserDeliveryWeek) — metade recebia na semana errada, e alguém
+// tinha que corrigir cadastro por cadastro depois.
 function parseGoogleFormCsv(text: string): ParsedRow[] {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
   return lines.slice(1).map(line => {
@@ -63,6 +77,8 @@ function parseGoogleFormCsv(text: string): ParsedRow[] {
     const retirada = (c[8] ?? '').toLowerCase()
     const freq = (c[9] ?? '').toLowerCase()
     const cota = (c[12] ?? '').toLowerCase()
+    const inicio = parseDataBR(c[10] ?? '')
+    const quinzenal = freq.includes('quinzenal')
     return {
       name: c[1]?.trim() ?? '',
       email: c[2]?.trim().toLowerCase() ?? '',
@@ -73,6 +89,10 @@ function parseGoogleFormCsv(text: string): ParsedRow[] {
       frequency: (freq.includes('quinzenal') ? 'quinzenal' : 'semanal') as 'semanal' | 'quinzenal',
       quota: (cota.includes('meia') ? 'Meia cota' : 'Cota inteira') as 'Cota inteira' | 'Meia cota',
       acesso: 'user' as const,
+      // Sem data no formulário, fica sem paridade: o fallback global é melhor que chutar um
+      // ciclo — o admin corrige um cadastro, em vez de descobrir na entrega.
+      ...(quinzenal && inicio ? { quinzenalParity: paridadeDaSemanaDe(inicio) } : {}),
+      ...(inicio ? { inicio } : {}),
     }
   }).filter(r => r.name && r.email)
 }
@@ -320,11 +340,14 @@ export function AdminPage() {
     if (!colmeia || csvRows.length === 0) return
     setCsvImporting(true)
     try {
-      const acolhidaExpiry = csvAcolhida ? expiryAcolhida() : undefined
-      const members = csvRows.map(r => ({
+      const members = csvRows.map(({ inicio, ...r }) => ({
         ...r,
         tenantId: colmeia.id,
-        ...(acolhidaExpiry ? { acolhidaExpiry } : {}),
+        // 30 dias contados da 1ª entrega informada; sem data, de hoje. Quem se inscreveu em
+        // 15/08 e só foi importado em 31/08 não deve ganhar duas semanas a mais.
+        ...(csvAcolhida
+          ? { acolhidaExpiry: inicio ? fimDaAcolhidaDesde(inicio) : expiryAcolhida() }
+          : {}),
       }))
       const { results } = await usersApi.createMemberBatch(members, colmeia.id)
       setCsvResults(results)
@@ -1029,7 +1052,8 @@ export function AdminPage() {
                       <th className="pb-1 pr-3">Nome</th>
                       <th className="pb-1 pr-3">E-mail</th>
                       <th className="pb-1 pr-3">Retirada</th>
-                      <th className="pb-1">Frequência</th>
+                      <th className="pb-1 pr-3">Frequência</th>
+                      <th className="pb-1">Semana</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1038,7 +1062,14 @@ export function AdminPage() {
                         <td className="py-1 pr-3 font-medium">{r.name}</td>
                         <td className="py-1 pr-3 text-muted-foreground">{r.email}</td>
                         <td className="py-1 pr-3 capitalize">{isEntrega(r) ? 'Entrega' : config.vocabulary.pickupLabel}</td>
-                        <td className="py-1 capitalize">{r.frequency}</td>
+                        <td className="py-1 pr-3 capitalize">{r.frequency}</td>
+                        {/* Ciclo derivado da 1ª entrega — visível antes de criar, porque
+                            corrigir depois é editar cadastro por cadastro. */}
+                        <td className="py-1">
+                          {r.frequency === 'quinzenal'
+                            ? (r.quinzenalParity === 'impar' ? 'A' : r.quinzenalParity === 'par' ? 'B' : '—')
+                            : '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

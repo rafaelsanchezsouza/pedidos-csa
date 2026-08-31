@@ -64,3 +64,13 @@ export function semanasConfirmadas(
 export function fimDaAcolhida(agora: Date, utcOffset: number, dias = 30): string {
   return hojeNoFuso(new Date(agora.getTime() + dias * 86400_000), utcOffset)
 }
+
+/**
+ * Fim da acolhida contada a partir de uma data de início informada (ISO), não de hoje.
+ * Quem se inscreveu em 15/08 e só foi importado em 31/08 não deve ganhar duas semanas
+ * a mais de período de experiência.
+ */
+export function fimDaAcolhidaDesde(inicioISO: string, dias = 30): string {
+  const [ano, mes, dia] = inicioISO.split('-').map(Number) as [number, number, number]
+  return new Date(Date.UTC(ano, mes - 1, dia + dias)).toISOString().slice(0, 10)
+}

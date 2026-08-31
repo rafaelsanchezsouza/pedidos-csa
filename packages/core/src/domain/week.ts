@@ -148,3 +148,15 @@ export function countDeliveryWeeks(
   }
   return count
 }
+
+/**
+ * Em qual ciclo quinzenal cai uma data — o que o membro informa como "minha primeira entrega".
+ * Semana de fixo (índice par) = ciclo 'impar' no vocabulário do `isUserDeliveryWeek`, que é
+ * quem consome isto; os dois nomes vêm do dado legado e mudá-los agora reclassificaria
+ * membro em produção.
+ */
+export function paridadeDaSemanaDe(dataISO: string): 'par' | 'impar' {
+  const [ano, mes, dia] = dataISO.split('-').map(Number) as [number, number, number]
+  const semana = getWeekStart(new Date(ano, mes - 1, dia, 12))
+  return isFixoWeek(semana) ? 'impar' : 'par'
+}
