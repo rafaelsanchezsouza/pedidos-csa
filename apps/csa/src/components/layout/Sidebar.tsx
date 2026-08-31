@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom'
-import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, UserCircle, Truck, CheckCircle } from 'lucide-react'
+import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, UserCircle, Truck, CheckCircle, CalendarCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
-import { isAdmin as checkAdmin, isFornecedor, isSuperadmin } from '@pedidos/core'
+import { isAdmin as checkAdmin, isFornecedor, isSuperadmin , emAcolhida, UTC_OFFSET_PADRAO } from '@pedidos/core'
+import { config } from '@/config'
 import { ReportarProblema } from '@/components/ReportarProblema'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
 
@@ -46,7 +47,13 @@ export function Sidebar() {
         </div>
       )}
       <nav className="flex-1 py-2">
-        {navItems
+        {/* "Semana" só existe enquanto a acolhida está aberta: é a tela com prazo. */}
+        {([
+          ...(emAcolhida(user ?? {}, new Date(), config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
+            ? [{ to: '/acolhida', label: 'Minha Semana', icon: CalendarCheck, adminOnly: false, produtorVisible: false }]
+            : []),
+          ...navItems,
+        ])
           .filter((item) => !item.adminOnly || isAdmin || (item.produtorVisible && isProdutor))
           .map(({ to, label, icon: Icon }) => (
             <NavLink

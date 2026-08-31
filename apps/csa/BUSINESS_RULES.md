@@ -50,6 +50,8 @@
   - **`deliveryType` continua sendo do usuário**, não da semana: o membro em acolhida troca o dele pela tela principal, como qualquer outro membro. A acolhida muda *quantas semanas contam*, não *como ele recebe*
   - Faturas da acolhida **não têm vencimento** (`dueDate` ausente): o membro anexa o comprovante da semana
   - Encerrada a acolhida, volta à cobrança mensal cheia automaticamente
+- **Tela inicial**: quem está em acolhida cai em `/acolhida` ao entrar, com as duas ações de prazo na frente (confirmar a semana e anexar o comprovante) e o tique de retirada/entrega. O menu segue completo — ele está decidindo se fica, e esconder ofertas e pedidos seria esconder o que ele veio conhecer
+- Item **"Minha Semana"** aparece na navegação enquanto a acolhida está aberta; some quando encerra
 - Registro: coleção `acolhidaWeeks`, chave `(userId, tenantId, weekId)`, só com a confirmação; `confirmado: false` distingue "disse que não" de "não respondeu"
 - Permissões de sistema: inalteradas (acolhida não muda acesso)
 - Admin pode ajustar a data ou remover o período via dialog de edição

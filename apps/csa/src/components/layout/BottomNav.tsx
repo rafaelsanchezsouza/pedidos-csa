@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   ShoppingCart, BookOpen, Wheat, Settings, ClipboardList,
-  CreditCard, UserCircle, Truck, CheckCircle, MoreHorizontal, X,
+  CreditCard, UserCircle, Truck, CheckCircle, MoreHorizontal, X, CalendarCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
-import { isAdmin as checkAdmin, isFornecedor } from '@pedidos/core'
+import { isAdmin as checkAdmin, isFornecedor, emAcolhida, UTC_OFFSET_PADRAO } from '@pedidos/core'
+import { config } from '@/config'
 
 const memberItems = [
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart },
@@ -44,7 +45,13 @@ export function BottomNav() {
   const isAdmin = checkAdmin(user)
   const isProdutor = isFornecedor(user)
 
-  const mainItems = isAdmin ? adminMainItems : isProdutor ? produtorItems : memberItems
+  // Em acolhida ganha "Semana" na frente: é a tela com prazo, e ela precisa ser alcançável
+  // depois que ele navegar para outra parte do app.
+  const naAcolhida = emAcolhida(user ?? {}, new Date(), config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
+  const base = isAdmin ? adminMainItems : isProdutor ? produtorItems : memberItems
+  const mainItems = naAcolhida
+    ? [{ to: '/acolhida', label: 'Semana', icon: CalendarCheck }, ...base]
+    : base
   const moreActive = isAdmin && adminMoreItems.some((i) => location.pathname === i.to)
 
   return (

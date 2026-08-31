@@ -12,8 +12,10 @@ import { EntregasPage } from '@/pages/EntregasPage'
 import { ConsolidadoGeralPage } from '@/pages/ConsolidadoGeralPage'
 import { VerificarPagamentosPage } from '@/pages/VerificarPagamentosPage'
 import { DefinirSenhaPage } from '@/pages/DefinirSenhaPage'
+import { AcolhidaPage } from '@/pages/AcolhidaPage'
 import { ReactNode } from 'react'
-import { isAdmin } from '@pedidos/core'
+import { isAdmin, emAcolhida, UTC_OFFSET_PADRAO } from '@pedidos/core'
+import { config } from '@/config'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
   const { firebaseUser, user, colmeia, loading } = useAuth()
@@ -28,16 +30,22 @@ function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; 
 }
 
 function AppRoutes() {
-  const { firebaseUser, colmeia, loading } = useAuth()
+  const { firebaseUser, user, colmeia, loading } = useAuth()
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>
+
+  // Quem está em acolhida cai na tela da semana: as duas ações com prazo (confirmar e anexar
+  // comprovante) ficam na frente. O menu segue inteiro — ele está decidindo se fica.
+  const inicio = user && emAcolhida(user, new Date(), config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
+    ? '/acolhida'
+    : '/pedidos'
 
   return (
     <Routes>
       <Route
         path="/"
         element={
-          firebaseUser && colmeia ? <Navigate to="/pedidos" replace /> : <Navigate to="/login" replace />
+          firebaseUser && colmeia ? <Navigate to={inicio} replace /> : <Navigate to="/login" replace />
         }
       />
       <Route path="/login" element={<LoginPage />} />
@@ -49,6 +57,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
+        <Route path="/acolhida" element={<AcolhidaPage />} />
         <Route path="/pedidos" element={<PedidosPage />} />
         <Route
           path="/catalogo"

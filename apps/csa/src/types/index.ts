@@ -117,6 +117,8 @@ export interface Payment {
   month: string
   producerName: string
   proofUrl?: string
+  /** Comprovantes por semana (acolhida). `proofUrl` segue com o último enviado. */
+  proofs?: Array<{ weekId: string; url: string; dateUploaded: string }>
   verified: boolean
   amount: number
   dueDate?: string
@@ -130,4 +132,22 @@ export interface ParsedProduct {
   price: number
   type: 'fixo' | 'extra'
   matchedProductId?: string
+}
+
+/** Confirmação semanal de quem está em acolhida. */
+export interface AcolhidaWeek {
+  id: string
+  userId: string
+  tenantId: string
+  weekId: string
+  confirmado: boolean
+  dateCreated: string
+  dateUpdated: string
+}
+
+export interface AcolhidaSemana {
+  confirmacao: AcolhidaWeek | null
+  /** Instante-limite (ISO) para confirmar: segunda 23h59 no fuso do tenant. */
+  prazo: string
+  aberto: boolean
 }

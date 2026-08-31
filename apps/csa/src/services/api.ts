@@ -1,5 +1,5 @@
 import { auth } from './firebase'
-import type { Tenant, Product, Producer, WeeklyOffering, Order, User, ParsedProduct, Payment, TenantRole } from '@/types'
+import type { Tenant, Product, Producer, WeeklyOffering, Order, User, ParsedProduct, Payment, TenantRole, AcolhidaSemana } from '@/types'
 
 const BASE_URL = '/api'
 
@@ -123,6 +123,25 @@ export const paymentsApi = {
     request<Payment>('/payments/quota', { method: 'POST', body: JSON.stringify({ month, tenantId }) }, tenantId),
   ensureFrete: (month: string, tenantId: string) =>
     request<Payment | { skipped: true }>('/payments/frete', { method: 'POST', body: JSON.stringify({ month, tenantId }) }, tenantId),
+  // Acrescenta o comprovante de UMA semana (acolhida). Endpoint próprio: o dono acrescenta,
+  // nunca reescreve a lista.
+  anexarComprovante: (id: string, weekId: string, url: string, tenantId: string) =>
+    request<{ id: string; proofs: Payment['proofs'] }>(
+      `/payments/${id}/comprovante`,
+      { method: 'POST', body: JSON.stringify({ weekId, url }) },
+      tenantId,
+    ),
+}
+
+export const acolhidaApi = {
+  getSemana: (weekId: string, tenantId: string) =>
+    request<AcolhidaSemana>(`/acolhida/${weekId}`, {}, tenantId),
+  confirmar: (weekId: string, confirmado: boolean, tenantId: string) =>
+    request<{ ok: true; weekId: string; confirmado: boolean }>(
+      '/acolhida',
+      { method: 'POST', body: JSON.stringify({ weekId, confirmado }) },
+      tenantId,
+    ),
 }
 
 export const issuesApi = {
