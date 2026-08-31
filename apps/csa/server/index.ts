@@ -105,7 +105,7 @@ app.use('/api/producers', createProducersRouter({ repo }))
 // parseMessage não é injetado: config.capabilities.messageParser = 'fuzzy' e o fuzzy vem do core.
 // Para voltar ao OpenAI: messageParser: 'openai' na config + `parseMessage` do adapter local.
 app.use('/api/offerings', createOfferingsRouter({ repo }, config))
-app.use('/api/orders', createOrdersRouter({ repo, payments: paymentService, orders: ordersService, whatsapp }))
+app.use('/api/orders', createOrdersRouter({ repo, payments: paymentService, orders: ordersService, whatsapp }, config))
 app.use('/api/payments', createPaymentsRouter({ repo, payments: paymentService }))
 app.use('/api/users', createUsersRouter(
   { repo, auth: firebaseAuth, whatsapp, appUrl: process.env.APP_URL ?? 'https://csaparahyba.com.br' },

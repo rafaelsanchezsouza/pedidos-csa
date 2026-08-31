@@ -95,7 +95,7 @@ describe('createOrdersRouter', () => {
       const { svc } = fakePayments()
       const { whatsapp } = fakeZap()
       const repo = createMemoryRepo(base)
-      const router = createOrdersRouter({ repo, payments: svc, orders: createOrdersService({ repo }, config), whatsapp })
+      const router = createOrdersRouter({ repo, payments: svc, orders: createOrdersService({ repo }, config), whatsapp }, config)
       await withRouter('/api/orders', router, async (get) => {
         expect((await get('/api/orders', body)).status).toBe(status)
       }, { uid })
@@ -106,7 +106,7 @@ describe('createOrdersRouter', () => {
     const { svc, calls } = fakePayments()
     const { whatsapp } = fakeZap()
     const repo = createMemoryRepo(seed)
-    const router = createOrdersRouter({ repo, payments: svc, orders: createOrdersService({ repo }, config), whatsapp })
+    const router = createOrdersRouter({ repo, payments: svc, orders: createOrdersService({ repo }, config), whatsapp }, config)
     await withRouter('/api/orders', router, async (get) => {
       await get('/api/orders', {
         method: 'POST',
@@ -122,7 +122,7 @@ describe('createOrdersRouter', () => {
     const { whatsapp, sent } = fakeZap()
     const repo = createMemoryRepo({ ...seed, tenants: { t1: { name: 'Loja', extrasAberto: true } } })
     const orders = createOrdersService({ repo }, config)
-    const router = createOrdersRouter({ repo, payments: svc, orders, whatsapp })
+    const router = createOrdersRouter({ repo, payments: svc, orders, whatsapp }, config)
     await withRouter('/api/orders', router, async (get) => {
       const res = await get('/api/orders/send-consolidated-whatsapp', {
         method: 'POST', body: JSON.stringify({ tenantId: 't1', weekId: WEEK, producerId: 'pr1' }), ...json,
@@ -131,6 +131,61 @@ describe('createOrdersRouter', () => {
       expect(sent).toHaveLength(1)
       expect(sent[0]!.phone).toBe('(11) 99999-0000') // cru — adapter é quem normaliza
       expect(await orders.isWeekLocked('t1', WEEK)).toBe(true)
+    })
+  })
+})
+
+describe('extras bloqueados na acolhida', () => {
+  const emAcolhidaAte = '2099-12-31'
+  const pedido = { tenantId: 't1', userId: 'u1', userName: 'Novo', weekId: '2026-09-07', items: [], status: 'rascunho' }
+
+  const payments = { upsertPaymentsForOrder: async () => {} } as unknown as PaymentService
+  const whatsapp: WhatsAppGateway = { async sendMessage() {} }
+
+  const monta = (users: Record<string, object>, tenants: Record<string, object> = { t1: {} }) => {
+    const repo = createMemoryRepo({ users, tenants })
+    return { repo, router: createOrdersRouter({ repo, payments, orders: createOrdersService({ repo }, config), whatsapp }, config) }
+  }
+
+  it('membro em acolhida não cria pedido de extras, e a mensagem explica o porquê', async () => {
+    const { repo, router } = monta({ u1: { name: 'Novo', tenantId: 't1', acolhidaExpiry: emAcolhidaAte } })
+    await withRouter('/api/orders', router, async (get) => {
+      const r = await get('/api/orders', { method: 'POST', body: JSON.stringify(pedido), ...json })
+      expect(r.status).toBe(403)
+      expect((await r.json()).message).toContain('acolhida')
+    })
+    expect(await repo.listDocs('orders')).toHaveLength(0)
+  })
+
+  it('acolhida encerrada volta a pedir extras normalmente', async () => {
+    const { router } = monta({ u1: { name: 'Ana', tenantId: 't1', acolhidaExpiry: '2020-01-01' } })
+    await withRouter('/api/orders', router, async (get) => {
+      const r = await get('/api/orders', { method: 'POST', body: JSON.stringify(pedido), ...json })
+      expect(r.status).toBe(201)
+    })
+  })
+
+  it('membro efetivo não é afetado', async () => {
+    const { router } = monta({ u1: { name: 'Ana', tenantId: 't1' } })
+    await withRouter('/api/orders', router, async (get) => {
+      const r = await get('/api/orders', { method: 'POST', body: JSON.stringify(pedido), ...json })
+      expect(r.status).toBe(201)
+    })
+  })
+
+  it('admin em acolhida segue podendo (é quem corrige as coisas)', async () => {
+    const { router } = monta({ u1: { name: 'Admin', tenantId: 't1', acesso: ['admin'], acolhidaExpiry: emAcolhidaAte } })
+    await withRouter('/api/orders', router, async (get) => {
+      const r = await get('/api/orders', { method: 'POST', body: JSON.stringify(pedido), ...json })
+      expect(r.status).toBe(201)
+    })
+  })
+
+  it('a mensagem de semana fechada continua distinta da acolhida', async () => {
+    const { router } = monta({ u1: { name: 'Ana', tenantId: 't1' } }, { t1: { extrasAberto: false } })
+    await withRouter('/api/orders', router, async (get) => {
+      const r = await get('/api/orders', { method: 'POST', body: JSON.stringify(pedido), ...json })
+      expect((await r.json()).message).toContain('encerrados no momento')
     })
   })
 })

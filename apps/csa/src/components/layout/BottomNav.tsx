@@ -50,7 +50,7 @@ export function BottomNav() {
   const naAcolhida = emAcolhida(user ?? {}, new Date(), config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
   const base = isAdmin ? adminMainItems : isProdutor ? produtorItems : memberItems
   const mainItems = naAcolhida
-    ? [{ to: '/acolhida', label: 'Semana', icon: CalendarCheck }, ...base]
+    ? [{ to: '/acolhida', label: 'Semana', icon: CalendarCheck }, ...base.filter((i) => i.to !== '/pedidos')]
     : base
   const moreActive = isAdmin && adminMoreItems.some((i) => location.pathname === i.to)
 

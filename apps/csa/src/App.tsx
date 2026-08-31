@@ -36,9 +36,8 @@ function AppRoutes() {
 
   // Quem está em acolhida cai na tela da semana: as duas ações com prazo (confirmar e anexar
   // comprovante) ficam na frente. O menu segue inteiro — ele está decidindo se fica.
-  const inicio = user && emAcolhida(user, new Date(), config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
-    ? '/acolhida'
-    : '/pedidos'
+  const naAcolhida = !!user && emAcolhida(user, new Date(), config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
+  const inicio = naAcolhida ? '/acolhida' : '/pedidos'
 
   return (
     <Routes>
@@ -58,7 +57,9 @@ function AppRoutes() {
         }
       >
         <Route path="/acolhida" element={<AcolhidaPage />} />
-        <Route path="/pedidos" element={<PedidosPage />} />
+        {/* Extras não existem na acolhida: o pedido é só a cesta da semana. A rota é barrada
+            aqui e no servidor (routes/orders.ts) — esconder o menu não impede um POST. */}
+        <Route path="/pedidos" element={naAcolhida ? <Navigate to="/acolhida" replace /> : <PedidosPage />} />
         <Route
           path="/catalogo"
           element={

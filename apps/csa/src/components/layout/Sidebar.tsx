@@ -21,6 +21,7 @@ const navItems = [
 
 export function Sidebar() {
   const { user, colmeia, colmeias, selectColmeia } = useAuth()
+  const naAcolhida = emAcolhida(user ?? {}, new Date(), config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
   const isAdmin = checkAdmin(user)
   const isProdutor = isFornecedor(user)
   const isSuperAdmin = isSuperadmin(user)
@@ -49,12 +50,14 @@ export function Sidebar() {
       <nav className="flex-1 py-2">
         {/* "Semana" só existe enquanto a acolhida está aberta: é a tela com prazo. */}
         {([
-          ...(emAcolhida(user ?? {}, new Date(), config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
+          ...(naAcolhida
             ? [{ to: '/acolhida', label: 'Minha Semana', icon: CalendarCheck, adminOnly: false, produtorVisible: false }]
             : []),
           ...navItems,
         ])
           .filter((item) => !item.adminOnly || isAdmin || (item.produtorVisible && isProdutor))
+          // Extras não existem na acolhida — o item some junto com a rota.
+          .filter((item) => !(naAcolhida && item.to === '/pedidos'))
           .map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
