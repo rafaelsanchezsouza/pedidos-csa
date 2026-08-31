@@ -12,6 +12,7 @@ export { createTenantsRouter, type TenantDoc } from './routes/tenants.js'
 export { createRolesRouter, type RoleDoc } from './routes/roles.js'
 export { createProducersRouter, type ProducerDoc } from './routes/producers.js'
 export { createProductsRouter, type ProductDoc } from './routes/products.js'
+export { createAcolhidaRouter, type AcolhidaDeps } from './routes/acolhida.js'
 export { createIssuesRouter } from './routes/issues.js'
 export {
   criarIssueNoGithub, type GithubIssuesIntegration, type IssueCriada, type ResultadoIssue,

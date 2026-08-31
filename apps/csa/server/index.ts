@@ -5,7 +5,7 @@ import {
   createTenantMiddleware, createTenantsRouter, createRolesRouter,
   createProducersRouter, createProductsRouter, createIssuesRouter, createUsersRouter,
   createPaymentsRouter, createOrdersRouter, createWhatsappAuthRouter, createOfferingsRouter,
-  createWhatsappWebhookRouter,
+  createWhatsappWebhookRouter, createAcolhidaRouter,
 } from '@pedidos/core/server'
 import { config } from '../src/config.js'
 import { firebaseAuth, whatsapp } from './adapters.js'
@@ -111,6 +111,8 @@ app.use('/api/users', createUsersRouter(
   { repo, auth: firebaseAuth, whatsapp, appUrl: process.env.APP_URL ?? 'https://csaparahyba.com.br' },
   config,
 ))
+// Confirmação semanal de quem está em acolhida (paga a semana, não o mês).
+app.use('/api/acolhida', createAcolhidaRouter({ repo, payments: paymentService }, config))
 app.use('/api/issues', createIssuesRouter(github))
 app.use('/api/roles', createRolesRouter({ repo }, config))
 
