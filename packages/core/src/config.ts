@@ -45,6 +45,12 @@ export interface TenantDefaults {
   orderSendDay: number
   orderSendHour: number
   weekChangeDay: number
+  /**
+   * Offset UTC do tenant, em horas. Ausente = -3 (Brasil; sem horário de verão desde 2019).
+   * Existe porque o servidor roda em UTC: qualquer regra com hora do dia (prazo de confirmação
+   * da acolhida, envio do pedido) precisa do relógio do MEMBRO, não o do processo.
+   */
+  utcOffset?: number
 }
 
 export interface AppConfig {
@@ -79,5 +85,8 @@ export function validateAppConfig(c: AppConfig): string[] {
   if (!range(d.orderSendDay, 0, 6)) errs.push('tenantDefaults.orderSendDay deve estar entre 0 e 6')
   if (!range(d.orderSendHour, 0, 23)) errs.push('tenantDefaults.orderSendHour deve estar entre 0 e 23')
   if (!range(d.weekChangeDay, 0, 6)) errs.push('tenantDefaults.weekChangeDay deve estar entre 0 e 6')
+  if (d.utcOffset !== undefined && !range(d.utcOffset, -12, 14)) {
+    errs.push('tenantDefaults.utcOffset deve estar entre -12 e 14')
+  }
   return errs
 }

@@ -32,5 +32,6 @@ export const config = defineAppConfig({
     orderSendDay: 2, // terça
     orderSendHour: 6,
     weekChangeDay: 0, // domingo
+    utcOffset: -3,  // servidor roda em UTC; a regra usa o relógio do membro
   },
 })

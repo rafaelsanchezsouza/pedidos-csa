@@ -569,6 +569,23 @@ estavam errados — a evolution é container e alcança o host por `172.17.0.1`,
 escuta em loopback, então aquele caminho nunca funcionaria. Quem alcança `127.0.0.1:3001` é o
 hub, que roda no host.
 
+### 4.7 Fuso do tenant no motor (2026-08-30)
+
+O servidor roda em **UTC** e os membros vivem em **BRT**. Enquanto nenhuma regra dependia de
+hora do dia isso passou despercebido; o prazo de confirmação da acolhida ("segunda até as 23h59")
+não sobrevive a isso. `new Date().getHours()` num processo em UTC responde 3 horas à frente do
+relógio de quem usa o app.
+
+Decisão: `AppConfig.tenantDefaults.utcOffset` (ausente = **-3**, Brasil, sem horário de verão
+desde 2019), e **toda regra com hora do dia recebe o offset**, nunca usa getter local. As funções
+puras vivem em `domain/acolhida.ts` e os testes rodam sob BR/UTC/UTC+14 — se alguma conta
+escorregar para o relógio do processo, o `test:tz` quebra.
+
+⚠️ **Dívida encontrada, não corrigida:** `sendOrdersJob` compara `now.getHours()` com
+`orderSendHour`. Com a VM em UTC, `orderSendHour: 6` dispara às **03:00 de Brasília**. Não
+conflita com o prazo da acolhida (o prazo fecha 23:59 BRT de segunda, o envio sai depois), mas o
+job faz outra coisa do que a config diz. Mesma classe do #43.
+
 ## 5. O que falta
 
 - ~~**Task 6**~~ **concluída.** Os dois apps rodam do monorepo em produção e a CSA está no
