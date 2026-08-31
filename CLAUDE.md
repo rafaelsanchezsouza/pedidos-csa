@@ -4,9 +4,9 @@ Motor único `packages/core` consumido por apps **deployáveis sozinhos** (`apps
 `apps/fermentou`). **Os dois estão no ar rodando deste monorepo** (desde 2026-08-21).
 **Leia `HANDOFF.md` primeiro** (onde roda, como deployar, armadilhas, pendências) e
 `ARQUITETURA.md` para as decisões e o histórico. Os repos originais
-(`~/repos/pedidos-csa`, `~/repos/pedidos-app`) seguem intactos **como plano de rollback** —
-não são mais a fonte da verdade. A limpeza do legado rodou em 2026-08-31: **eles já não
-servem de rollback** e podem ser arquivados (`HANDOFF.md` §4).
+(`~/repos/pedidos-csa`, `~/repos/pedidos-app`) seguem no disco, mas **não são fonte da verdade
+nem rollback**: a limpeza do legado rodou em 2026-08-31 e o código antigo não acha mais os
+dados. Podem ser arquivados (`HANDOFF.md` §4).
 
 ## Comportamento
 - pt-BR em tudo (commits, comentários, texto ao usuário); extremamente conciso
