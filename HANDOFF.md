@@ -77,20 +77,20 @@ A produção da CSA foi migrada para o modelo canônico em **2026-08-21**, de fo
 - `tenantId` escrito em 458 docs, **`colmeiaId` preservado ao lado**
 - `deliveryType 'colmeia'` → `'retirada'` em 18 docs (única mudança não-aditiva)
 
-**Enquanto o `colmeiaId` existir, o rollback é barato:** redeployar a CSA a partir de
-`~/repos/pedidos-csa` (intacto) e o código antigo acha tudo de novo, sem restaurar backup. O
-único resíduo seriam os 18 `deliveryType`, que no código antigo trocam o rótulo na tela mas não
-afetam regra (o frete pergunta `isEntrega`, que segue certa).
+**A limpeza rodou em 2026-08-31** (`--executar --limpar-legado`): 460 docs perderam o
+`colmeiaId`, sem erro nem divergência no dry-run. O modelo em produção é só o canônico.
 
-**A limpeza ainda não rodou** — é o passo que encerra esse rollback:
-
-```bash
-cd apps/csa
-FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts --executar --limpar-legado
-```
+**Não há mais rollback por redeploy.** Voltar ao código antigo exigiria restaurar o backup de
+21/08 — e isso custaria tudo que entrou desde então. O caminho de volta agora é corrigir para
+frente.
 
 Backup da véspera da migração: `~/backup-csa-2026-08-21.json` (463 docs). **Tem dados pessoais
-de membros** — fora do repo, apagar quando não for mais necessário.
+de membros** — fora do repo. Ele passou a ser o único rollback que existe: só apague quando a
+acolhida estiver rodando redonda por algumas semanas.
+
+Sinal de saúde colhido no dry-run: em várias coleções o total canônico é **maior** que o legado
+removido (users 46 × 39, payments 220 × 215). São docs criados depois da migração — prova de que
+o código novo nunca escreveu o campo legado.
 
 ## 5. Convenções e armadilhas (o que não é óbvio)
 
@@ -153,12 +153,11 @@ de membros** — fora do repo, apagar quando não for mais necessário.
 
 ## 6. Pendências, em ordem
 
-1. **Limpeza do legado da CSA** (`--limpar-legado`), depois de alguns dias de uso verde. Até lá o
-   rollback existe.
+1. ~~**Limpeza do legado da CSA**~~ — **feita em 2026-08-31**, 460 docs.
 2. **Aposentar os repos originais** (`~/repos/pedidos-csa`, `~/repos/pedidos-app` — os clones
-   locais pré-monorepo) — só depois do
-   item 1, porque são o plano de rollback. Arquivar, não apagar.
-3. **Apagar o backup** com dados pessoais (`~/backup-csa-2026-08-21.json`).
+   locais pré-monorepo). **Destravado**: já não são rollback de nada. Arquivar, não apagar.
+3. **Apagar o backup** (`~/backup-csa-2026-08-21.json`, dados pessoais) — agora é o **único**
+   rollback que existe. Só depois de algumas semanas de acolhida rodando redonda.
 4. **WhatsApp dedicado para o Fermentou** (hoje divide o número da CSA; ver `~/repos/ZAP-PROTOCOL.md`).
 5. **Pix pré-entrega** — decisão de produto antes de codar (`apps/fermentou/PENDENCIAS.md` B1/B2).
 6. **`.env.development`** não existe em nenhum dos dois apps — `npm run dev` quebra no boot do

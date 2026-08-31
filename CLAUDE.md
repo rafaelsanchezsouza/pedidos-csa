@@ -5,7 +5,8 @@ Motor único `packages/core` consumido por apps **deployáveis sozinhos** (`apps
 **Leia `HANDOFF.md` primeiro** (onde roda, como deployar, armadilhas, pendências) e
 `ARQUITETURA.md` para as decisões e o histórico. Os repos originais
 (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) seguem intactos **como plano de rollback** —
-não são mais a fonte da verdade. Não aposentar antes da limpeza do legado (`HANDOFF.md` §4).
+não são mais a fonte da verdade. A limpeza do legado rodou em 2026-08-31: **eles já não
+servem de rollback** e podem ser arquivados (`HANDOFF.md` §4).
 
 ## Comportamento
 - pt-BR em tudo (commits, comentários, texto ao usuário); extremamente conciso
@@ -36,8 +37,9 @@ incluir `src/config.ts`); `start` e `deploy.sh` já apontam para lá.
   carrega o `Ator` e checa. O tenant vem do **recurso**, nunca do header
 - Telefone: normalizar **uma vez, no adapter que envia** (`normalizePhone` do core); serviços
   do engine repassam o contato cru
-- Dados da CSA são **canônicos** (`tenants`/`tenantId`), com o `colmeiaId` ainda ao lado até a
-  limpeza; `acesso` continua **string** em produção e os predicados do core são dual-mode
+- Dados da CSA são **canônicos** (`tenants`/`tenantId`); o `colmeiaId` foi apagado em
+  2026-08-31 e **não existe mais** em produção. `acesso` continua **string** em produção e os
+  predicados do core são dual-mode
 - `deliveryType`: o motor só pergunta `isEntrega(u)`; o token de não-entrega
   (`retirada`/`colmeia` legado) é vocabulário de UI, nunca decide regra
 - Testes do engine: servidor http real em porta efêmera (`server/testutil.ts`) + `memoryRepo`

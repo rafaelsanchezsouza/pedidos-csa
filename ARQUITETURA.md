@@ -6,7 +6,7 @@ são **configuração**, não fork de código.
 
 > Estado: **tasks 1–6 concluídas**. Os dois apps rodam do monorepo em produção, a migração
 > canônica da CSA foi executada (2026-08-21) e a **autorização no servidor** está no ar nos dois.
-> Pendente a **limpeza do legado** (`--limpar-legado`), depois de alguns dias de uso verde.
+> Limpeza do legado **concluída em 2026-08-31** (460 docs; o `colmeiaId` não existe mais).
 > Branch `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
 > `~/repos/pedidos-app`) seguem intactos **como plano de rollback** — não são mais a fonte da
 > verdade, e não devem ser aposentados antes da limpeza do legado.
@@ -326,7 +326,7 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
   - CSA no ar do monorepo: `restarts 0`, log de erro **vazio**, front 200, `/api/tenants` 401,
     os dois jobs agendados. Os três bugs que o deploy do fermentou achou não reapareceram —
     era exatamente para isso que ele veio antes.
-  - **Falta a 2ª passada** (`--limpar-legado`), que apaga o `colmeiaId` e encerra o rollback
+  - ~~Falta a 2ª passada~~ — **rodou em 2026-08-31**: 460 docs perderam o `colmeiaId`, dry-run sem erro nem divergência. Encerrado o rollback por redeploy
     sem backup. Deliberadamente adiada: enquanto ela não roda, voltar para `~/repos/pedidos-csa`
     é um redeploy.
 
@@ -600,8 +600,7 @@ não está no fuso do membro.
 - ✅ **Autorização no servidor** (10ª fatia, fora do escopo original da task 6): fechada a
   Pendência F3 do Fermentou, que estava aberta desde julho e valia para os dois apps.
 - **Pendências, em ordem:**
-  1. **Limpeza do legado** (`--limpar-legado`) depois de alguns dias de CSA verde — até lá o
-     rollback é um redeploy do repo antigo.
+  1. ~~**Limpeza do legado**~~ — **feita em 2026-08-31**. Sem rollback por redeploy a partir daqui.
   2. **Aposentar os repos originais** (`~/repos/pedidos-csa`, `~/repos/pedidos-app`): eles ainda
      são o plano de rollback, então só depois do item 1. Arquivar, não apagar.
   3. Apagar o backup com dados pessoais (`~/backup-csa-2026-08-21.json`) quando não for mais
