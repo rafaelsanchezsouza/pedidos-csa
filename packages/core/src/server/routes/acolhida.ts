@@ -44,6 +44,25 @@ export function createAcolhidaRouter({ repo, payments }: AcolhidaDeps, config: A
     }
   })
 
+  // GET /acolhida/:weekId/todos — confirmações da semana inteira (admin).
+  // A lista de entrega precisa saber quem em acolhida confirmou; sem isto o membro diz
+  // "esta semana não" e continua aparecendo para o motoboy.
+  router.get('/:weekId/todos', async (req: Request, res: Response) => {
+    try {
+      const ator = await carregarAtor(repo, req.user!.uid)
+      // O tenant do ATOR é o recurso aqui (ele lista o próprio); admin de outro não passa.
+      const tenantId = (req.query.tenantId as string) || ator.tenantId
+      if (!ehAdmin(ator, tenantId)) { negar(res); return }
+      const docs = await repo.listDocs<AcolhidaWeekDoc>('acolhidaWeeks', [
+        ['tenantId', '==', tenantId!],
+        ['weekId', '==', String(req.params.weekId)],
+      ])
+      res.json(docs)
+    } catch (err) {
+      res.status(500).json({ message: String(err) })
+    }
+  })
+
   // POST /acolhida — confirma (ou desmarca) a semana e recalcula as faturas do mês.
   router.post('/', async (req: Request, res: Response) => {
     try {

@@ -3,12 +3,57 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi } from '@/services/api'
 import type { Payment } from '@/types'
-import { statusLabel, statusVariant, isAdmin, isFornecedor } from '@pedidos/core'
+import { statusLabel, statusVariant, isAdmin, isFornecedor, formatDeliveryDate } from '@pedidos/core'
 import { Button, Card, CardContent, Badge, EstadoLista, MonthNavigator } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
+}
+
+/**
+ * Comprovantes de uma fatura.
+ *
+ * Quem paga por mês manda um só e o link direto basta — é o caso de quase todo mundo, e
+ * trocar isso por um seletor de um item seria piorar a tela pela exceção. Quem está em
+ * acolhida manda um por semana: aí vem o seletor, com a data de entrega da semana, para a
+ * conferência saber qual pagamento cada arquivo quita.
+ */
+function Comprovantes({ payment, compacto = false }: { payment: Payment; compacto?: boolean }) {
+  const proofs = payment.proofs ?? []
+  const [escolhido, setEscolhido] = useState(0)
+
+  if (proofs.length === 0) {
+    if (!payment.proofUrl) return <span className="text-muted-foreground">—</span>
+    return (
+      <a href={payment.proofUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+        {compacto ? 'Ver' : 'Ver comprovante'}
+      </a>
+    )
+  }
+
+  const atual = proofs[Math.min(escolhido, proofs.length - 1)]!
+  return (
+    <span className="inline-flex items-center gap-2">
+      {proofs.length > 1 && (
+        <select
+          aria-label="Semana do comprovante"
+          className="border rounded px-1 py-0.5 text-xs bg-background"
+          value={escolhido}
+          onChange={(e) => setEscolhido(Number(e.target.value))}
+        >
+          {proofs.map((pr, i) => (
+            <option key={pr.weekId} value={i}>
+              Semana {i + 1} · {formatDeliveryDate(pr.weekId)}
+            </option>
+          ))}
+        </select>
+      )}
+      <a href={atual.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+        Ver{proofs.length === 1 ? ` (${formatDeliveryDate(atual.weekId)})` : ''}
+      </a>
+    </span>
+  )
 }
 
 export function VerificarPagamentosPage() {
@@ -89,14 +134,10 @@ export function VerificarPagamentosPage() {
                           <Badge variant={statusVariant(p)}>{statusLabel(p)}</Badge>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {p.proofUrl ? (
-                            <a href={p.proofUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Ver</a>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                          <Comprovantes payment={p} compacto />
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {!p.verified && p.proofUrl && (
+                          {!p.verified && (p.proofUrl || p.proofs?.length) && (
                             <Button size="sm" variant="secondary" disabled={verifying === p.id} onClick={() => handleVerify(p)}>
                               {verifying === p.id ? '...' : 'Verificar'}
                             </Button>
@@ -122,12 +163,8 @@ export function VerificarPagamentosPage() {
                   <div className="text-sm text-muted-foreground">{p.producerName}</div>
                   <div className="text-sm font-semibold">R$ {p.amount.toFixed(2)}</div>
                   <div className="flex items-center gap-3 pt-1">
-                    {p.proofUrl && (
-                      <a href={p.proofUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
-                        Ver comprovante
-                      </a>
-                    )}
-                    {!p.verified && p.proofUrl && (
+                    <Comprovantes payment={p} />
+                    {!p.verified && (p.proofUrl || p.proofs?.length) && (
                       <Button size="sm" variant="secondary" disabled={verifying === p.id} onClick={() => handleVerify(p)}>
                         {verifying === p.id ? '...' : 'Verificar'}
                       </Button>

@@ -1,5 +1,5 @@
 import { auth } from './firebase'
-import type { Tenant, Product, Producer, WeeklyOffering, Order, User, ParsedProduct, Payment, TenantRole, AcolhidaSemana } from '@/types'
+import type { Tenant, Product, Producer, WeeklyOffering, Order, User, ParsedProduct, Payment, TenantRole, AcolhidaSemana, AcolhidaWeek } from '@/types'
 
 const BASE_URL = '/api'
 
@@ -136,6 +136,8 @@ export const paymentsApi = {
 export const acolhidaApi = {
   getSemana: (weekId: string, tenantId: string) =>
     request<AcolhidaSemana>(`/acolhida/${weekId}`, {}, tenantId),
+  listSemana: (weekId: string, tenantId: string) =>
+    request<AcolhidaWeek[]>(`/acolhida/${weekId}/todos?tenantId=${tenantId}`, {}, tenantId),
   confirmar: (weekId: string, confirmado: boolean, tenantId: string) =>
     request<{ ok: true; weekId: string; confirmado: boolean }>(
       '/acolhida',

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { ordersApi, usersApi } from '@/services/api'
-import type { Order, User } from '@/types'
+import { acolhidaApi, ordersApi, usersApi } from '@/services/api'
+import type { AcolhidaWeek, Order, User } from '@/types'
 import { formatQuota } from '@/lib/quota'
 import { Card, CardContent, CardHeader, CardTitle, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, EstadoLista, WeekNavigator } from '@pedidos/core/ui'
 import { StickyNote, Ban, MapPin, GripVertical } from 'lucide-react'
-import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek } from '@pedidos/core'
+import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek, emAcolhida, UTC_OFFSET_PADRAO } from '@pedidos/core'
+import { config } from '@/config'
 import { PageHeader } from '@pedidos/core/ui'
 import { sortByDeliveryOrder, mergeReorder, isEntrega, isFornecedor } from '@pedidos/core'
 import {
@@ -29,6 +30,7 @@ export function EntregasPage() {
   const [weekId, setWeekId] = useState(getWeekStart())
   const [orders, setOrders] = useState<Order[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [confirmacoes, setConfirmacoes] = useState<AcolhidaWeek[]>([])
   const [loading, setLoading] = useState(true)
   const [reportOpen, setReportOpen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -44,12 +46,16 @@ export function EntregasPage() {
     if (!colmeia) return
     setLoading(true)
     try {
-      const [ords, us] = await Promise.all([
+      const [ords, us, confs] = await Promise.all([
         ordersApi.getConsolidated(weekId, colmeia.id),
         usersApi.list(colmeia.id),
+        // Falha aqui não pode derrubar a lista de entrega: sem as confirmações a tela volta
+        // ao comportamento antigo (todos aparecem), que é o lado seguro do erro.
+        acolhidaApi.listSemana(weekId, colmeia.id).catch(() => [] as AcolhidaWeek[]),
       ])
       setOrders(ords)
       setUsers(us)
+      setConfirmacoes(confs)
     } finally {
       setLoading(false)
     }
@@ -62,11 +68,17 @@ export function EntregasPage() {
   const orderByUser = new Map<string, Order>()
   orders.forEach((o) => orderByUser.set(o.userId, o))
 
+  // Quem está em acolhida só entra na semana que confirmou. Sem isto o membro diz "esta
+  // semana não" e continua na lista do motoboy.
+  const confirmouSemana = new Map(confirmacoes.map((c) => [c.userId, c.confirmado]))
+  const utcOffset = config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO
+
   const activeUsers = users.filter((u) => {
     if (u.disabled || u.deleted) return false
     if (isFornecedor(u)) return false
     if (!isUserDeliveryWeek(u, weekId)) return false
     if (orderByUser.get(u.id)?.doacao) return false
+    if (emAcolhida(u, new Date(), utcOffset) && confirmouSemana.get(u.id) !== true) return false
     return true
   })
 

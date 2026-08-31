@@ -107,3 +107,33 @@ describe('createAcolhidaRouter', () => {
     })
   })
 })
+
+describe('GET /:weekId/todos — a lista de entrega precisa saber quem confirmou', () => {
+  it('admin recebe as confirmações da semana do seu tenant', async () => {
+    const repo = createMemoryRepo({
+      users: {
+        u1: novato(), u2: novato({ name: 'Outro' }),
+        adm: { name: 'Admin', tenantId: 't1', acesso: ['admin'] },
+      },
+      acolhidaWeeks: {
+        a: { userId: 'u1', tenantId: 't1', weekId: SEMANA_ABERTA, confirmado: true },
+        b: { userId: 'u2', tenantId: 't1', weekId: SEMANA_ABERTA, confirmado: false },
+        c: { userId: 'u1', tenantId: 't1', weekId: '2099-09-07', confirmado: true },  // outra semana
+      },
+    })
+    const router = createAcolhidaRouter({ repo, payments: createPaymentService({ repo }, config) }, config)
+    await withRouter('/api/acolhida', router, async (get) => {
+      const lista = await (await get(`/api/acolhida/${SEMANA_ABERTA}/todos?tenantId=t1`)).json()
+      expect(lista).toHaveLength(2)
+      expect(lista.map((d: { userId: string }) => d.userId).sort()).toEqual(['u1', 'u2'])
+    }, { uid: 'adm' })
+  })
+
+  it('membro comum não lista a semana dos outros', async () => {
+    const repo = createMemoryRepo({ users: { u1: novato() } })
+    const router = createAcolhidaRouter({ repo, payments: createPaymentService({ repo }, config) }, config)
+    await withRouter('/api/acolhida', router, async (get) => {
+      expect((await get(`/api/acolhida/${SEMANA_ABERTA}/todos?tenantId=t1`)).status).toBe(403)
+    }, { uid: 'u1' })
+  })
+})

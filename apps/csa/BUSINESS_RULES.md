@@ -52,6 +52,8 @@
   - Encerrada a acolhida, volta à cobrança mensal cheia automaticamente
 - **Tela inicial**: quem está em acolhida cai em `/acolhida` ao entrar, com as duas ações de prazo na frente (confirmar a semana e anexar o comprovante) e o tique de retirada/entrega. O menu segue completo — ele está decidindo se fica, e esconder ofertas e pedidos seria esconder o que ele veio conhecer
 - Item **"Minha Semana"** aparece na navegação enquanto a acolhida está aberta; some quando encerra
+- **Lista de entregas**: membro em acolhida só aparece na semana que confirmou. Falha ao carregar as confirmações **não** esconde ninguém (volta ao comportamento antigo — o lado seguro do erro)
+- **Conferência**: fatura com vários comprovantes ganha seletor de semana (com a data da entrega); com um só, segue link direto
 - Registro: coleção `acolhidaWeeks`, chave `(userId, tenantId, weekId)`, só com a confirmação; `confirmado: false` distingue "disse que não" de "não respondeu"
 - Permissões de sistema: inalteradas (acolhida não muda acesso)
 - Admin pode ajustar a data ou remover o período via dialog de edição
