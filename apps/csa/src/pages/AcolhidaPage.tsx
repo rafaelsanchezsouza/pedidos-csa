@@ -9,6 +9,12 @@ import { config } from '@/config'
 
 const mesDe = (weekId: string) => weekId.slice(0, 7)
 
+// Dia da semana da entrega por extenso — o membro pensa em "quarta", não em "02/09".
+const diaDaSemanaDaEntrega = (weekId: string) => {
+  const [ano, mes, dia] = getWeekDelivery(weekId).split('-').map(Number) as [number, number, number]
+  return new Date(ano, mes - 1, dia, 12).toLocaleDateString('pt-BR', { weekday: 'long' })
+}
+
 const formatarPrazo = (iso: string) =>
   new Date(iso).toLocaleString('pt-BR', {
     weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -115,7 +121,7 @@ export function AcolhidaPage() {
     <div className="space-y-4">
       <PageHeader
         title="Sua semana"
-        subtitle={`Entrega de ${formatDeliveryDate(weekId)} · ${getWeekDelivery(weekId).split('-').reverse().join('/')}`}
+        subtitle={`Entrega de ${diaDaSemanaDaEntrega(weekId)}, ${formatDeliveryDate(weekId)}`}
       />
 
       {erro && <p className="text-sm text-destructive">{erro}</p>}
@@ -204,7 +210,9 @@ export function AcolhidaPage() {
             <>
               <p className="text-sm text-muted-foreground">
                 Total do mês até agora: <strong>R$ {cota.amount.toFixed(2)}</strong>
-                {cota.proofs?.length ? ` · ${cota.proofs.length} comprovante(s) enviado(s)` : ''}
+                {cota.proofs?.length
+                  ? ` · ${cota.proofs.length} comprovante${cota.proofs.length > 1 ? 's' : ''} enviado${cota.proofs.length > 1 ? 's' : ''}`
+                  : ''}
               </p>
               {comprovanteDaSemana && (
                 <a
