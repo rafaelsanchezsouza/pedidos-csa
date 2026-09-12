@@ -97,6 +97,17 @@ app.use('/api/roles', createRolesRouter({ repo }, config))
 
 app.listen(Number(PORT), HOST, () => {
   console.log(`Servidor rodando em http://${HOST}:${PORT}`)
-  startQuotaJob()
-  startSendOrdersJob()
+  // Cron desligado por padrão fora de produção: o .env.development aponta para a MESMA
+  // instância do WhatsApp e para o mesmo GitHub. Um `npm run dev` rodando na hora do envio
+  // mandaria mensagem de verdade para produtor de verdade. Ligar explicitamente com
+  // CRON_ENABLED=true quando quiser exercitar o job.
+  const cronLigado = process.env.CRON_ENABLED
+    ? process.env.CRON_ENABLED === 'true'
+    : process.env.NODE_ENV === 'production'
+  if (cronLigado) {
+    startQuotaJob()
+    startSendOrdersJob()
+  } else {
+    console.log('[cron] desligado (CRON_ENABLED != true e NODE_ENV != production)')
+  }
 })

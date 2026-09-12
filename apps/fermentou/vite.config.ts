@@ -7,6 +7,9 @@ export default defineConfig({
     // node é o padrão: cálculo puro (weekUtils, weekMath) não paga o custo do jsdom.
     // Teste de componente declara `// @vitest-environment jsdom` no topo do arquivo.
     environment: 'node',
+    // Mesmo motivo do app da CSA: teste de componente sobe jsdom e 5s não sobra sob paralelismo.
+    testTimeout: 20000,
+    hookTimeout: 20000,
     include: ['{src,server}/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
   },

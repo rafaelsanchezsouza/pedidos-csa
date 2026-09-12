@@ -34,6 +34,25 @@ Fermentou segue pendente.
 
 ## 2. Rodar e testar
 
+### Rodar em desenvolvimento (CSA)
+
+```bash
+cd apps/csa
+npm run dev          # front (Vite), porta 5173
+npm run dev:server   # backend, porta 3001 — NODE_ENV=development
+npm run dev:all      # os dois juntos
+```
+
+Aponta para o Firebase **`pedidos-csa-dev`**, separado do prod. O `.env.development` é
+**gitignored**: numa máquina nova, copie junto com os outros segredos (§3).
+
+⚠️ **O cron não sobe fora de produção** (`CRON_ENABLED`). Não é conveniência: o
+`.env.development` aponta para a **mesma instância do WhatsApp** e o mesmo GitHub que a
+produção. Um `npm run dev` aberto na hora do envio mandaria mensagem de verdade para produtor
+de verdade. Para exercitar o job de propósito: `CRON_ENABLED=true npm run dev:server`.
+
+### Rodar os testes
+
 ```bash
 npm install
 npm run build -w @pedidos/core               # SEMPRE antes dos apps — eles consomem o dist/
@@ -65,6 +84,7 @@ Cada app precisa de dois arquivos **gitignored**, que não vieram no `git subtre
 | Arquivo | O que é | Onde tem cópia |
 |---|---|---|
 | `apps/<app>/.env.production` | Firebase, Evolution, GitHub, OpenAI, `PORT` | `~/repos/pedidos-csa`, `~/repos/pedidos-app` |
+| `apps/csa/.env.development` | idem, apontando para o Firebase `pedidos-csa-dev` | `~/repos/pedidos-csa` |
 | `apps/<app>/deploy.env` | VM_USER/VM_HOST/VM_DIR/SSH_KEY/ENV_FILE | idem |
 
 Numa máquina nova, copie os quatro antes de qualquer deploy.
@@ -160,8 +180,10 @@ o código novo nunca escreveu o campo legado.
    rollback que existe. Só depois de algumas semanas de acolhida rodando redonda.
 4. **WhatsApp dedicado para o Fermentou** (hoje divide o número da CSA; ver `~/repos/ZAP-PROTOCOL.md`).
 5. **Pix pré-entrega** — decisão de produto antes de codar (`apps/fermentou/PENDENCIAS.md` B1/B2).
-6. **`.env.development`** não existe em nenhum dos dois apps — `npm run dev` quebra no boot do
-   Firebase. Decidir se dev aponta para o mesmo projeto ou um separado.
+6. ~~**`.env.development`**~~ — **resolvido em 2026-09-12 para a CSA**: o arquivo existia no
+   repo antigo (gitignored, não veio no subtree) e aponta para o Firebase **`pedidos-csa-dev`**,
+   projeto separado. Copiado para `apps/csa/`. O Fermentou segue sem — mesmo caminho quando
+   precisar.
 7. ~~**Ligar o webhook de issues**~~ — **feito em 2026-08-30.** `/issue <texto>` no grupo
    `dev-csa` abre issue e o bot responde com o link (validado: issue #59). A entrada é
    compartilhada com o note-app pelo `zap-hub` (`~/repos/zap-hub`, ver `ZAP-PROTOCOL.md` §8).
