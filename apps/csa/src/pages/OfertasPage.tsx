@@ -240,13 +240,13 @@ export function OfertasPage() {
   )
 
   // Reconfere o vínculo de um item contra o catálogo (mesma regra do servidor). Chamada no
-  // blur do nome, não a cada tecla. Casou → traz o preço do catálogo, igual ao que o /parse
-  // faz na geração; quem escolheu o vínculo na mão fica de fora.
+  // blur do nome, não a cada tecla. Casou e o item está sem preço → traz o do catálogo, igual
+  // ao /parse; preço que veio da mensagem manda. Quem escolheu o vínculo na mão fica de fora.
   const reconferir = useCallback((idx: number) => {
     setParsed((prev) => prev && prev.map((it, i) => {
       if (i !== idx || it.vinculoManual) return it
       const match = melhorMatch(it.name, catalogo)
-      if (match) return { ...it, matchedProductId: match.id, price: match.price }
+      if (match) return { ...it, matchedProductId: match.id, price: it.price > 0 ? it.price : match.price }
       const { matchedProductId: _semVinculo, ...resto } = it
       return resto
     }))
@@ -264,7 +264,7 @@ export function OfertasPage() {
         ...it,
         matchedProductId: valor,
         vinculoManual: true,
-        ...(produto ? { name: produto.name, unit: produto.unit, price: produto.price } : {}),
+        ...(produto ? { name: produto.name, unit: produto.unit, price: it.price > 0 ? it.price : produto.price } : {}),
       }
     }))
   }, [catalogo])
@@ -278,7 +278,7 @@ export function OfertasPage() {
     setParsed(parsed.map(({ vinculoManual: _manual, ...item }) => {
       const match = melhorMatch(item.name, novoCatalogo)
       return match
-        ? { ...item, matchedProductId: match.id, price: match.price }
+        ? { ...item, matchedProductId: match.id, price: item.price > 0 ? item.price : match.price }
         : { ...item, matchedProductId: undefined }
     }))
   }

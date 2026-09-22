@@ -71,7 +71,8 @@
 - A regra do match é **uma só** (`melhorMatch`, em `packages/core/src/domain/matchProduto.ts`, limiar 0.7): o servidor a usa ao gerar a oferta e a tela ao reconferir um nome corrigido. Duas implementações dariam feedback mentiroso na tela
 - O catálogo consultado é sempre o **do produtor** da oferta, nunca o da colmeia inteira
 - Preço ausente na mensagem + produto matched → preencher com preço do catálogo
-- Preço discriminado na oferta → atualizar preço no catálogo ao salvar oferta
+- Preço discriminado na mensagem **vence o do catálogo** e, ao salvar a oferta, atualiza o catálogo. Até 2026-09-21 o `/parse` sobrescrevia sempre pelo catálogo: preço novo do produtor nunca chegava à oferta
+- A **unidade** não é preenchida pelo catálogo: `unid` é o default do parser e ele não distingue "unidade ausente" de "unidade unid". Conferir na revisão
 - Produto não existente no catálogo ao salvar oferta → criar automaticamente (nome, unidade, preço, produtor)
 - Produto pode ser editado ou removido pelo admin
 
@@ -108,7 +109,7 @@
 ### Revisão antes de salvar (2026-09-21)
 - Cada item mostra seu **vínculo** com o catálogo: produto existente ou "produto novo — será criado"
 - Corrigir o nome **reconfere o catálogo ao sair do campo** (ex.: `"Macaxeira Natural kg"` → `"Macaxeira"` passa a casar). Antes o item seguia marcado como novo e **duplicava** o produto ao salvar. Reconferir a cada tecla travava a digitação
-- Identificou o produto → **traz o preço do catálogo**, a mesma regra que o `/parse` aplica na geração. Preço editado depois vale, e atualiza o catálogo ao salvar
+- Identificou o produto e o item está **sem preço** → traz o do catálogo, a mesma regra do `/parse`. Preço que veio da mensagem não é sobrescrito; preço editado à mão vale e atualiza o catálogo ao salvar
 - O vínculo é **editável**: dá para forçar um produto do catálogo ou marcar como novo. Escolha manual **congela** — correções de nome depois disso não a desfazem
 - Dá para **adicionar produto que não veio na mensagem**, sem re-gerar. Re-gerar substitui a lista inteira (e apaga as correções) — o botão avisa quando já há itens
 - Trocar o produtor reconfere a lista contra o catálogo do novo produtor

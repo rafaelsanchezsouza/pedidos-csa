@@ -158,12 +158,16 @@ export function createOfferingsRouter(deps: OfferingsDeps, config: AppConfig): R
         const catalog = existingProducts.map((p) => ({ id: p.id, name: p.name, unit: p.unit, price: p.price }))
         const parsed = await parse(rawMessage, catalog)
 
-        // Enriquece com preço do catálogo quando não discriminado na mensagem
+        // Preço: quem discrimina manda. O catálogo só preenche o que a mensagem não trouxe
+        // (é o caso de quem manda a lista sem valores). Até 2026-09-21 o catálogo sobrescrevia
+        // sempre — preço novo na mensagem nunca chegava à oferta, embora salvar a oferta
+        // atualize o catálogo (BUSINESS_RULES: "preço discriminado → atualiza o catálogo").
         const priceMap = new Map(catalog.map((p) => [p.id, p.price]))
-        const enriched = parsed.map((item) => ({
-          ...item,
-          price: item.matchedProductId ? (priceMap.get(item.matchedProductId) ?? item.price) : item.price,
-        }))
+        const enriched = parsed.map((item) => (
+          item.price > 0 || !item.matchedProductId
+            ? item
+            : { ...item, price: priceMap.get(item.matchedProductId) ?? item.price }
+        ))
         res.json(enriched)
       } catch (err) {
         res.status(500).json({ message: String(err) })

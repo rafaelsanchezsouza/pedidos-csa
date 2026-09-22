@@ -184,22 +184,29 @@ describe('createOfferingsRouter — capacidades', () => {
     })
   })
 
-  it('parse-message + fuzzy: extrai itens e enriquece preço pelo catálogo; /from-catalog não existe', async () => {
+  it('parse-message + fuzzy: preço da mensagem vence; catálogo só preenche o que faltou', async () => {
     const repo = createMemoryRepo({
       users: adminDeTeste(),
-      products: { p1: { name: 'Alface', unit: 'unid', price: 4.5, producerId: 'pr1', tenantId: 't1' } },
+      products: {
+        p1: { name: 'Alface', unit: 'unid', price: 4.5, producerId: 'pr1', tenantId: 't1' },
+        p2: { name: 'Couve', unit: 'maço', price: 6, producerId: 'pr1', tenantId: 't1' },
+      },
     })
     await withRouter('/api/offerings', createOfferingsRouter({ repo }, parseConfig), async (get) => {
       const res = await get('/api/offerings/parse', {
         method: 'POST',
-        body: JSON.stringify({ rawMessage: 'Alface 4,00\nRúcula 3,00', tenantId: 't1' }),
+        body: JSON.stringify({ rawMessage: 'Alface 4,00\nCouve\nRúcula 3,00', tenantId: 't1' }),
         ...json,
       })
       expect(res.status).toBe(200)
       const parsed = await res.json()
-      // Alface casa com o catálogo → preço do catálogo vence; Rúcula fica com o da mensagem
+      // Alface veio com preço na mensagem → 4,00 (o catálogo tem 4,50 e NÃO sobrescreve);
+      // Couve veio sem preço → 6 do catálogo; Rúcula não casa → fica com o da mensagem.
+      // A unidade NÃO é enriquecida: 'unid' aqui é o default do parser, não o 'maço' do
+      // catálogo — o parser não distingue "unidade ausente" de "unidade unid".
       expect(parsed).toEqual([
-        { name: 'Alface', unit: 'unid', price: 4.5, type: 'extra', matchedProductId: 'p1' },
+        { name: 'Alface', unit: 'unid', price: 4, type: 'extra', matchedProductId: 'p1' },
+        { name: 'Couve', unit: 'unid', price: 6, type: 'extra', matchedProductId: 'p2' },
         { name: 'Rúcula', unit: 'unid', price: 3, type: 'extra' },
       ])
 

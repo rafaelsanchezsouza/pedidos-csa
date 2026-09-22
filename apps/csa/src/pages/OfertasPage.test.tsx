@@ -38,7 +38,7 @@ async function abrirComOfertaGerada() {
 beforeEach(() => {
   vi.clearAllMocks()
   // O parser devolve o nome cru, sem casar com o catálogo — é o caso do dia a dia.
-  parseSpy.mockResolvedValue([{ name: 'Macaxeira Natural kg', unit: 'kg', price: 4, type: 'extra' }])
+  parseSpy.mockResolvedValue([{ name: 'Macaxeira Natural kg', unit: 'kg', price: 0, type: 'extra' }])
 })
 
 describe('OfertasPage — montagem da oferta', () => {
@@ -57,16 +57,31 @@ describe('OfertasPage — montagem da oferta', () => {
     expect(within(cartao).queryByText(/produto novo/i)).not.toBeInTheDocument()
   })
 
-  it('ao identificar o produto, traz o preço do catálogo', async () => {
+  it('item sem preço: identificar o produto traz o preço do catálogo', async () => {
     const nome = await abrirComOfertaGerada()
     const cartao = nome.closest('div.border') as HTMLElement
-    expect(within(cartao).getByDisplayValue('4')).toBeInTheDocument() // preço da mensagem
+    expect(within(cartao).getByDisplayValue('0')).toBeInTheDocument()
 
     await userEvent.clear(nome)
     await userEvent.type(nome, 'Macaxeira')
     await userEvent.tab()
 
     expect(within(cartao).getByDisplayValue('6')).toBeInTheDocument() // preço do catálogo
+  })
+
+  it('preço que veio na mensagem não é sobrescrito pelo catálogo', async () => {
+    parseSpy.mockResolvedValue([{ name: 'Macaxeira Natural kg', unit: 'kg', price: 4, type: 'extra' }])
+    const nome = await abrirComOfertaGerada()
+    const cartao = nome.closest('div.border') as HTMLElement
+
+    await userEvent.clear(nome)
+    await userEvent.type(nome, 'Macaxeira')
+    await userEvent.tab()
+
+    // Casou com o catálogo (que tem 6), mas o produtor discriminou 4 — o 4 vale, e salvar
+    // atualiza o catálogo.
+    expect(within(cartao).getByText(/macaxeira/i, { selector: 'span' })).toBeInTheDocument()
+    expect(within(cartao).getByDisplayValue('4')).toBeInTheDocument()
   })
 
   it('nome que deixa de casar desfaz o vínculo', async () => {
