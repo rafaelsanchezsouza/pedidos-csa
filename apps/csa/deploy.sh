@@ -42,9 +42,15 @@ mv "$CORE_TGZ_PACK" "$CORE_TGZ"
 # package.json de produção: mesma coisa, com a dep do core apontando para o tarball.
 # O package-lock.json do app é resquício de quando era repo próprio — no monorepo o lock é o
 # da raiz, e ele não vale na VM. Por isso `npm install` (e não `npm ci`, que exige lock).
+# devDependencies saem do package.json de produção. Não é economia: `npm install --omit=dev`
+# NÃO as instala, mas o arborist ainda resolve a árvore ideal delas — e em 2026-09-21 o deploy
+# da CSA morreu aí ("Cannot read properties of null (reading 'edgesOut')", npm 10.9.7 andando
+# nos peers vitest → jsdom → canvas). Sem lock na VM, o npm resolve tudo do zero e o bug volta
+# a cada mudança nesse pedaço da árvore. A VM só roda `dist-server`; devDep lá é peso e risco.
 node -e "
   const p = require('./package.json');
   p.dependencies['@pedidos/core'] = 'file:./$CORE_TGZ';
+  delete p.devDependencies;
   require('fs').writeFileSync('package.deploy.json', JSON.stringify(p, null, 2));
 "
 
