@@ -171,6 +171,17 @@ o código novo nunca escreveu o campo legado.
   `EVOLUTION_INSTANCE_NAME` sumiu e o login quebrou com 404 da Evolution em 2026-08-28).
   Corrigido nos dois apps; o `.env` velho entra no `rm` do deploy.
 
+- **A VM não recebe mais as `devDependencies`.** Com `--omit=dev` o npm não as *instala*, mas o
+  arborist ainda **resolve a árvore ideal delas** — em 2026-09-21 o deploy da CSA morreu em
+  `npm install` com `Cannot read properties of null (reading 'edgesOut')` (npm 10.9.7 andando
+  nos peers `vitest → jsdom → canvas`). Sem lock na VM a resolução é do zero, então o bug
+  reaparece a cada mudança nesse pedaço da árvore. O `package.deploy.json` agora sai sem
+  `devDependencies`. **Se o install quebrar no meio, produção fica sem
+  `node_modules/@pedidos/core`**: o processo antigo continua de pé (módulos já em memória), mas
+  qualquer restart derruba o app — terminar o deploy é urgente, não opcional.
+- **O `deploy.sh` da CSA estava sem bit de execução no git** (`100644`; o do fermentou,
+  `100755`). `./deploy.sh` respondia "permission denied". Corrigido em 2026-09-21.
+
 ## 6. Pendências, em ordem
 
 1. ~~**Limpeza do legado da CSA**~~ — **feita em 2026-08-31**, 460 docs.
