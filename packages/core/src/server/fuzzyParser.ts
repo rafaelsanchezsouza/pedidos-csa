@@ -1,56 +1,9 @@
-import type { ExistingProduct, ParsedProduct, MessageParser } from './parseMessage.js'
+import type { ParsedProduct, MessageParser } from './parseMessage.js'
+import { melhorMatch, normalizarNome } from '../domain/matchProduto.js'
 
-// Parser fuzzy (sem API externa): heurísticas de linha (preço/unidade/nome) + Levenshtein
-// para casar com o catálogo. É a implementação default de messageParser='fuzzy'.
-
-// --- string utils ---
-
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-}
-
-function levenshtein(a: string, b: string): number {
-  const m = a.length
-  const n = b.length
-  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (__, j) => (i === 0 ? j : j === 0 ? i : 0))
-  )
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i]![j] =
-        a[i - 1] === b[j - 1]
-          ? dp[i - 1]![j - 1]!
-          : 1 + Math.min(dp[i - 1]![j]!, dp[i]![j - 1]!, dp[i - 1]![j - 1]!)
-    }
-  }
-  return dp[m]![n]!
-}
-
-function similarity(a: string, b: string): number {
-  const na = normalize(a)
-  const nb = normalize(b)
-  if (na === nb) return 1
-  const dist = levenshtein(na, nb)
-  return 1 - dist / Math.max(na.length, nb.length)
-}
-
-function bestMatch(name: string, products: ExistingProduct[]): string | undefined {
-  let best: { id: string; score: number } | undefined
-
-  for (const p of products) {
-    const score = similarity(name, p.name)
-
-    if (score >= 0.7 && (!best || score > best.score)) {
-      best = { id: p.id, score }
-    }
-  }
-
-  return best?.id
-}
+// Parser fuzzy (sem API externa): heurísticas de linha (preço/unidade/nome) + o match de
+// catálogo do domínio (`melhorMatch`, o mesmo que a tela usa ao corrigir um nome).
+// É a implementação default de messageParser='fuzzy'.
 
 // --- line parser ---
 
@@ -91,15 +44,15 @@ function parseLine(raw: string): LineResult | null {
 
   // 2. Extract unit — parens first (only if content is a known unit)
   const unitInParens = line.match(/\(\s*([a-zA-Z\u00C0-\u024F]+)\s*\)/)
-  if (unitInParens && KNOWN_UNITS.includes(normalize(unitInParens[1]!))) {
-    unit = normalize(unitInParens[1]!)
+  if (unitInParens && KNOWN_UNITS.includes(normalizarNome(unitInParens[1]!))) {
+    unit = normalizarNome(unitInParens[1]!)
     line = line.replace(unitInParens[0], '').trim()
   } else {
     // Known unit as standalone word — NOT at the very start (to avoid stripping "Bandeja de jaca")
     const unitRegex = new RegExp(`\\s(${KNOWN_UNITS.join('|')})(?:\\s|$)`, 'i')
     const unitMatch = line.match(unitRegex)
     if (unitMatch) {
-      unit = normalize(unitMatch[1]!)
+      unit = normalizarNome(unitMatch[1]!)
       line = line.replace(unitMatch[0], ' ').trim()
     }
   }
@@ -163,14 +116,14 @@ export const fuzzyMessageParser: MessageParser = async (rawMessage, existingProd
     const parsed = parseLine(raw)
     if (!parsed) continue
 
-    const matchedProductId = bestMatch(parsed.name, existingProducts)
+    const match = melhorMatch(parsed.name, existingProducts)
 
     results.push({
       name: parsed.name,
       unit: parsed.unit,
       price: parsed.price,
       type,
-      ...(matchedProductId ? { matchedProductId } : {}),
+      ...(match ? { matchedProductId: match.id } : {}),
     })
   }
 

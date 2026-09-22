@@ -592,6 +592,29 @@ dia 1 é exatamente onde 3 horas de diferença mudam o mês da fatura.
 relógio do tenant antes de agir — mas quem for mexer no horário precisa saber que a expressão
 não está no fuso do membro.
 
+### 4.8 Match de catálogo é domínio, não parser (2026-09-21)
+
+Montar a oferta a partir da mensagem do produtor é **duas** decisões: extrair as linhas (nome,
+unidade, preço) e **casar cada nome com o catálogo do produtor**. A segunda estava enterrada
+dentro de `server/fuzzyParser.ts`, então só o servidor sabia dizer se um nome correspondia a um
+produto. Na tela isso aparecia como buraco: o operador corrigia "Macaxeira Natural kg" para
+"Macaxeira" e nada reconferia — o item seguia marcado como produto novo e, ao salvar, duplicava
+o produto no catálogo.
+
+Decisão: `domain/matchProduto.ts` (`melhorMatch`, `similaridadeNome`, `LIMIAR_MATCH = 0.7`) —
+puro, exportado no barrel raiz, usado **pelos dois lados**: o `fuzzyParser` na geração e a
+`OfertasPage` a cada correção de nome. Duas implementações do mesmo critério dariam feedback
+mentiroso na tela. O parser `openai` (adapter do app) continua decidindo o match no prompt; a
+tela reconfere pelo domínio, que é o critério que vale na hora de salvar.
+
+Consequências na tela de ofertas (CSA):
+- o vínculo de cada item é **explícito e editável** (select "produto novo" × produto do
+  catálogo); corrigir o nome reconfere, escolher à mão congela a escolha;
+- o catálogo consultado é o **do produtor selecionado** — era o do tenant inteiro, enquanto o
+  servidor sempre filtrou por produtor;
+- dá para **adicionar produto que não veio na mensagem** sem re-gerar (re-gerar substitui a
+  lista e apagava as correções — o botão diz isso quando já há itens).
+
 ## 5. O que falta
 
 - ~~**Task 6**~~ **concluída.** Os dois apps rodam do monorepo em produção e a CSA está no

@@ -1,12 +1,19 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Wand2, Check, X, History, Pencil, Lock, Unlock } from 'lucide-react'
+import { Plus, Wand2, Check, X, History, Pencil, Lock, Unlock, Sparkles } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { offeringsApi, producersApi, productsApi, tenantsApi } from '@/services/api'
-import { formatDeliveryDate, getPresentWeekId } from '@pedidos/core'
+import { formatDeliveryDate, getPresentWeekId, melhorMatch } from '@pedidos/core'
 import { PageHeader, WeekNavigator } from '@pedidos/core/ui'
 import type { WeeklyOffering, Producer, Product, ParsedProduct, OfferingItem } from '@/types'
 import { Button, Card, CardContent, CardHeader, CardTitle, Textarea, Label, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
+
+// Vínculo com o catálogo: item já existente (id) ou produto novo (criado ao salvar).
+const NOVO_PRODUTO = '__novo__'
+
+// `vinculoManual` é estado só da tela: quando o operador escolhe o vínculo na mão, parar de
+// reconferir o nome a cada tecla — senão a tela desfaz a escolha dele.
+type ItemOferta = ParsedProduct & { vinculoManual?: boolean }
 
 export function OfertasPage() {
   const { colmeia } = useAuth()
@@ -19,7 +26,7 @@ export function OfertasPage() {
   const [selectedProducerId, setSelectedProducerId] = useState('')
   const [rawMessage, setRawMessage] = useState('')
   const [parsing, setParsing] = useState(false)
-  const [parsed, setParsed] = useState<ParsedProduct[] | null>(null)
+  const [parsed, setParsed] = useState<ItemOferta[] | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fallingBack, setFallingBack] = useState<string | null>(null)
@@ -29,6 +36,11 @@ export function OfertasPage() {
   const [togglingExtras, setTogglingExtras] = useState(false)
 
   const [weekId, setWeekId] = useState(getPresentWeekId())
+
+  // O servidor casa a mensagem contra o catálogo DO produtor; a tela usa o mesmo recorte.
+  const catalogo = products.filter((p) => p.producerId === selectedProducerId)
+  const itens = parsed ?? []
+  const semNome = itens.some((i) => !i.name.trim())
 
   const load = useCallback(async () => {
     if (!colmeia) return
@@ -121,7 +133,7 @@ export function OfertasPage() {
   }
 
   async function handleParse() {
-    if (!colmeia || !rawMessage.trim()) return
+    if (!colmeia || !rawMessage.trim() || !selectedProducerId) return
     setError(null)
     setParsing(true)
     try {
@@ -141,6 +153,55 @@ export function OfertasPage() {
     setParsed(updated)
   }
 
+  // Corrigir o nome reconfere o catálogo na hora (mesma regra do servidor) — a menos que o
+  // vínculo já tenha sido escolhido à mão.
+  function alterarNome(idx: number, nome: string) {
+    if (!parsed) return
+    const updated = [...parsed]
+    const item = updated[idx]!
+    updated[idx] = item.vinculoManual
+      ? { ...item, name: nome }
+      : { ...item, name: nome, matchedProductId: melhorMatch(nome, catalogo)?.id }
+    setParsed(updated)
+  }
+
+  function vincular(idx: number, valor: string) {
+    if (!parsed) return
+    const updated = [...parsed]
+    const item = updated[idx]!
+    if (valor === NOVO_PRODUTO) {
+      const { matchedProductId: _ignorado, ...resto } = item
+      updated[idx] = { ...resto, vinculoManual: true }
+    } else {
+      const produto = catalogo.find((p) => p.id === valor)
+      updated[idx] = {
+        ...item,
+        matchedProductId: valor,
+        vinculoManual: true,
+        ...(produto ? { name: produto.name, unit: produto.unit } : {}),
+      }
+    }
+    setParsed(updated)
+  }
+
+  // Trocar de produtor troca o catálogo: os vínculos antigos apontam para o catálogo errado,
+  // então a lista é reconferida contra o novo (inclusive os escolhidos à mão).
+  function trocarProdutor(id: string) {
+    setSelectedProducerId(id)
+    if (!parsed) return
+    const novoCatalogo = products.filter((p) => p.producerId === id)
+    setParsed(parsed.map(({ vinculoManual: _manual, ...item }) => ({
+      ...item,
+      matchedProductId: melhorMatch(item.name, novoCatalogo)?.id,
+    })))
+  }
+
+  // Produto que não veio na mensagem: entra na lista sem re-gerar (regerar apaga as edições).
+  function adicionarItem() {
+    const tipo = itens[itens.length - 1]?.type ?? 'extra'
+    setParsed([...itens, { name: '', unit: 'unid', price: 0, type: tipo }])
+  }
+
   function removeParsed(idx: number) {
     if (!parsed) return
     setParsed(parsed.filter((_, i) => i !== idx))
@@ -154,7 +215,7 @@ export function OfertasPage() {
       const producer = producers.find((p) => p.id === selectedProducerId)
       const items: OfferingItem[] = parsed.map((p) => ({
         productId: p.matchedProductId || crypto.randomUUID(),
-        productName: p.name,
+        productName: p.name.trim(),
         unit: p.unit,
         price: p.price,
         type: p.type,
@@ -278,7 +339,7 @@ export function OfertasPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Produtor</Label>
-              <Select value={selectedProducerId} onValueChange={setSelectedProducerId} disabled={!!editing}>
+              <Select value={selectedProducerId} onValueChange={trocarProdutor} disabled={!!editing}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o produtor..." />
                 </SelectTrigger>
@@ -302,67 +363,103 @@ export function OfertasPage() {
               <Button
                 variant="outline"
                 onClick={handleParse}
-                disabled={parsing || !rawMessage.trim()}
+                disabled={parsing || !rawMessage.trim() || !selectedProducerId}
                 className="w-full"
               >
                 <Wand2 className="mr-2" />
-                {parsing ? 'Gerando...' : 'Gerar Oferta'}
+                {parsing
+                  ? 'Gerando...'
+                  : itens.length > 0 ? 'Gerar de novo (substitui a lista)' : 'Gerar Oferta'}
               </Button>
             </div>
 
-            {parsed && (
+            {selectedProducerId && (
               <div className="space-y-2">
-                <Label>Produtos identificados ({parsed.length})</Label>
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {parsed.map((item, idx) => {
-                    const match = products.find((p) => p.id === item.matchedProductId)
-                    return (
-                      <div key={idx} className="border rounded-md p-3 space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 grid grid-cols-4 gap-2">
-                            <div className="col-span-2 space-y-1">
-                              <Label className="text-xs">Nome</Label>
-                              <Input
-                                value={item.name}
-                                onChange={(e) => updateParsed(idx, 'name', e.target.value)}
-                                className="h-8 text-sm"
-                              />
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Produtos da oferta ({itens.length})</Label>
+                  <Button variant="outline" size="sm" onClick={adicionarItem}>
+                    <Plus className="mr-1 h-4 w-4" /> Adicionar produto
+                  </Button>
+                </div>
+                {itens.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Cole a mensagem e gere a oferta, ou adicione os produtos à mão.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                    {itens.map((item, idx) => {
+                      const vinculo = catalogo.find((p) => p.id === item.matchedProductId)
+                      return (
+                        <div key={idx} className="border rounded-md p-3 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 grid grid-cols-4 gap-2">
+                              <div className="col-span-2 space-y-1">
+                                <Label className="text-xs">Nome</Label>
+                                <Input
+                                  value={item.name}
+                                  onChange={(e) => alterarNome(idx, e.target.value)}
+                                  placeholder="Nome do produto"
+                                  className="h-8 text-sm"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Unid</Label>
+                                <Input
+                                  value={item.unit}
+                                  onChange={(e) => updateParsed(idx, 'unit', e.target.value)}
+                                  className="h-8 text-sm"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Preço</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.price}
+                                  onChange={(e) => {
+                                    const v = parseFloat(e.target.value)
+                                    updateParsed(idx, 'price', Number.isFinite(v) ? v : 0)
+                                  }}
+                                  className="h-8 text-sm"
+                                />
+                              </div>
                             </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Unid</Label>
-                              <Input
-                                value={item.unit}
-                                onChange={(e) => updateParsed(idx, 'unit', e.target.value)}
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Preço</Label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={item.price}
-                                onChange={(e) => updateParsed(idx, 'price', parseFloat(e.target.value))}
-                                className="h-8 text-sm"
-                              />
+                            <div className="flex items-center gap-1 pt-5">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeParsed(idx)}>
+                                <X className="h-3 w-3" />
+                              </Button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1 pt-5">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeParsed(idx)}>
-                              <X className="h-3 w-3" />
-                            </Button>
+                          <div className="flex items-center gap-2">
+                            {vinculo
+                              ? <Check className="h-3 w-3 shrink-0 text-primary" />
+                              : <Sparkles className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                            <Select
+                              value={vinculo?.id ?? NOVO_PRODUTO}
+                              onValueChange={(v) => vincular(idx, v)}
+                            >
+                              <SelectTrigger
+                                className="h-7 text-xs"
+                                aria-label={`Vínculo com o catálogo: ${item.name || 'produto sem nome'}`}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NOVO_PRODUTO}>Produto novo — será criado no catálogo</SelectItem>
+                                {catalogo.map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>Catálogo: {p.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
-                        {match && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Check className="h-3 w-3 text-primary" />
-                            Corresponde ao catálogo: {match.name}
-                          </p>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+                      )
+                    })}
+                  </div>
+                )}
+                {semNome && (
+                  <p className="text-xs text-destructive">Todo produto precisa de um nome.</p>
+                )}
               </div>
             )}
           </div>
@@ -373,7 +470,7 @@ export function OfertasPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button
               onClick={handleSave}
-              disabled={saving || !selectedProducerId || !parsed || parsed.length === 0}
+              disabled={saving || !selectedProducerId || itens.length === 0 || semNome}
             >
               {saving ? 'Salvando...' : 'Salvar Oferta'}
             </Button>
