@@ -607,6 +607,15 @@ puro, exportado no barrel raiz, usado **pelos dois lados**: o `fuzzyParser` na g
 mentiroso na tela. O parser `openai` (adapter do app) continua decidindo o match no prompt; a
 tela reconfere pelo domínio, que é o critério que vale na hora de salvar.
 
+**Corolário (2026-09-21, mesma fatia): ausência é sinal, não chute.** O parser devolve
+`price: 0` e `unit: ''` quando o produtor não informou, e **quem chama resolve** — o `/parse`
+preenche pelo catálogo do item casado, a tela preenche ao reconferir o vínculo, e só a
+gravação aplica o default (`unid`) a um produto novo. Os dois bugs que isso fechou vinham de
+inverter essa responsabilidade: o `/parse` sobrescrevia **sempre** o preço pelo catálogo (preço
+novo do produtor nunca chegava à oferta, embora salvar atualize o catálogo), e o parser chutava
+`unid`, que ao salvar trocava o `maço` do catálogo. O contrato está no `MessageParser`
+(`server/parseMessage.ts`) e vale para os dois adapters — o prompt do OpenAI foi alinhado.
+
 Consequências na tela de ofertas (CSA):
 - o vínculo de cada item é **explícito e editável** (select "produto novo" × produto do
   catálogo); corrigir o nome reconfere, escolher à mão congela a escolha;

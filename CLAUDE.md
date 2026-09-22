@@ -35,6 +35,9 @@ incluir `src/config.ts`); `start` e `deploy.sh` já apontam para lá.
   `@pedidos/core` e não pode arrastar express)
 - **Autorização é do servidor** (`server/auth.ts`): rota que muda dado ou lê dado de terceiro
   carrega o `Ator` e checa. O tenant vem do **recurso**, nunca do header
+- **Ausência é sinal, não chute**: o `MessageParser` devolve `price: 0`/`unit: ''` para o que o
+  produtor não informou; preencher é de quem chama (catálogo no `/parse`, tela, default só na
+  gravação). Chutar no parser apaga dado bom do catálogo
 - Telefone: normalizar **uma vez, no adapter que envia** (`normalizePhone` do core); serviços
   do engine repassam o contato cru
 - Dados da CSA são **canônicos** (`tenants`/`tenantId`); o `colmeiaId` foi apagado em

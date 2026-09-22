@@ -1,8 +1,9 @@
 # Handoff — monorepo `pedidos`
 
-Estado em **2026-08-21**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
+Estado em **2026-09-22**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
 (`apps/csa`, `apps/fermentou`). **Os dois estão no ar rodando deste monorepo** — os repos
-originais deixaram de ser a fonte da verdade e agora servem só de rollback.
+originais não são fonte da verdade **nem rollback** (a limpeza do legado rodou em 2026-08-31 e
+o código antigo não acha mais os dados); ver §4.
 
 Leia junto: **`ARQUITETURA.md`** (decisões, histórico fatia a fatia, o porquê de cada escolha) e
 **`CLAUDE.md`** (regras de trabalho e portão de verificação).
@@ -199,14 +200,20 @@ o código novo nunca escreveu o campo legado.
    `dev-csa` abre issue e o bot responde com o link (validado: issue #59). A entrada é
    compartilhada com o note-app pelo `zap-hub` (`~/repos/zap-hub`, ver `ZAP-PROTOCOL.md` §8).
    **O zap-hub não tem remote** — só existe nesta máquina.
-8. **Isolamento por cliente + onboarding sem código novo** — questão em aberto, ver
+8. **Redeploy do fermentou** — a produção dele é de **2026-08-22** e roda um core de antes do
+   `fix(jobs)` de 31/08 (relógio do tenant nos jobs) e das correções de 21/09. Nada quebrado
+   hoje — a oferta dele nasce do catálogo, não do parser —, mas o `sendOrdersJob` de lá ainda
+   lê o relógio do processo (UTC). Um `./deploy.sh` em `apps/fermentou` resolve, e já sai com
+   o `package.json` sem devDependencies.
+9. **Isolamento por cliente + onboarding sem código novo** — questão em aberto, ver
    `ARQUITETURA.md` §5 "Questões em aberto" #3. Hoje o repo é **público** e um cliente novo
    custa ~6k linhas copiadas. Decisão adiada conscientemente em 2026-08-28: a solução tem que
    servir a N clientes, não ser um remendo pro Fermentou.
 
 ## 7. Riscos conhecidos
 
-**Autorização — corrigida no código, ainda NÃO em produção.** Até 2026-08-21 o engine confiava no
+**Autorização — corrigida e em produção** (foi ao ar em 2026-08-21/28; o parágrafo fica como
+histórico do que era). Até 2026-08-21 o engine confiava no
 frontend: bastava estar autenticado para listar todos os membros (nome, e-mail, telefone,
 endereço), editar produto de qualquer tenant, marcar a **própria fatura como paga** ou se
 **promover a admin** via `PUT /users/me`. Era pré-existente (a "Pendência F3" do handoff antigo),
@@ -234,4 +241,5 @@ seguro do erro, mas confira o cadastro antes de dar esse acesso a alguém.
 | `apps/*/BUSINESS_RULES.md` | regras de negócio de cada cliente |
 | `apps/fermentou/PENDENCIAS.md` | decisões de produto em aberto |
 | `apps/fermentou/MERGE.md` | mapa fork × CSA (histórico; os port-backs do §6 já entraram) |
-| `apps/*/definicoes_projeto.md` | **desatualizados** — descrevem os apps antes do monorepo |
+| `apps/csa/definicoes_projeto.md` | referência da CSA — revisado em 2026-09-21 contra o código |
+| `apps/fermentou/definicoes_projeto.md` | **desatualizado** — descreve o app antes do monorepo |
