@@ -100,7 +100,7 @@ server/
 │   ├── users.ts
 │   ├── products.ts
 │   ├── producers.ts
-│   ├── offerings.ts           # Usa parseProducerMessage do serviço de domínio
+│   ├── offerings.ts           # Rotas do core; parser injetado no boot
 │   └── orders.ts
 ├── repositories/
 │   └── firestore.ts           # Abstração Firestore
@@ -108,11 +108,8 @@ server/
     ├── paymentService.ts      # Faturas, cotas e contagem de semanas de entrega
     ├── weekMath.ts            # Espelho puro de weekUtils p/ o backend (ver "Datas e fusos")
     ├── weekMath.test.ts       # Trava a sincronia weekMath x weekUtils
-    └── parseMessage/          # Serviço de domínio: parsing de mensagens de produtor
-        ├── index.ts           # Exporta implementação ativa (fuzzy)
-        ├── types.ts           # MessageParser, ParsedProduct, ExistingProduct
-        ├── fuzzy.ts           # Impl: regex + Levenshtein (ATIVA, sem deps externas)
-        └── openai.ts          # Impl: GPT-4o-mini (alternativa)
+    └── parseMessage/          # Adapter alternativo (a porta e o parser fuzzy vivem no core)
+        └── openai.ts          # Só ativo com capabilities.messageParser='openai'
 ```
 
 ## Modelos de Dados
@@ -275,7 +272,7 @@ Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
 | GET | `/api/offerings?weekId=&colmeiaId=` | Lista ofertas da semana |
 | POST | `/api/offerings` | Cria oferta |
 | PUT | `/api/offerings/:id` | Atualiza oferta |
-| POST | `/api/offerings/parse` | Faz parsing de mensagem via OpenAI |
+| POST | `/api/offerings/parse` | Faz parsing da mensagem do produtor (parser fuzzy do core) |
 
 ### Pedidos
 | Método | Rota | Descrição |
@@ -328,7 +325,7 @@ Layout responsivo do `PageHeader`: no **desktop** é uma linha horizontal (títu
 
 **`EstadoLista` para carregando/vazio**: `loading` vence `vazio` (anunciar "nenhum resultado" antes dos dados chegarem é mentira). **Só serve para empty-state em `Card`** — telas cujo vazio vive em `<TableRow>` (CatalogoPage, AdminPage) mantêm a guarda `if (loading) return` manual e não usam o componente.
 
-**Parsing Flow**: Admin cola mensagem WhatsApp → `POST /api/offerings/parse` → OpenAI retorna `ParsedProduct[]` → admin revisa → salva como `WeeklyOffering`.
+**Parsing Flow**: Admin cola mensagem WhatsApp → `POST /api/offerings/parse` → o parser fuzzy do core devolve `ParsedProduct[]` já casados com o catálogo do produtor → admin revisa (corrigir nome reconfere o vínculo; dá para adicionar item fora da mensagem) → salva como `WeeklyOffering`.
 
 **Lógica testável fora do IO**: cálculo puro não fica em módulo que importa Firestore, senão
 não dá para testar sem subir o firebase-admin. Ex.: `server/services/weekMath.ts` foi extraído

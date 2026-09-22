@@ -68,6 +68,8 @@
 
 - Produto possui: nome, unidade, preço, produtor, colmeia
 - Matching com catálogo: **inferência fuzzy local** (distância de Levenshtein), não OpenAI (OpenAI disponível mas inativo)
+- A regra do match é **uma só** (`melhorMatch`, em `packages/core/src/domain/matchProduto.ts`, limiar 0.7): o servidor a usa ao gerar a oferta e a tela ao reconferir um nome corrigido. Duas implementações dariam feedback mentiroso na tela
+- O catálogo consultado é sempre o **do produtor** da oferta, nunca o da colmeia inteira
 - Preço ausente na mensagem + produto matched → preencher com preço do catálogo
 - Preço discriminado na oferta → atualizar preço no catálogo ao salvar oferta
 - Produto não existente no catálogo ao salvar oferta → criar automaticamente (nome, unidade, preço, produtor)
@@ -93,7 +95,7 @@
 - `type: 'extra'` → keywords: "extra", "estra", "disponível extra"
 - Preço ausente → default `0` (a ser preenchido manualmente ou buscado no catálogo)
 - Unidade ausente → default `"unid"`
-- Matching com catálogo: fuzzy local (Levenshtein); OpenAI disponível como alternativa via `server/services/parseMessage/index.ts`
+- Matching com catálogo: fuzzy local (Levenshtein), no core; OpenAI disponível como alternativa (`capabilities.messageParser='openai'` + adapter `server/services/parseMessage/openai.ts`, injetado no boot)
 - Se `matchedProductId` retornado → item vinculado ao produto existente no catálogo
 
 ### Fallback semana anterior
@@ -102,6 +104,14 @@
 ## Ofertas Semanais
 
 - Admin faz parsing da mensagem → revisa resultado → salva como `WeeklyOffering`
+
+### Revisão antes de salvar (2026-09-21)
+- Cada item mostra seu **vínculo** com o catálogo: produto existente ou "produto novo — será criado"
+- Corrigir o nome **reconfere o catálogo na hora** (ex.: `"Macaxeira Natural kg"` → `"Macaxeira"` passa a casar). Antes o item seguia marcado como novo e **duplicava** o produto ao salvar
+- O vínculo é **editável**: dá para forçar um produto do catálogo ou marcar como novo. Escolha manual **congela** — correções de nome depois disso não a desfazem
+- Dá para **adicionar produto que não veio na mensagem**, sem re-gerar. Re-gerar substitui a lista inteira (e apaga as correções) — o botão avisa quando já há itens
+- Trocar o produtor reconfere a lista contra o catálogo do novo produtor
+- Item sem nome bloqueia o salvamento
 - Uma `WeeklyOffering` por produtor por semana (identificada por `weekStart` + `producerId`)
 - Criar nova oferta para produtor+semana que já existe → **substitui** a existente (upsert), nunca duplica
 - `weekStart`: data da segunda-feira da semana (ISO 8601)
