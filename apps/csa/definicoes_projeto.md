@@ -1,9 +1,8 @@
-> ⚠️ **DESATUALIZADO** (2026-08-21). Descreve a CSA antes do monorepo: `colmeiaId`, coleção
-> `colmeias`, rotas próprias em `server/routes/`. Hoje o app consome o engine
-> (`@pedidos/core/server`) e os dados são canônicos (`tenantId`, coleção `tenants`).
-> Para o estado real: [`../../HANDOFF.md`](../../HANDOFF.md) e
-> [`../../ARQUITETURA.md`](../../ARQUITETURA.md). As regras de negócio aqui seguem válidas.
-
+> **Revisado em 2026-09-21.** Estrutura, modelos, coleções e rotas descrevem o app **hoje**
+> (monorepo, dados canônicos `tenantId`/`tenants`, rotas servidas pelo engine
+> `@pedidos/core/server`). O que este doc cobre é a **CSA**; para o motor compartilhado e o
+> estado operacional, [`../../ARQUITETURA.md`](../../ARQUITETURA.md) e
+> [`../../HANDOFF.md`](../../HANDOFF.md) continuam sendo a fonte da verdade.
 # Definições do Projeto — pedidos-csa
 
 ## Visão Geral
@@ -20,13 +19,14 @@ App web para gestão de pedidos de uma CSA (Comunidade que Sustenta a Agricultur
 | Backend | Express.js + TypeScript (tsx watch) |
 | Banco | Firebase Firestore (NoSQL) |
 | Auth | Firebase Authentication (email/senha) |
-| Parsing | fuzzy matching (ativo) / OpenAI GPT-4o-mini (alternativa) |
-| Testes | Vitest (ambiente `node`, sem DOM) |
+| Parsing | fuzzy do core (ativo) / OpenAI GPT-4o-mini (adapter do app, inativo) |
+| Testes | Vitest (`node` para lógica, `jsdom` + Testing Library para tela) |
 | Env | dotenv |
 
 ## Comandos
 
 ```bash
+npm run build -w @pedidos/core   # SEMPRE antes: o app consome o dist/ do motor
 npm run dev          # Frontend (http://localhost:5173)
 npm run dev:server   # Backend (http://localhost:3001)
 npm run dev:all      # Ambos simultaneamente
@@ -46,252 +46,103 @@ em `main` não sobe nada.
 
 ## Estrutura de Pastas
 
+Componentes e regras compartilhados com o fermentou vivem em `packages/core`
+(`@pedidos/core`, `@pedidos/core/ui`, `@pedidos/core/server`) — aqui fica só o que é da CSA.
+
 ```
 src/
-├── App.tsx                    # Roteamento principal + ProtectedRoute
-├── main.tsx
-├── index.css
+├── App.tsx                    # Roteamento + ProtectedRoute
+├── config.ts                  # AppConfig da CSA (capabilities, vocabulário, defaults)
 ├── components/
-│   ├── layout/
-│   │   ├── Header.tsx
-│   │   ├── Layout.tsx         # Wrapper para páginas autenticadas
-│   │   ├── Sidebar.tsx
-│   │   └── BottomNav.tsx      # Navegação mobile
-│   ├── PageHeader.tsx         # Cabeçalho único de todas as telas (ver "Padrões de Design")
-│   ├── EstadoLista.tsx        # Estados carregando/vazio de lista
-│   ├── WeekNavigator.tsx      # Navegação semanal (slot dateNav do PageHeader)
-│   ├── MonthNavigator.tsx     # Navegação mensal (slot dateNav do PageHeader)
-│   ├── ReportarProblema.tsx
-│   └── ui/                    # Componentes shadcn/ui
-├── contexts/
-│   └── AuthContext.tsx        # Auth state + seleção de colmeia
-├── hooks/
-│   └── useAuth.ts
-├── lib/
-│   ├── utils.ts               # cn() para classnames
-│   ├── statusPagamento.ts     # statusLabel/statusVariant da fatura (+ .test.ts)
-│   ├── weekUtils.ts           # Semanas, entregas e ciclo quinzenal (ver "Datas e fusos")
-│   └── weekUtils.test.ts
-├── pages/
-│   ├── LoginPage.tsx
-│   ├── DefinirSenhaPage.tsx
-│   ├── PedidosPage.tsx        # Membro: pedido da semana
-│   ├── PerfilPage.tsx
-│   ├── PagamentosPage.tsx     # Membro: faturas do mês
-│   ├── CatalogoPage.tsx       # Admin: catálogo de produtos
-│   ├── OfertasPage.tsx        # Admin: ofertas semanais + parsing
-│   ├── EntregasPage.tsx       # Admin: lista de entrega da semana
-│   ├── ConsolidadoGeralPage.tsx # Admin: todos os membros da semana + texto WhatsApp
-│   ├── VerificarPagamentosPage.tsx
-│   └── AdminPage.tsx
-├── services/
-│   ├── firebase.ts            # Init Firebase client
-│   └── api.ts                 # HTTP client tipado (Bearer token automático)
-└── types/
-    └── index.ts               # Todas as interfaces TS
+│   ├── layout/                # Header, Layout, Sidebar, BottomNav
+│   └── ReportarProblema.tsx   # Depende do contexto do app; por isso não está no core
+├── contexts/AuthContext.tsx   # Auth state + seleção de colmeia (tenant)
+├── hooks/                     # useAuth, useUploadProof
+├── lib/                       # utils (cn), quota
+├── pages/                     # Login, DefinirSenha, Pedidos, Perfil, Pagamentos, Acolhida,
+│                              # Catalogo, Ofertas, Entregas, ConsolidadoGeral,
+│                              # VerificarPagamentos, Admin
+├── services/                  # firebase (client), api (HTTP tipado, Bearer + x-tenant-id)
+└── types/index.ts             # Interfaces do app (fonte da verdade dos modelos)
 
 server/
-├── index.ts                   # Setup Express + rotas
-├── middleware/
-│   ├── auth.ts                # Verifica Firebase ID token
-│   └── colmeia.ts             # Injeta req.colmeiaId
-├── routes/
-│   ├── colmeias.ts
-│   ├── users.ts
-│   ├── products.ts
-│   ├── producers.ts
-│   ├── offerings.ts           # Rotas do core; parser injetado no boot
-│   └── orders.ts
-├── repositories/
-│   └── firestore.ts           # Abstração Firestore
+├── index.ts                   # Boot: monta os routers do core com os adapters daqui
+├── env.ts                     # Carrega .env.production e falha dizendo o que faltou
+├── adapters.ts                # Liga as portas do engine às implementações do app
+├── middleware/auth.ts         # Verifica Firebase ID token
+├── repositories/firestore.ts  # Porta Repo → Firestore
+├── jobs/                      # quotaJob, sendOrdersJob (cron é infra do app)
 └── services/
-    ├── paymentService.ts      # Faturas, cotas e contagem de semanas de entrega
-    ├── weekMath.ts            # Espelho puro de weekUtils p/ o backend (ver "Datas e fusos")
-    ├── weekMath.test.ts       # Trava a sincronia weekMath x weekUtils
-    └── parseMessage/          # Adapter alternativo (a porta e o parser fuzzy vivem no core)
-        └── openai.ts          # Só ativo com capabilities.messageParser='openai'
+    ├── payments.ts, orders.ts # Serviços do app injetados nas rotas do core
+    ├── whatsapp/              # Evolution API (envio e login por WhatsApp)
+    └── parseMessage/openai.ts # Adapter alternativo; o parser fuzzy vive no core
 ```
 
 ## Modelos de Dados
 
-```typescript
-interface Colmeia {
-  id: string
-  name: string
-  adminId: string          // uid Firebase do admin
-  dateCreated: string      // ISO 8601
-}
+As interfaces vivem em [`src/types/index.ts`](src/types/index.ts) — **é lá que se olha**, não
+aqui (duplicar campo em doc só cria divergência). O que importa saber:
 
-interface User {
-  id: string               // uid Firebase
-  name: string
-  email: string
-  address: string
-  contact: string
-  frequency: 'semanal' | 'quinzenal'
-  deliveryType: 'colmeia' | 'entrega'
-  colmeiaId: string
-  role: 'admin' | 'user' | 'superadmin' | 'produtor'
-}
-
-interface Producer {
-  id: string
-  name: string
-  contact: string
-  colmeiaId: string
-}
-
-interface Product {
-  id: string
-  name: string
-  unit: string
-  price: number
-  producerId: string
-  colmeiaId: string
-  dateUpdated: string
-}
-
-interface OfferingItem {
-  productId: string
-  productName: string
-  unit: string
-  price: number
-  type: 'fixo' | 'extra'
-}
-
-interface WeeklyOffering {
-  id: string
-  producerId: string
-  producerName: string
-  colmeiaId: string
-  items: OfferingItem[]
-  weekStart: string        // ISO 8601, início da semana (segunda)
-  rawMessage?: string      // Mensagem original do WhatsApp
-  dateCreated: string
-}
-
-interface OrderItem {
-  productId: string
-  productName: string
-  unit: string
-  price: number
-  qty: number
-}
-
-interface Order {
-  id: string
-  userId: string
-  userName: string
-  colmeiaId: string
-  weekId: string           // ID da WeeklyOffering
-  items: OrderItem[]
-  status: 'rascunho' | 'enviado'
-  dateCreated: string
-  dateUpdated: string
-}
-
-interface Payment {
-  id: string
-  userId: string
-  userName: string
-  colmeiaId: string
-  month: string            // "YYYY-MM"
-  proofUrl?: string        // URL do comprovante no Firebase Storage
-  verified: boolean
-  amount: number
-}
-
-interface ParsedProduct {
-  name: string
-  unit: string
-  price: number
-  type: 'fixo' | 'extra'
-  matchedProductId?: string  // Preenchido se achou no catálogo
-}
-```
+- O tenant é `tenantId` em **todo** documento, e a coleção é `tenants`. O `colmeiaId` do modelo
+  antigo foi apagado da produção em 2026-08-31 e **não existe mais** — "colmeia" segue como
+  vocabulário de tela na CSA, nunca como campo.
+- `acesso` (não `role`) é o nível de acesso: `superadmin` | `admin` | `produtor` | `user`.
+  `role` é a **função no coletivo** (texto livre configurável por colmeia).
+- `deliveryType` é `'entrega' | 'retirada'`. O motor só pergunta `isEntrega(u)`; o token de
+  não-entrega é vocabulário de UI (`colmeia` no legado) e nunca decide regra.
+- `weekId`/`weekStart`: data ISO da segunda-feira da semana (ver "Datas e fusos").
 
 ## Coleções Firestore
 
 | Coleção | ID do Doc | Campos principais |
 |---|---|---|
-| `colmeias` | auto | name, adminId, dateCreated |
-| `users` | uid Firebase | name, email, role, colmeiaId, frequency, deliveryType |
-| `products` | auto | name, unit, price, producerId, colmeiaId, dateUpdated |
-| `producers` | auto | name, contact, colmeiaId |
-| `weekly_offerings` | auto | producerId, colmeiaId, items[], weekStart, rawMessage |
-| `orders` | auto | userId, colmeiaId, weekId, items[], status |
+| `tenants` | auto | name, adminId, quotaInteira, quotaMeia, freteDelivery, dueDay, orderSendDay, orderSendHour, weekChangeDay, extrasAberto |
+| `users` | uid Firebase | name, email, contact, address, acesso, role, tenantId, frequency, deliveryType, quota, quotaQty, acolhidaExpiry |
+| `products` | auto | name, unit, price, producerId, tenantId, dateUpdated |
+| `producers` | auto | name, contact, pixKey, tenantId |
+| `weekly_offerings` | auto | producerId, producerName, tenantId, items[], weekStart, rawMessage |
+| `orders` | auto | userId, userName, tenantId, weekId, items[], status, doacao, recebido, suspensa |
+| `payments` | auto | userId, tenantId, month, producerName, amount, proofs[], verified, dueDate |
+| `acolhida_weeks` | auto | userId, tenantId, weekId, confirmado |
+| `tenant_roles` | auto | name, tenantId |
 
 ## Endpoints da API
 
-Base URL: `/api` (proxy para `http://localhost:3001` em dev)
+Base `/api` (proxy para `http://localhost:3001` em dev). Todas exigem
+`Authorization: Bearer {idToken}`; o tenant vai no header `x-tenant-id` (e em `?tenantId=` nas
+listagens). **Quem monta é o app, mas os routers são do engine**
+(`packages/core/src/server/routes/`) — a lista abaixo é o que `server/index.ts` monta hoje.
 
-Todos protegidos por `Authorization: Bearer {idToken}` exceto `/api/setup`.
+| Prefixo | Rotas |
+|---|---|
+| `/api/tenants` | `GET /`, `GET /:id`, `POST /`, `PUT /:id` |
+| `/api/users` | `GET /me`, `PUT /me`, `GET /`, `POST /`, `POST /create-member`, `POST /create-member-batch`, `PUT /reorder-delivery`, `PUT /rename-quota`, `PUT /:uid`, `POST /:uid/reset-password`, `DELETE /:uid` |
+| `/api/products` | `GET /`, `POST /`, `POST /import-batch`, `PUT /:id`, `DELETE /:id` |
+| `/api/producers` | `GET /`, `POST /`, `PUT /:id`, `DELETE /:id` |
+| `/api/offerings` | `GET /`, `POST /parse`, `POST /fallback`, `POST /`, `PUT /:id` |
+| `/api/orders` | `GET /my`, `GET /consolidated`, `GET /consolidated-text`, `GET /week-lock`, `GET /history`, `GET /monthly`, `POST /send-consolidated-whatsapp`, `POST /`, `PUT /:id` |
+| `/api/payments` | `GET /my`, `GET /`, `POST /quota`, `POST /quota/all`, `POST /frete`, `POST /frete/all`, `POST /:id/comprovante`, `PUT /:id` |
+| `/api/acolhida` | `GET /:weekId`, `GET /:weekId/todos`, `POST /` |
+| `/api/roles` | `GET /`, `POST /`, `DELETE /:id` |
+| `/api/issues` | `POST /` (abre issue no GitHub a partir do "Reportar problema") |
+| `/api/auth/whatsapp` | Login por WhatsApp — **antes** do middleware de auth |
+| `/api/whatsapp/webhook` | Webhook da Evolution — **antes** do middleware de auth |
 
-### Setup
-| Método | Rota | Descrição |
-|---|---|---|
-| POST | `/api/setup` | Cria colmeia inicial (sem auth) |
-
-### Colmeias
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/api/colmeias` | Lista (filtrado por role) |
-| GET | `/api/colmeias/:id` | Detalhes |
-| POST | `/api/colmeias` | Cria nova |
-
-### Usuários
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/api/users/me` | Perfil do usuário atual |
-| PUT | `/api/users/me` | Atualiza perfil |
-| GET | `/api/users?colmeiaId=` | Lista usuários da colmeia (admin) |
-| POST | `/api/users` | Cria usuário |
-| PUT | `/api/users/reorder-delivery` | Persiste a ordem da lista de entrega (lista completa de ids → `deliveryOrder`). Registrada antes de `/:uid`. |
-| PUT | `/api/users/:uid` | Atualiza usuário (admin) |
-
-### Produtos
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/api/products?colmeiaId=` | Lista catálogo |
-| POST | `/api/products` | Cria produto |
-| POST | `/api/products/import-batch` | Importa catálogo via CSV (lote) |
-| PUT | `/api/products/:id` | Atualiza produto |
-| DELETE | `/api/products/:id` | Remove produto |
-
-### Produtores
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/api/producers?colmeiaId=` | Lista produtores |
-| POST | `/api/producers` | Cria produtor |
-| PUT | `/api/producers/:id` | Atualiza produtor |
-| DELETE | `/api/producers/:id` | Remove produtor |
-
-### Ofertas Semanais
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/api/offerings?weekId=&colmeiaId=` | Lista ofertas da semana |
-| POST | `/api/offerings` | Cria oferta |
-| PUT | `/api/offerings/:id` | Atualiza oferta |
-| POST | `/api/offerings/parse` | Faz parsing da mensagem do produtor (parser fuzzy do core) |
-
-### Pedidos
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/api/orders/my?weekId=&colmeiaId=` | Pedido do usuário atual para a semana |
-| POST | `/api/orders` | Cria pedido |
-| PUT | `/api/orders/:id` | Atualiza pedido |
-| GET | `/api/orders/consolidated?weekId=&colmeiaId=` | Pedidos consolidados (admin) |
+`POST /api/offerings/from-catalog` existe no engine, mas **não na CSA**: é da capacidade
+`offeringSource='from-catalog'` (o fermentou). A CSA usa `parse-message`.
 
 ## Auth Flow
 
 1. Login via `signInWithEmailAndPassword(auth, email, password)`
 2. Firebase retorna `user` com `getIdToken()` disponível
-3. `AuthContext` carrega perfil via `/api/users/me` e lista de colmeias
+3. `AuthContext` carrega perfil via `/api/users/me` e a lista de tenants
 4. Seleção de colmeia salva em `localStorage` com chave `colmeia_{uid}`
 5. Todas as chamadas à API incluem `Authorization: Bearer {idToken}`
-6. Header `x-colmeia-id` transmite contexto de colmeia para o backend
-7. Middleware `auth.ts` verifica token via Firebase Admin SDK
-8. Middleware `colmeia.ts` injeta `req.colmeiaId`
+6. Header `x-tenant-id` transmite o contexto de tenant para o backend
+7. Middleware `auth.ts` (do app) verifica o token via Firebase Admin SDK
+8. Middleware de tenant (do core) injeta `req.tenantId`
+9. **Autorização é do servidor**: rota que muda dado, ou lê dado de terceiro, carrega o `Ator`
+   e checa (`packages/core/src/server/auth.ts`). O tenant vem do **recurso**, nunca do header
 
 ## Datas e fusos
 
@@ -306,18 +157,18 @@ Parseie os componentes na mão, ou ancore em `T12:00:00` como fazem `shiftWeek`/
 ano de 53 semanas (2026, 2032...) a paridade repete na virada. Foi o #48. O ciclo vem de um
 contador contínuo a partir de âncora fixa — ver `getWeekIndex` e `BUSINESS_RULES.md`.
 
-**Regra duplicada entre client e server**: `src/lib/weekUtils.ts` e `server/services/weekMath.ts`
-implementam o mesmo cálculo porque o `rootDir` do tsconfig do server impede importar de `src/`.
-Mudar um exige mudar o outro — `server/services/weekMath.test.ts` compara os dois semana a
-semana e reprova a divergência. Client e server discordarem foi a causa do #43. A unificação
-sai no #18.
+~~**Regra duplicada entre client e server**~~ — **resolvido**. A duplicação
+`src/lib/weekUtils.ts` × `server/services/weekMath.ts` (causa do #43) acabou com o monorepo:
+os dois lados importam `packages/core/src/domain/week.ts`, e nenhum dos dois arquivos existe
+mais. Regra com hora do dia recebe o **fuso do tenant** (`relogioDoTenant`/`semanaDoTenant`),
+nunca getter local do processo — o servidor roda em UTC.
 
 Os testes rodam em fuso BR por padrão porque é o dos usuários; `npm run test:tz` roda também
 em UTC (o container de produção) e Kiritimati (UTC+14) para travar independência de fuso.
 
 ## Padrões de Design
 
-**Multi-tenancy**: Todo dado tem `colmeiaId`. Queries sempre filtram por colmeia. Superadmin vê todas; admin e user veem apenas a própria.
+**Multi-tenancy**: todo dado tem `tenantId` e as queries sempre filtram por ele. Superadmin vê todos; admin e user, só o próprio. O tenant do recurso é que manda — header não autoriza nada.
 
 **Cabeçalho de tela via `PageHeader`**: toda tela com header monta o topo pelo `PageHeader`, nunca com JSX solto. Os slots são nomeados (`title`, `titleExtra`, `subtitle`, `secondaryAction`, `primaryAction`, `dateNav`) e a ordem à direita é fixa: `secondaryAction → primaryAction → dateNav`. Quem usa preenche o slot certo e não escolhe a ordem, então as telas não divergem entre si por construção. A ordem é travada por `PageHeader.test.tsx` — mexer nela quebra o teste. Ordem vertical abaixo do header: `PageHeader → Abas (só AdminPage) → Filtragem → Conteúdo`.
 
@@ -328,8 +179,8 @@ Layout responsivo do `PageHeader`: no **desktop** é uma linha horizontal (títu
 **Parsing Flow**: Admin cola mensagem WhatsApp → `POST /api/offerings/parse` → o parser fuzzy do core devolve `ParsedProduct[]` já casados com o catálogo do produtor → admin revisa (corrigir nome reconfere o vínculo; dá para adicionar item fora da mensagem) → salva como `WeeklyOffering`.
 
 **Lógica testável fora do IO**: cálculo puro não fica em módulo que importa Firestore, senão
-não dá para testar sem subir o firebase-admin. Ex.: `server/services/weekMath.ts` foi extraído
-do `paymentService.ts` por isso.
+não dá para testar sem subir o firebase-admin. É o que levou o cálculo de semanas para
+`packages/core/src/domain/week.ts`, fora do serviço de pagamentos.
 
 **Abstração Firestore** (`server/repositories/firestore.ts`):
 ```typescript
@@ -355,6 +206,23 @@ VITE_FIREBASE_APP_ID=
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=   # \n precisa ser substituído por newlines reais
-OPENAI_API_KEY=
 PORT=3001
+HOST=127.0.0.1          # em produção fica atrás do nginx
+APP_URL=                # base dos links enviados por WhatsApp
+CRON_ENABLED=           # default: ligado só com NODE_ENV=production
+
+# Opcionais — cada bloco desliga a funcionalidade se faltar
+OPENAI_API_KEY=         # só com capabilities.messageParser='openai' (hoje inativo)
+EVOLUTION_API_URL=      # WhatsApp (envio de consolidado e login por WhatsApp)
+EVOLUTION_API_KEY=
+EVOLUTION_INSTANCE_NAME=
+GITHUB_OWNER=           # "Reportar problema" abre issue; sem os três, a rota fica fora
+GITHUB_REPO=
+GITHUB_TOKEN=
+WHATSAPP_ISSUES_GROUP_JID=  # webhook: grupo que vira issue
+WHATSAPP_ISSUES_PREFIX=
+ZAP_WEBHOOK_SECRET=
 ```
+
+O boot **falha dizendo o que faltou** (`server/env.ts`) — em produção o arquivo lido é
+`.env.production`, e é esse nome que o `deploy.sh` copia para a VM.
