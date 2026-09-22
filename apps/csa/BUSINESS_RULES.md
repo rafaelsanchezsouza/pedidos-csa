@@ -107,7 +107,8 @@
 
 ### Revisão antes de salvar (2026-09-21)
 - Cada item mostra seu **vínculo** com o catálogo: produto existente ou "produto novo — será criado"
-- Corrigir o nome **reconfere o catálogo na hora** (ex.: `"Macaxeira Natural kg"` → `"Macaxeira"` passa a casar). Antes o item seguia marcado como novo e **duplicava** o produto ao salvar
+- Corrigir o nome **reconfere o catálogo ao sair do campo** (ex.: `"Macaxeira Natural kg"` → `"Macaxeira"` passa a casar). Antes o item seguia marcado como novo e **duplicava** o produto ao salvar. Reconferir a cada tecla travava a digitação
+- Identificou o produto → **traz o preço do catálogo**, a mesma regra que o `/parse` aplica na geração. Preço editado depois vale, e atualiza o catálogo ao salvar
 - O vínculo é **editável**: dá para forçar um produto do catálogo ou marcar como novo. Escolha manual **congela** — correções de nome depois disso não a desfazem
 - Dá para **adicionar produto que não veio na mensagem**, sem re-gerar. Re-gerar substitui a lista inteira (e apaga as correções) — o botão avisa quando já há itens
 - Trocar o produtor reconfere a lista contra o catálogo do novo produtor

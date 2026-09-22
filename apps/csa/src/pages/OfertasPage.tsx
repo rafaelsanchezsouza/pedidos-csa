@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Wand2, Check, X, History, Pencil, Lock, Unlock, Sparkles } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
@@ -11,9 +11,91 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Textarea, Label, Inpu
 // Vínculo com o catálogo: item já existente (id) ou produto novo (criado ao salvar).
 const NOVO_PRODUTO = '__novo__'
 
-// `vinculoManual` é estado só da tela: quando o operador escolhe o vínculo na mão, parar de
-// reconferir o nome a cada tecla — senão a tela desfaz a escolha dele.
+// `vinculoManual` é estado só da tela: quando o operador escolhe o vínculo na mão, a
+// reconferência automática para — senão a tela desfaz a escolha dele.
 type ItemOferta = ParsedProduct & { vinculoManual?: boolean }
+
+// Memoizado de propósito: a lista inteira re-renderizava a cada tecla (cada item carrega um
+// Select com o catálogo), e digitar ficava travado. Com props estáveis — `catalogo` vem de
+// useMemo e os callbacks de useCallback — só o cartão editado re-renderiza.
+const CartaoItem = memo(function CartaoItem({
+  idx, item, catalogo, onCampo, onReconferir, onVincular, onRemover,
+}: {
+  idx: number
+  item: ItemOferta
+  catalogo: Product[]
+  onCampo: (idx: number, campo: 'name' | 'unit' | 'price', valor: string | number) => void
+  onReconferir: (idx: number) => void
+  onVincular: (idx: number, valor: string) => void
+  onRemover: (idx: number) => void
+}) {
+  const vinculo = catalogo.find((p) => p.id === item.matchedProductId)
+  return (
+    <div className="border rounded-md p-3 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 grid grid-cols-4 gap-2">
+          <div className="col-span-2 space-y-1">
+            <Label className="text-xs">Nome</Label>
+            <Input
+              value={item.name}
+              onChange={(e) => onCampo(idx, 'name', e.target.value)}
+              // Reconferir no blur (e não a cada tecla): o vínculo muda uma vez, quando o
+              // nome está pronto.
+              onBlur={() => onReconferir(idx)}
+              placeholder="Nome do produto"
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Unid</Label>
+            <Input
+              value={item.unit}
+              onChange={(e) => onCampo(idx, 'unit', e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Preço</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={item.price}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value)
+                onCampo(idx, 'price', Number.isFinite(v) ? v : 0)
+              }}
+              className="h-8 text-sm"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-1 pt-5">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onRemover(idx)}>
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {vinculo
+          ? <Check className="h-3 w-3 shrink-0 text-primary" />
+          : <Sparkles className="h-3 w-3 shrink-0 text-muted-foreground" />}
+        <Select value={vinculo?.id ?? NOVO_PRODUTO} onValueChange={(v) => onVincular(idx, v)}>
+          <SelectTrigger
+            className="h-7 text-xs"
+            aria-label={`Vínculo com o catálogo: ${item.name || 'produto sem nome'}`}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NOVO_PRODUTO}>Produto novo — será criado no catálogo</SelectItem>
+            {catalogo.map((p) => (
+              <SelectItem key={p.id} value={p.id}>Catálogo: {p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
+})
 
 export function OfertasPage() {
   const { colmeia } = useAuth()
@@ -38,7 +120,11 @@ export function OfertasPage() {
   const [weekId, setWeekId] = useState(getPresentWeekId())
 
   // O servidor casa a mensagem contra o catálogo DO produtor; a tela usa o mesmo recorte.
-  const catalogo = products.filter((p) => p.producerId === selectedProducerId)
+  // useMemo para o cartão memoizado não re-renderizar por causa de um array novo a cada tecla.
+  const catalogo = useMemo(
+    () => products.filter((p) => p.producerId === selectedProducerId),
+    [products, selectedProducerId]
+  )
   const itens = parsed ?? []
   const semNome = itens.some((i) => !i.name.trim())
 
@@ -146,43 +232,42 @@ export function OfertasPage() {
     }
   }
 
-  function updateParsed(idx: number, field: keyof ParsedProduct, value: string | number) {
-    if (!parsed) return
-    const updated = [...parsed]
-    updated[idx] = { ...updated[idx], [field]: value }
-    setParsed(updated)
-  }
+  const alterarCampo = useCallback(
+    (idx: number, campo: 'name' | 'unit' | 'price', valor: string | number) => {
+      setParsed((prev) => prev && prev.map((it, i) => (i === idx ? { ...it, [campo]: valor } : it)))
+    },
+    []
+  )
 
-  // Corrigir o nome reconfere o catálogo na hora (mesma regra do servidor) — a menos que o
-  // vínculo já tenha sido escolhido à mão.
-  function alterarNome(idx: number, nome: string) {
-    if (!parsed) return
-    const updated = [...parsed]
-    const item = updated[idx]!
-    updated[idx] = item.vinculoManual
-      ? { ...item, name: nome }
-      : { ...item, name: nome, matchedProductId: melhorMatch(nome, catalogo)?.id }
-    setParsed(updated)
-  }
+  // Reconfere o vínculo de um item contra o catálogo (mesma regra do servidor). Chamada no
+  // blur do nome, não a cada tecla. Casou → traz o preço do catálogo, igual ao que o /parse
+  // faz na geração; quem escolheu o vínculo na mão fica de fora.
+  const reconferir = useCallback((idx: number) => {
+    setParsed((prev) => prev && prev.map((it, i) => {
+      if (i !== idx || it.vinculoManual) return it
+      const match = melhorMatch(it.name, catalogo)
+      if (match) return { ...it, matchedProductId: match.id, price: match.price }
+      const { matchedProductId: _semVinculo, ...resto } = it
+      return resto
+    }))
+  }, [catalogo])
 
-  function vincular(idx: number, valor: string) {
-    if (!parsed) return
-    const updated = [...parsed]
-    const item = updated[idx]!
-    if (valor === NOVO_PRODUTO) {
-      const { matchedProductId: _ignorado, ...resto } = item
-      updated[idx] = { ...resto, vinculoManual: true }
-    } else {
+  const vincular = useCallback((idx: number, valor: string) => {
+    setParsed((prev) => prev && prev.map((it, i) => {
+      if (i !== idx) return it
+      if (valor === NOVO_PRODUTO) {
+        const { matchedProductId: _semVinculo, ...resto } = it
+        return { ...resto, vinculoManual: true }
+      }
       const produto = catalogo.find((p) => p.id === valor)
-      updated[idx] = {
-        ...item,
+      return {
+        ...it,
         matchedProductId: valor,
         vinculoManual: true,
-        ...(produto ? { name: produto.name, unit: produto.unit } : {}),
+        ...(produto ? { name: produto.name, unit: produto.unit, price: produto.price } : {}),
       }
-    }
-    setParsed(updated)
-  }
+    }))
+  }, [catalogo])
 
   // Trocar de produtor troca o catálogo: os vínculos antigos apontam para o catálogo errado,
   // então a lista é reconferida contra o novo (inclusive os escolhidos à mão).
@@ -190,10 +275,12 @@ export function OfertasPage() {
     setSelectedProducerId(id)
     if (!parsed) return
     const novoCatalogo = products.filter((p) => p.producerId === id)
-    setParsed(parsed.map(({ vinculoManual: _manual, ...item }) => ({
-      ...item,
-      matchedProductId: melhorMatch(item.name, novoCatalogo)?.id,
-    })))
+    setParsed(parsed.map(({ vinculoManual: _manual, ...item }) => {
+      const match = melhorMatch(item.name, novoCatalogo)
+      return match
+        ? { ...item, matchedProductId: match.id, price: match.price }
+        : { ...item, matchedProductId: undefined }
+    }))
   }
 
   // Produto que não veio na mensagem: entra na lista sem re-gerar (regerar apaga as edições).
@@ -202,10 +289,9 @@ export function OfertasPage() {
     setParsed([...itens, { name: '', unit: 'unid', price: 0, type: tipo }])
   }
 
-  function removeParsed(idx: number) {
-    if (!parsed) return
-    setParsed(parsed.filter((_, i) => i !== idx))
-  }
+  const removeParsed = useCallback((idx: number) => {
+    setParsed((prev) => prev && prev.filter((_, i) => i !== idx))
+  }, [])
 
   async function handleSave() {
     if (!colmeia || !selectedProducerId || !parsed) return
@@ -387,74 +473,18 @@ export function OfertasPage() {
                   </p>
                 ) : (
                   <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                    {itens.map((item, idx) => {
-                      const vinculo = catalogo.find((p) => p.id === item.matchedProductId)
-                      return (
-                        <div key={idx} className="border rounded-md p-3 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 grid grid-cols-4 gap-2">
-                              <div className="col-span-2 space-y-1">
-                                <Label className="text-xs">Nome</Label>
-                                <Input
-                                  value={item.name}
-                                  onChange={(e) => alterarNome(idx, e.target.value)}
-                                  placeholder="Nome do produto"
-                                  className="h-8 text-sm"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">Unid</Label>
-                                <Input
-                                  value={item.unit}
-                                  onChange={(e) => updateParsed(idx, 'unit', e.target.value)}
-                                  className="h-8 text-sm"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">Preço</Label>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={item.price}
-                                  onChange={(e) => {
-                                    const v = parseFloat(e.target.value)
-                                    updateParsed(idx, 'price', Number.isFinite(v) ? v : 0)
-                                  }}
-                                  className="h-8 text-sm"
-                                />
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 pt-5">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeParsed(idx)}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {vinculo
-                              ? <Check className="h-3 w-3 shrink-0 text-primary" />
-                              : <Sparkles className="h-3 w-3 shrink-0 text-muted-foreground" />}
-                            <Select
-                              value={vinculo?.id ?? NOVO_PRODUTO}
-                              onValueChange={(v) => vincular(idx, v)}
-                            >
-                              <SelectTrigger
-                                className="h-7 text-xs"
-                                aria-label={`Vínculo com o catálogo: ${item.name || 'produto sem nome'}`}
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={NOVO_PRODUTO}>Produto novo — será criado no catálogo</SelectItem>
-                                {catalogo.map((p) => (
-                                  <SelectItem key={p.id} value={p.id}>Catálogo: {p.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      )
-                    })}
+                    {itens.map((item, idx) => (
+                      <CartaoItem
+                        key={idx}
+                        idx={idx}
+                        item={item}
+                        catalogo={catalogo}
+                        onCampo={alterarCampo}
+                        onReconferir={reconferir}
+                        onVincular={vincular}
+                        onRemover={removeParsed}
+                      />
+                    ))}
                   </div>
                 )}
                 {semNome && (

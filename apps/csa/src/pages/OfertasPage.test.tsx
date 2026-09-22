@@ -11,7 +11,7 @@ const { parseSpy, createSpy, produtos } = vi.hoisted(() => ({
   parseSpy: vi.fn(),
   createSpy: vi.fn().mockResolvedValue({ id: 'o1' }),
   produtos: [
-    { id: 'prod-macaxeira', name: 'Macaxeira', unit: 'kg', price: 4, producerId: 'f1', tenantId: 'c1', dateUpdated: '' },
+    { id: 'prod-macaxeira', name: 'Macaxeira', unit: 'kg', price: 6, producerId: 'f1', tenantId: 'c1', dateUpdated: '' },
     { id: 'prod-outro', name: 'Alface', unit: 'unid', price: 3, producerId: 'f2', tenantId: 'c1', dateUpdated: '' },
   ],
 }))
@@ -42,16 +42,45 @@ beforeEach(() => {
 })
 
 describe('OfertasPage — montagem da oferta', () => {
-  it('corrigir o nome reconfere o catálogo e mostra o vínculo encontrado', async () => {
+  it('corrigir o nome reconfere o catálogo no blur e mostra o vínculo encontrado', async () => {
     const nome = await abrirComOfertaGerada()
-    const cartao = nome.closest('div.border')!
-    expect(within(cartao as HTMLElement).getByText(/produto novo/i)).toBeInTheDocument()
+    const cartao = nome.closest('div.border') as HTMLElement
+    expect(within(cartao).getByText(/produto novo/i)).toBeInTheDocument()
 
     await userEvent.clear(nome)
     await userEvent.type(nome, 'Macaxeira')
+    // Enquanto o campo está em foco nada muda — reconferir a cada tecla travava a digitação.
+    expect(within(cartao).getByText(/produto novo/i)).toBeInTheDocument()
 
-    expect(within(cartao as HTMLElement).getByText(/macaxeira/i, { selector: 'span' })).toBeInTheDocument()
-    expect(within(cartao as HTMLElement).queryByText(/produto novo/i)).not.toBeInTheDocument()
+    await userEvent.tab()
+    expect(within(cartao).getByText(/macaxeira/i, { selector: 'span' })).toBeInTheDocument()
+    expect(within(cartao).queryByText(/produto novo/i)).not.toBeInTheDocument()
+  })
+
+  it('ao identificar o produto, traz o preço do catálogo', async () => {
+    const nome = await abrirComOfertaGerada()
+    const cartao = nome.closest('div.border') as HTMLElement
+    expect(within(cartao).getByDisplayValue('4')).toBeInTheDocument() // preço da mensagem
+
+    await userEvent.clear(nome)
+    await userEvent.type(nome, 'Macaxeira')
+    await userEvent.tab()
+
+    expect(within(cartao).getByDisplayValue('6')).toBeInTheDocument() // preço do catálogo
+  })
+
+  it('nome que deixa de casar desfaz o vínculo', async () => {
+    const nome = await abrirComOfertaGerada()
+    const cartao = nome.closest('div.border') as HTMLElement
+    await userEvent.clear(nome)
+    await userEvent.type(nome, 'Macaxeira')
+    await userEvent.tab()
+    expect(within(cartao).queryByText(/produto novo/i)).not.toBeInTheDocument()
+
+    await userEvent.clear(nome)
+    await userEvent.type(nome, 'Quiabo')
+    await userEvent.tab()
+    expect(within(cartao).getByText(/produto novo/i)).toBeInTheDocument()
   })
 
   it('só oferece o catálogo do produtor selecionado', async () => {
@@ -63,6 +92,7 @@ describe('OfertasPage — montagem da oferta', () => {
     const nome = await abrirComOfertaGerada()
     await userEvent.clear(nome)
     await userEvent.type(nome, 'Macaxeira')
+    await userEvent.tab()
 
     await userEvent.click(screen.getByRole('button', { name: /adicionar produto/i }))
     const novos = screen.getAllByPlaceholderText('Nome do produto')
@@ -74,7 +104,7 @@ describe('OfertasPage — montagem da oferta', () => {
     await userEvent.click(screen.getByRole('button', { name: /salvar oferta/i }))
     const enviado = createSpy.mock.calls[0]![0]
     expect(enviado.items).toHaveLength(2)
-    expect(enviado.items[0]).toMatchObject({ productId: 'prod-macaxeira', productName: 'Macaxeira' })
+    expect(enviado.items[0]).toMatchObject({ productId: 'prod-macaxeira', productName: 'Macaxeira', price: 6 })
     expect(enviado.items[1]!.productName).toBe('Quiabo')
     expect(enviado.items[1]!.productId).not.toBe('prod-macaxeira')
   })
