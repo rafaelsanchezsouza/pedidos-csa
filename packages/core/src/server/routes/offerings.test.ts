@@ -76,6 +76,31 @@ describe('createOfferingsRouter — POST (upsert)', () => {
     })
   })
 
+  it('unidade vazia não apaga a do catálogo; produto novo sem unidade vira unid', async () => {
+    const repo = createMemoryRepo({
+      users: adminDeTeste(),
+      products: { p1: { name: 'Couve', unit: 'maço', price: 5, producerId: 'pr1', tenantId: 't1' } },
+    })
+    await withRouter('/api/offerings', createOfferingsRouter({ repo }, catalogConfig), async (get) => {
+      const res = await get('/api/offerings', {
+        method: 'POST',
+        body: JSON.stringify({ ...base, items: [
+          { productId: 'p1', productName: 'Couve', unit: '', price: 6, type: 'extra' },
+          { productId: 'novo', productName: 'Rúcula', unit: '', price: 3, type: 'extra' },
+        ] }),
+        ...json,
+      })
+      expect(res.status).toBe(201)
+      const offering = await res.json()
+      expect(offering.items[0]).toMatchObject({ productId: 'p1', unit: 'maço' })
+      expect(offering.items[1]).toMatchObject({ productName: 'Rúcula', unit: 'unid' })
+
+      const products = await repo.listDocs<{ name: string; unit: string }>('products')
+      expect(products.find((p) => p.id === 'p1')!.unit).toBe('maço')
+      expect(products.find((p) => p.name === 'Rúcula')!.unit).toBe('unid')
+    })
+  })
+
   it('substitui a oferta da semana e remove dos pedidos os produtos que saíram', async () => {
     const repo = createMemoryRepo({
       users: adminDeTeste(),
@@ -201,13 +226,12 @@ describe('createOfferingsRouter — capacidades', () => {
       expect(res.status).toBe(200)
       const parsed = await res.json()
       // Alface veio com preço na mensagem → 4,00 (o catálogo tem 4,50 e NÃO sobrescreve);
-      // Couve veio sem preço → 6 do catálogo; Rúcula não casa → fica com o da mensagem.
-      // A unidade NÃO é enriquecida: 'unid' aqui é o default do parser, não o 'maço' do
-      // catálogo — o parser não distingue "unidade ausente" de "unidade unid".
+      // Alface e Couve vieram sem unidade → a do catálogo ('unid' e 'maço'); Rúcula não casa
+      // com nada → fica com o preço da mensagem e sem unidade (a tela resolve).
       expect(parsed).toEqual([
         { name: 'Alface', unit: 'unid', price: 4, type: 'extra', matchedProductId: 'p1' },
-        { name: 'Couve', unit: 'unid', price: 6, type: 'extra', matchedProductId: 'p2' },
-        { name: 'Rúcula', unit: 'unid', price: 3, type: 'extra' },
+        { name: 'Couve', unit: 'maço', price: 6, type: 'extra', matchedProductId: 'p2' },
+        { name: 'Rúcula', unit: '', price: 3, type: 'extra' },
       ])
 
       expect((await get('/api/offerings/from-catalog', { method: 'POST', body: '{}', ...json })).status).toBe(404)

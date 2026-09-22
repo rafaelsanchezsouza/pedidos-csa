@@ -20,7 +20,7 @@ describe('fuzzyMessageParser', () => {
     ].join('\n')
     const out = await fuzzyMessageParser(msg, catalog)
     expect(out).toEqual([
-      { name: 'Alface', unit: 'unid', price: 4, type: 'fixo', matchedProductId: 'p1' },
+      { name: 'Alface', unit: '', price: 4, type: 'fixo', matchedProductId: 'p1' },
       { name: 'Couve manteiga', unit: 'maco', price: 5, type: 'fixo', matchedProductId: 'p2' },
       { name: 'Banana prata', unit: 'kg', price: 7.5, type: 'extra', matchedProductId: 'p3' },
     ])
@@ -30,17 +30,19 @@ describe('fuzzyMessageParser', () => {
     const msg = ['Boa tarde Extra', 'Alface 4,00'].join('\n')
     const out = await fuzzyMessageParser(msg, catalog)
     expect(out).toEqual([
-      { name: 'Alface', unit: 'unid', price: 4, type: 'extra', matchedProductId: 'p1' },
+      { name: 'Alface', unit: '', price: 4, type: 'extra', matchedProductId: 'p1' },
     ])
   })
 
   it('sem seções tudo é extra; preços R$ e em parênteses; sem preço vira 0', async () => {
     const msg = ['Tomate R$ 6,50', 'Rúcula (3.00)', 'Cheiro verde'].join('\n')
     const out = await fuzzyMessageParser(msg, [])
+    // unit '' = o produtor não informou. O parser não chuta 'unid': quem chama preenche pelo
+    // catálogo, senão salvar a oferta trocaria a unidade do catálogo pelo chute.
     expect(out).toEqual([
-      { name: 'Tomate', unit: 'unid', price: 6.5, type: 'extra' },
-      { name: 'Rúcula', unit: 'unid', price: 3, type: 'extra' },
-      { name: 'Cheiro verde', unit: 'unid', price: 0, type: 'extra' },
+      { name: 'Tomate', unit: '', price: 6.5, type: 'extra' },
+      { name: 'Rúcula', unit: '', price: 3, type: 'extra' },
+      { name: 'Cheiro verde', unit: '', price: 0, type: 'extra' },
     ])
   })
 
@@ -56,6 +58,6 @@ describe('fuzzyMessageParser', () => {
 
   it('unidade no meio é extraída sem quebrar nome que começa com unidade', async () => {
     const out = await fuzzyMessageParser('Bandeja de jaca 8,00', [])
-    expect(out[0]).toMatchObject({ name: 'Bandeja de jaca', unit: 'unid', price: 8 })
+    expect(out[0]).toMatchObject({ name: 'Bandeja de jaca', unit: '', price: 8 })
   })
 })

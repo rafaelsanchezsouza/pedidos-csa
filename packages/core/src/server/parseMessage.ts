@@ -13,6 +13,11 @@ export interface ExistingProduct {
 
 export interface ParsedProduct {
   name: string
+  /**
+   * Unidade como veio na mensagem, ou `''` quando o produtor não informou. String vazia é
+   * sinal, não erro: quem chama preenche pelo catálogo (ou com o default) — se o parser
+   * chutasse 'unid', salvar a oferta trocaria o 'maço' do catálogo por 'unid'.
+   */
   unit: string
   price: number
   type: 'fixo' | 'extra'

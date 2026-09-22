@@ -51,6 +51,7 @@ const CartaoItem = memo(function CartaoItem({
             <Input
               value={item.unit}
               onChange={(e) => onCampo(idx, 'unit', e.target.value)}
+              placeholder="unid"
               className="h-8 text-sm"
             />
           </div>
@@ -240,13 +241,20 @@ export function OfertasPage() {
   )
 
   // Reconfere o vínculo de um item contra o catálogo (mesma regra do servidor). Chamada no
-  // blur do nome, não a cada tecla. Casou e o item está sem preço → traz o do catálogo, igual
-  // ao /parse; preço que veio da mensagem manda. Quem escolheu o vínculo na mão fica de fora.
+  // blur do nome, não a cada tecla. Casou → o catálogo preenche o que a mensagem não trouxe
+  // (preço 0, unidade vazia); o que ela trouxe manda. Vínculo escolhido à mão fica de fora.
   const reconferir = useCallback((idx: number) => {
     setParsed((prev) => prev && prev.map((it, i) => {
       if (i !== idx || it.vinculoManual) return it
       const match = melhorMatch(it.name, catalogo)
-      if (match) return { ...it, matchedProductId: match.id, price: it.price > 0 ? it.price : match.price }
+      if (match) {
+        return {
+          ...it,
+          matchedProductId: match.id,
+          price: it.price > 0 ? it.price : match.price,
+          unit: it.unit || match.unit,
+        }
+      }
       const { matchedProductId: _semVinculo, ...resto } = it
       return resto
     }))
@@ -264,7 +272,13 @@ export function OfertasPage() {
         ...it,
         matchedProductId: valor,
         vinculoManual: true,
-        ...(produto ? { name: produto.name, unit: produto.unit, price: it.price > 0 ? it.price : produto.price } : {}),
+        ...(produto
+          ? {
+              name: produto.name,
+              unit: it.unit || produto.unit,
+              price: it.price > 0 ? it.price : produto.price,
+            }
+          : {}),
       }
     }))
   }, [catalogo])
@@ -278,7 +292,12 @@ export function OfertasPage() {
     setParsed(parsed.map(({ vinculoManual: _manual, ...item }) => {
       const match = melhorMatch(item.name, novoCatalogo)
       return match
-        ? { ...item, matchedProductId: match.id, price: item.price > 0 ? item.price : match.price }
+        ? {
+            ...item,
+            matchedProductId: match.id,
+            price: item.price > 0 ? item.price : match.price,
+            unit: item.unit || match.unit,
+          }
         : { ...item, matchedProductId: undefined }
     }))
   }
@@ -286,7 +305,7 @@ export function OfertasPage() {
   // Produto que não veio na mensagem: entra na lista sem re-gerar (regerar apaga as edições).
   function adicionarItem() {
     const tipo = itens[itens.length - 1]?.type ?? 'extra'
-    setParsed([...itens, { name: '', unit: 'unid', price: 0, type: tipo }])
+    setParsed([...itens, { name: '', unit: '', price: 0, type: tipo }])
   }
 
   const removeParsed = useCallback((idx: number) => {
@@ -302,7 +321,7 @@ export function OfertasPage() {
       const items: OfferingItem[] = parsed.map((p) => ({
         productId: p.matchedProductId || crypto.randomUUID(),
         productName: p.name.trim(),
-        unit: p.unit,
+        unit: p.unit.trim(),
         price: p.price,
         type: p.type,
       }))

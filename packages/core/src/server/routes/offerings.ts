@@ -22,7 +22,7 @@ async function upsertOffering(repo: Repo, data: Omit<OfferingDoc, 'dateCreated'>
     ['tenantId', '==', data.tenantId],
     ['producerId', '==', data.producerId],
   ])
-  const catalogMap = new Map(existingProducts.map((p) => [p.id, { name: p.name }]))
+  const catalogMap = new Map(existingProducts.map((p) => [p.id, { name: p.name, unit: p.unit }]))
   const dateUpdated = new Date().toISOString()
 
   // Resolve itens: normaliza nome pelo catálogo e atualiza preço/unidade; cria produto novo quando não existir
@@ -30,18 +30,20 @@ async function upsertOffering(repo: Repo, data: Omit<OfferingDoc, 'dateCreated'>
     data.items.map(async (item) => {
       const cat = catalogMap.get(item.productId)
       if (cat) {
-        await repo.updateDoc<ProductDoc>('products', item.productId, { price: item.price, unit: item.unit, dateUpdated })
-        return { ...item, productName: cat.name }
+        // Unidade vazia = não informada: mantém a do catálogo em vez de apagá-la.
+        const unit = item.unit || cat.unit
+        await repo.updateDoc<ProductDoc>('products', item.productId, { price: item.price, unit, dateUpdated })
+        return { ...item, productName: cat.name, unit }
       }
       const created = await repo.createDoc<ProductDoc>('products', {
         name: item.productName,
-        unit: item.unit,
+        unit: item.unit || 'unid',
         price: item.price,
         producerId: data.producerId,
         tenantId: data.tenantId,
         dateUpdated,
       })
-      return { ...item, productId: created.id }
+      return { ...item, productId: created.id, unit: item.unit || 'unid' }
     })
   )
 
@@ -158,16 +160,19 @@ export function createOfferingsRouter(deps: OfferingsDeps, config: AppConfig): R
         const catalog = existingProducts.map((p) => ({ id: p.id, name: p.name, unit: p.unit, price: p.price }))
         const parsed = await parse(rawMessage, catalog)
 
-        // Preço: quem discrimina manda. O catálogo só preenche o que a mensagem não trouxe
-        // (é o caso de quem manda a lista sem valores). Até 2026-09-21 o catálogo sobrescrevia
-        // sempre — preço novo na mensagem nunca chegava à oferta, embora salvar a oferta
-        // atualize o catálogo (BUSINESS_RULES: "preço discriminado → atualiza o catálogo").
-        const priceMap = new Map(catalog.map((p) => [p.id, p.price]))
-        const enriched = parsed.map((item) => (
-          item.price > 0 || !item.matchedProductId
-            ? item
-            : { ...item, price: priceMap.get(item.matchedProductId) ?? item.price }
-        ))
+        // Quem discrimina manda; o catálogo só preenche o que a mensagem não trouxe (preço 0,
+        // unidade ''). Até 2026-09-21 o catálogo sobrescrevia o preço sempre — preço novo na
+        // mensagem nunca chegava à oferta, embora salvar a oferta atualize o catálogo
+        // (BUSINESS_RULES: "preço discriminado → atualiza o catálogo").
+        const catalogoPorId = new Map(catalog.map((p) => [p.id, p]))
+        const enriched = parsed.map((item) => {
+          const cat = item.matchedProductId ? catalogoPorId.get(item.matchedProductId) : undefined
+          return {
+            ...item,
+            price: item.price > 0 ? item.price : (cat?.price ?? item.price),
+            unit: item.unit || (cat?.unit ?? ''),
+          }
+        })
         res.json(enriched)
       } catch (err) {
         res.status(500).json({ message: String(err) })

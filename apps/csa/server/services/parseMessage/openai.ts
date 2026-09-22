@@ -23,7 +23,8 @@ Para cada produto identifique:
 - type: "fixo" ou "extra"
 
 Se o preço não estiver informado, use 0.
-Se a unidade não estiver clara, use "unid".
+Se a unidade não estiver informada, use "" (string vazia) — NÃO chute "unid". Quem chama
+preenche pelo catálogo; chutar faria a unidade do catálogo ser sobrescrita ao salvar.
 
 Lista de produtos existentes no catálogo (para correspondência):
 ${JSON.stringify(existingProducts)}

@@ -70,9 +70,9 @@
 - Matching com catálogo: **inferência fuzzy local** (distância de Levenshtein), não OpenAI (OpenAI disponível mas inativo)
 - A regra do match é **uma só** (`melhorMatch`, em `packages/core/src/domain/matchProduto.ts`, limiar 0.7): o servidor a usa ao gerar a oferta e a tela ao reconferir um nome corrigido. Duas implementações dariam feedback mentiroso na tela
 - O catálogo consultado é sempre o **do produtor** da oferta, nunca o da colmeia inteira
-- Preço ausente na mensagem + produto matched → preencher com preço do catálogo
+- Preço (ou unidade) ausente na mensagem + produto matched → preencher com o do catálogo
 - Preço discriminado na mensagem **vence o do catálogo** e, ao salvar a oferta, atualiza o catálogo. Até 2026-09-21 o `/parse` sobrescrevia sempre pelo catálogo: preço novo do produtor nunca chegava à oferta
-- A **unidade** não é preenchida pelo catálogo: `unid` é o default do parser e ele não distingue "unidade ausente" de "unidade unid". Conferir na revisão
+- Unidade segue a mesma regra do preço: o parser devolve `''` quando o produtor não informou (não chuta `unid`), o catálogo preenche quando o item casa, e só na gravação um produto **novo** sem unidade vira `unid`. Antes o chute `unid` virava a unidade do catálogo de cabeça (um `maço` virava `unid` ao salvar)
 - Produto não existente no catálogo ao salvar oferta → criar automaticamente (nome, unidade, preço, produtor)
 - Produto pode ser editado ou removido pelo admin
 
@@ -94,8 +94,7 @@
 ### Regras gerais de parsing
 - `type: 'fixo'` → keywords: "alimentos disponível", "cota", "fixo"
 - `type: 'extra'` → keywords: "extra", "estra", "disponível extra"
-- Preço ausente → default `0` (a ser preenchido manualmente ou buscado no catálogo)
-- Unidade ausente → default `"unid"`
+- Preço ausente → `0`; unidade ausente → `''`. Os dois são **sinal de "não informado"**, resolvidos por quem chama (catálogo, tela, ou o default `unid` na gravação) — o parser não chuta
 - Matching com catálogo: fuzzy local (Levenshtein), no core; OpenAI disponível como alternativa (`capabilities.messageParser='openai'` + adapter `server/services/parseMessage/openai.ts`, injetado no boot)
 - Se `matchedProductId` retornado → item vinculado ao produto existente no catálogo
 

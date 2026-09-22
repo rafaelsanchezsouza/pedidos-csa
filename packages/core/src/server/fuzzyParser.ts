@@ -23,7 +23,7 @@ function parseLine(raw: string): LineResult | null {
   if (/^(bom\s+dia|boa\s+tarde|boa\s+noite|os\s+alimentos|extra\s+valor|valor\s+em)/i.test(line)) return null
 
   let price = 0
-  let unit = 'unid'
+  let unit = '' // '' = o produtor não informou; quem chama resolve (catálogo ou default)
 
   // 1. Extract price — try patterns in order of specificity
   const pricePatterns: RegExp[] = [

@@ -38,7 +38,7 @@ async function abrirComOfertaGerada() {
 beforeEach(() => {
   vi.clearAllMocks()
   // O parser devolve o nome cru, sem casar com o catálogo — é o caso do dia a dia.
-  parseSpy.mockResolvedValue([{ name: 'Macaxeira Natural kg', unit: 'kg', price: 0, type: 'extra' }])
+  parseSpy.mockResolvedValue([{ name: 'Macaxeira Natural kg', unit: '', price: 0, type: 'extra' }])
 })
 
 describe('OfertasPage — montagem da oferta', () => {
@@ -70,7 +70,7 @@ describe('OfertasPage — montagem da oferta', () => {
   })
 
   it('preço que veio na mensagem não é sobrescrito pelo catálogo', async () => {
-    parseSpy.mockResolvedValue([{ name: 'Macaxeira Natural kg', unit: 'kg', price: 4, type: 'extra' }])
+    parseSpy.mockResolvedValue([{ name: 'Macaxeira Natural kg', unit: '', price: 4, type: 'extra' }])
     const nome = await abrirComOfertaGerada()
     const cartao = nome.closest('div.border') as HTMLElement
 
@@ -122,6 +122,19 @@ describe('OfertasPage — montagem da oferta', () => {
     expect(enviado.items[0]).toMatchObject({ productId: 'prod-macaxeira', productName: 'Macaxeira', price: 6 })
     expect(enviado.items[1]!.productName).toBe('Quiabo')
     expect(enviado.items[1]!.productId).not.toBe('prod-macaxeira')
+  })
+
+  it('unidade ausente é preenchida pelo catálogo ao identificar o produto', async () => {
+    const nome = await abrirComOfertaGerada()
+    const cartao = nome.closest('div.border') as HTMLElement
+    const unidade = within(cartao).getByPlaceholderText('unid')
+    expect(unidade).toHaveValue('')
+
+    await userEvent.clear(nome)
+    await userEvent.type(nome, 'Macaxeira')
+    await userEvent.tab()
+
+    expect(unidade).toHaveValue('kg') // unidade do catálogo, não um chute
   })
 
   it('não deixa salvar com produto sem nome', async () => {
