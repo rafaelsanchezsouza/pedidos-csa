@@ -51,7 +51,34 @@ npm run dev:all      # os dois juntos
 ```
 
 Aponta para o Firebase **`pedidos-csa-dev`**, separado do prod. O `.env.development` é
-**gitignored**: numa máquina nova, copie junto com os outros segredos (§3).
+**gitignored**: numa máquina nova, copie junto com os outros segredos (§3). O mesmo projeto
+serve o local e (quando existir) o dev hospedado — não há um terceiro Firebase.
+
+⚠️ **O banco de dev ficou no modelo pré-canônico.** Ele tem dados reais de teste (7 usuários,
+44 produtos), mas em `colmeias`/`colmeiaId` — a migração de 2026-08-21 nunca foi aplicada lá.
+O código de hoje procura `tenants` e enxerga um banco vazio. Correção: a mesma migração,
+que aponta para dev quando **não** recebe `FIREBASE_ENV=prod`. Em dev não há rollback a
+preservar, então vai direto na passada final:
+
+```bash
+cd apps/csa
+npx tsx scripts/migrate-csa-canonico.ts                        # ensaio
+npx tsx scripts/migrate-csa-canonico.ts --executar --limpar-legado
+```
+
+⚠️ **Dev compartilha as integrações externas com a produção — decisão consciente
+(2026-09-28).** Só o Firebase é separado (`pedidos-csa-dev`); a instância do WhatsApp
+(`pedidos-csa`) e o repo de issues são **os mesmos** da produção:
+
+| | dev | prod |
+|---|---|---|
+| Firebase | `pedidos-csa-dev` | `pedidos-csa` |
+| WhatsApp (Evolution) | `pedidos-csa` | `pedidos-csa` |
+| GitHub (issues) | `pedidos-csa` | `pedidos-csa` |
+
+Na prática: uma ação manual em dev que dispare mensagem (OTP, aviso a produtor) **sai de
+verdade**, pelo número da CSA. O usuário administra esse celular e aceita o risco — não é
+descuido, é escolha. Quem for mexer precisa saber disso antes de clicar.
 
 ⚠️ **O cron não sobe fora de produção** (`CRON_ENABLED`). Não é conveniência: o
 `.env.development` aponta para a **mesma instância do WhatsApp** e o mesmo GitHub que a
