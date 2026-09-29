@@ -189,6 +189,46 @@ cd apps/fermentou && bash deploy.sh
 enquanto o nginx continua servindo o `dist` do diretório velho — a API responde atualizada e a
 tela fica congelada na versão anterior, sem erro nenhum aparecer.
 
+## 4.2 Ambiente de dev hospedado (pronto, ainda não subido)
+
+Mesma VM, isolado por **porta** — padrão já usado aí pelo `nativa-dev` (8190) e pelo Fermentou
+(8092): mesmo `server_name`, mesmo certificado Let's Encrypt, sem DNS e sem certbot. Decidido
+assim em 2026-09-28 porque o ambiente é só para o dono do projeto; subdomínio só valeria se
+alguém de fora fosse testar pelo celular (rede que bloqueia porta alta não carrega).
+
+| | prod | dev hospedado |
+|---|---|---|
+| público | `csaparahyba.com.br` (443) | `csaparahyba.com.br:8193` |
+| backend | `127.0.0.1:3001` | `127.0.0.1:3051` |
+| pm2 | `pedidos-csa` | `pedidos-csa-dev` |
+| dir | `/opt/pedidos-csa` | `/opt/pedidos-csa-dev` |
+| Firebase | `pedidos-csa` | `pedidos-csa-dev` |
+| cron | ligado | **desligado** (`CRON_ENABLED=false`) |
+
+**Falta um passo que só você faz:** abrir a **porta 8193 na Security List da Oracle**. Sem
+isso a página não carrega e o nginx não registra nada — não há erro para debugar, só timeout.
+
+```bash
+cd apps/csa
+bash deploy-dev.sh                       # build em modo development + pm2 pedidos-csa-dev
+
+# nginx (uma vez):
+scp -i <chave> deploy/nginx-pedidos-csa-dev.conf ubuntu@csaparahyba.com.br:/tmp/
+ssh -i <chave> ubuntu@csaparahyba.com.br '
+  sudo cp /tmp/nginx-pedidos-csa-dev.conf /etc/nginx/sites-available/pedidos-csa-dev
+  sudo ln -sf /etc/nginx/sites-available/pedidos-csa-dev /etc/nginx/sites-enabled/
+  sudo nginx -t && sudo systemctl reload nginx'
+```
+
+⚠️ **`PORT` é forçado pelo pm2, não vem do arquivo.** O `.env.development` diz `PORT=3001`, que
+na VM é a produção. Localmente não há conflito (máquinas diferentes); na VM haveria. O dotenv
+não sobrescreve variável já existente no ambiente, então o `PORT=3051` do pm2 vence.
+
+⚠️ **Os dois deploys escrevem no mesmo `dist/`.** Um `deploy-dev.sh` seguido de
+`deploy.sh --skip-build` mandaria para produção um front apontando para o Firebase de **dev** —
+o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agora **recusa**
+`--skip-build` quando acha `pedidos-csa-dev` no bundle.
+
 ## 5. Convenções e armadilhas (o que não é óbvio)
 
 **Do motor**

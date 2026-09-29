@@ -27,6 +27,15 @@ if [[ "${1:-}" != "--skip-build" ]]; then
   npm run build:all
 else
   echo "==> [1/6] Build ignorado (--skip-build)"
+  # Os dois deploys (prod e dev) escrevem no MESMO `dist/`. Um `deploy-dev.sh` seguido de
+  # `deploy.sh --skip-build` mandaria para produção um front apontando para o Firebase de DEV:
+  # o site abriria normal, com os dados errados, sem erro nenhum. A marca é o project id, que
+  # o Vite embute no bundle.
+  if grep -rql "pedidos-csa-dev" dist/assets 2>/dev/null; then
+    echo "ERRO: o dist/ atual foi buildado em modo development (aponta para o Firebase de dev)."
+    echo "      Rode sem --skip-build, ou 'npm run build' antes."
+    exit 1
+  fi
 fi
 
 # @pedidos/core é um workspace: `npm install` na VM não tem como resolvê-lo. A solução é
