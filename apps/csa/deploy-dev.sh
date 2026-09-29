@@ -111,4 +111,4 @@ echo "OK: backend respondeu $CODE em /api/tenants (401 é o esperado sem token).
 echo
 echo "Deploy de DEV concluído."
 echo "  backend: 127.0.0.1:$PORT_DEV (pm2 $PM2_NAME)"
-echo "  público: https://$VM_HOST:8193  — só funciona depois do nginx e da Security List (ver HANDOFF §4.2)"
+echo "  público: https://$VM_HOST:8093  — só funciona depois do nginx e da Security List (ver HANDOFF §4.2)"

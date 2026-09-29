@@ -198,7 +198,7 @@ alguém de fora fosse testar pelo celular (rede que bloqueia porta alta não car
 
 | | prod | dev hospedado |
 |---|---|---|
-| público | `csaparahyba.com.br` (443) | `csaparahyba.com.br:8193` |
+| público | `csaparahyba.com.br` (443) | `csaparahyba.com.br:8093` |
 | backend | `127.0.0.1:3001` | `127.0.0.1:3051` |
 | pm2 | `pedidos-csa` | `pedidos-csa-dev` |
 | dir | `/opt/pedidos-csa` | `/opt/pedidos-csa-dev` |
@@ -209,15 +209,19 @@ alguém de fora fosse testar pelo celular (rede que bloqueia porta alta não car
 
 | portão | estado |
 |---|---|
-| `iptables` da VM | ✅ **aberto** — `-A INPUT -p tcp --dport 8193 -j ACCEPT`, salvo com `netfilter-persistent` |
-| Security List da Oracle | ⛔ **pendente — só pelo console da Oracle** |
+| `iptables` da VM | ✅ aberto — `-A INPUT -p tcp --dport 8093 -j ACCEPT`, salvo com `netfilter-persistent` |
+| Security List da Oracle | ✅ aberto (console) |
 
-As portas que já funcionam (8092, 8190) têm regra explícita no iptables; a 8193 não tinha, e
-abrir só na Oracle não bastaria. Enquanto a Oracle não liberar, a página não carrega e **o
-nginx não registra nada** — não há erro para debugar, só timeout.
+As portas que já funcionam (8092, 8190) têm regra explícita no iptables; a 8093 também
+precisou — abrir só na Oracle não bastaria, e o sintoma dos dois casos é idêntico: timeout,
+**sem nada no log do nginx**.
 
-Estado em 2026-09-28: deploy feito, nginx instalado e recarregado, iptables aberto. Testado de
-dentro da VM: front `200`, API `401`, produção intacta em `200`. De fora ainda não responde.
+Truque para separar os dois portões: da própria VM, `curl` no **IP público** (não no
+localhost). Isso sai e volta pela rede da nuvem, então testa a Security List sem depender da
+sua internet. Comparar com uma porta que já funciona (8190) isola a causa em um passo.
+
+**No ar desde 2026-09-28**: `https://csaparahyba.com.br:8093` responde 200, API 401, produção
+intacta. O `X-Ambiente: dev` no header confirma que é o server block certo.
 
 ```bash
 cd apps/csa
