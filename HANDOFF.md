@@ -118,6 +118,34 @@ Sinal de saúde colhido no dry-run: em várias coleções o total canônico é *
 removido (users 46 × 39, payments 220 × 215). São docs criados depois da migração — prova de que
 o código novo nunca escreveu o campo legado.
 
+## 4.1 Pendente: renomear a infra do Fermentou na VM
+
+O workspace npm virou `fermentou` em 2026-09-28, mas **na VM ele ainda se chama
+`pedidos-app`** — pm2, `/opt/pedidos-app` e o server block do nginx. A divergência é
+proposital: renomear o que está no ar exige deploy e mexer em diretório de produção, e não
+valia arrastar isso para uma limpeza de repositório.
+
+Quando for fazer, nesta ordem (o `deploy.sh` **não** cria o diretório; ele só copia para dentro):
+
+```bash
+# 1. na VM: criar o novo, levar o conteúdo, manter o velho até validar
+ssh -i ~/.ssh/pedidos-csa.key ubuntu@csaparahyba.com.br '
+  sudo mkdir -p /opt/fermentou && sudo chown ubuntu:ubuntu /opt/fermentou
+  cp -a /opt/pedidos-app/.env.production /opt/fermentou/'
+
+# 2. no repo: VM_DIR em apps/fermentou/deploy.env, e o nome do pm2 em deploy.sh (2 lugares)
+# 3. deploy — o script já faz pm2 delete + start, então o processo novo sobe limpo
+cd apps/fermentou && bash deploy.sh
+
+# 4. nginx: `root /opt/pedidos-app/dist` -> /opt/fermentou/dist em
+#    /etc/nginx/sites-available/pedidos-app; sudo nginx -t && sudo systemctl reload nginx
+# 5. validar a porta 8092 e só então: pm2 delete pedidos-app; sudo rm -rf /opt/pedidos-app
+```
+
+⚠️ O passo 4 é o que derruba o site se esquecido: o deploy novo escreve em `/opt/fermentou`
+enquanto o nginx continua servindo o `dist` do diretório velho — a API responde atualizada e a
+tela fica congelada na versão anterior, sem erro nenhum aparecer.
+
 ## 5. Convenções e armadilhas (o que não é óbvio)
 
 **Do motor**
