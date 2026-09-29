@@ -132,6 +132,68 @@ export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
     }
   })
 
+  // POST /:id/correcao — o admin ajusta o valor gerado.
+  // Endpoint próprio, e não o PUT /:id, pela mesma razão do /:id/comprovante acima: o
+  // HISTÓRICO é do servidor. O cliente manda só o valor novo; quem carimba de-para, autor e
+  // data é aqui — senão o registro vale o que o corpo da requisição disser.
+  router.post('/:id/correcao', async (req: Request, res: Response) => {
+    try {
+      const id = req.params['id'] as string
+      const { amount, motivo } = req.body as { amount?: unknown; motivo?: unknown }
+      if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
+        res.status(400).json({ message: 'amount deve ser um número maior ou igual a zero' }); return
+      }
+      const atual = await repo.getDoc<PaymentDoc>('payments', id)
+      if (!atual) { res.status(404).json({ message: 'Fatura não encontrada' }); return }
+      const ator = await carregarAtor(repo, req.user!.uid)
+      // Só admin: fornecedor confere o que é dele, não remarca valor de fatura.
+      if (!ehAdmin(ator, atual.tenantId)) { negar(res); return }
+
+      const agora = new Date().toISOString()
+      // O "original" é o valor que a GERAÇÃO produziu. Congela na primeira correção; numa
+      // segunda, `desfazer` tem de voltar ao calculado, não à correção anterior. Se a fatura
+      // não está corrigida agora, o valor atual É o gerado e vira a nova base (depois de um
+      // desfazer a geração volta a rodar e pode ter mudado).
+      const amountOriginal = atual.corrigido ? (atual.amountOriginal ?? atual.amount) : atual.amount
+      const correcoes = [
+        ...(atual.correcoes ?? []),
+        // Firestore recusa `undefined` em campo: motivo vazio OMITE a chave.
+        { de: atual.amount, para: amount, por: ator.uid, em: agora, ...(motivo ? { motivo: String(motivo) } : {}) },
+      ]
+      const updates = { amount, amountOriginal, corrigido: true, correcoes, dateUpdated: agora }
+      await repo.updateDoc<PaymentDoc>('payments', id, updates)
+      res.json({ id, ...updates })
+    } catch (err) {
+      res.status(500).json({ message: String(err) })
+    }
+  })
+
+  // DELETE /:id/correcao — desfaz: volta ao valor gerado e destrava a geração automática.
+  // A volta ENTRA no histórico: nada é apagado, porque quem conferiu a fatura ontem precisa
+  // conseguir achar o que aconteceu com ela.
+  router.delete('/:id/correcao', async (req: Request, res: Response) => {
+    try {
+      const id = req.params['id'] as string
+      const atual = await repo.getDoc<PaymentDoc>('payments', id)
+      if (!atual) { res.status(404).json({ message: 'Fatura não encontrada' }); return }
+      const ator = await carregarAtor(repo, req.user!.uid)
+      if (!ehAdmin(ator, atual.tenantId)) { negar(res); return }
+      if (!atual.corrigido) { res.status(400).json({ message: 'Fatura não tem correção para desfazer' }); return }
+
+      const agora = new Date().toISOString()
+      const original = atual.amountOriginal ?? atual.amount
+      const correcoes = [
+        ...(atual.correcoes ?? []),
+        { de: atual.amount, para: original, por: ator.uid, em: agora, motivo: 'Correção desfeita' },
+      ]
+      const updates = { amount: original, corrigido: false, correcoes, dateUpdated: agora }
+      await repo.updateDoc<PaymentDoc>('payments', id, updates)
+      res.json({ id, ...updates })
+    } catch (err) {
+      res.status(500).json({ message: String(err) })
+    }
+  })
+
   // PUT /:id — atualiza proofUrl (usuário) ou verified (admin).
   // A regra estava só no comentário: qualquer um marcava a PRÓPRIA fatura como paga.
   router.put('/:id', async (req: Request, res: Response) => {
@@ -143,7 +205,10 @@ export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
       const corpo = req.body as Partial<PaymentDoc>
       let updates: Partial<PaymentDoc>
       if (ehAdminOuFornecedor(ator, atual.tenantId)) {
-        updates = corpo
+        // Valor e histórico saem daqui: quem muda `amount` é POST /:id/correcao, que carimba
+        // de-para, autor e data. Aceitar os campos aqui deixaria forjar o registro pelo corpo.
+        const { amount: _a, corrigido: _c, amountOriginal: _o, correcoes: _h, ...resto } = corpo
+        updates = resto
       } else if (atual.userId === ator.uid) {
         // O dono anexa comprovante — quem confere é outra pessoa.
         if (corpo.proofUrl === undefined) { negar(res, 'Só o comprovante pode ser alterado'); return }

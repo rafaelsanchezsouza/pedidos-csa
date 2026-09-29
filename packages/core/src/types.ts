@@ -153,6 +153,15 @@ export interface AcolhidaWeekDoc {
   dateUpdated: string
 }
 
+// Uma entrada do histórico de correção de fatura. Acumula, nunca é reescrita.
+export interface CorrecaoPagamento {
+  de: number
+  para: number
+  por: string // uid de quem corrigiu
+  em: string // ISO
+  motivo?: string
+}
+
 export interface PaymentDoc {
   userId: string
   userName: string
@@ -161,6 +170,16 @@ export interface PaymentDoc {
   producerName: string
   amount: number
   dueDate?: string
+  /**
+   * Correção manual do admin. TRAVA a geração automática: sem isto o ajuste some sozinho, sem
+   * erro e sem log, porque `upsertGenerated` reescreve `amount` a cada passada — e ela roda
+   * toda vez que o membro abre Meus Pagamentos (`POST /payments/frete`) e a cada confirmação
+   * de semana na acolhida, não só no cron do dia 1.
+   */
+  corrigido?: boolean
+  /** Valor que a GERAÇÃO produziu, congelado na primeira correção — é o "desfazer". */
+  amountOriginal?: number
+  correcoes?: CorrecaoPagamento[]
   /**
    * Último comprovante enviado. Mantido porque a produção inteira já tem esse campo e as
    * telas antigas leem dele — quem paga por mês continua com um comprovante só.

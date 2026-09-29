@@ -138,6 +138,81 @@ describe('upsertPaymentsForOrder', () => {
   })
 })
 
+// --- Correção manual do admin trava a geração ---
+//
+// A geração não roda só no cron do dia 1: `POST /payments/frete` dispara a cada abertura de
+// Meus Pagamentos e a confirmação da acolhida dispara cota e frete. Sem a trava, o ajuste do
+// admin era desfeito pelo próprio membro abrindo a tela — sem erro e sem log.
+describe('corrigido — a geração automática não sobrescreve', () => {
+  it('cota corrigida sobrevive a uma nova passada', async () => {
+    const repo = createMemoryRepo({
+      users: { u1: { name: 'Ana', tenantId: 't1', quota: 'Cota inteira', frequency: 'semanal' } },
+    })
+    const svc = createPaymentService({ repo }, config)
+    const doc = await svc.generateQuotaForUser('u1', 't1', MONTH)
+    const id = (doc as PaymentDoc & { id: string }).id
+    await repo.updateDoc<PaymentDoc>('payments', id, { amount: 100, amountOriginal: 260, corrigido: true })
+
+    expect(await svc.generateQuotaForUser('u1', 't1', MONTH)).toMatchObject({ amount: 100 })
+    await svc.generateQuotaForAll('t1', MONTH)
+    expect((await repo.getDoc<PaymentDoc>('payments', id))!.amount).toBe(100)
+  })
+
+  it('frete corrigido sobrevive ao auto-ensure de Meus Pagamentos', async () => {
+    const repo = createMemoryRepo({
+      users: { u1: { name: 'Ana', tenantId: 't1', deliveryType: 'entrega', frequency: 'semanal' } },
+      tenants: { t1: { freteDelivery: 12 } },
+    })
+    const svc = createPaymentService({ repo }, config)
+    const doc = await svc.generateFreteForUser('u1', 't1', MONTH)
+    const id = (doc as PaymentDoc & { id: string }).id
+    expect(doc).toMatchObject({ amount: 48 })
+    await repo.updateDoc<PaymentDoc>('payments', id, { amount: 36, amountOriginal: 48, corrigido: true })
+
+    expect(await svc.generateFreteForUser('u1', 't1', MONTH)).toMatchObject({ amount: 36 })
+    await svc.generateFreteForAll('t1', MONTH)
+    expect((await repo.getDoc<PaymentDoc>('payments', id))!.amount).toBe(36)
+  })
+
+  it('destravada, a geração volta a mandar', async () => {
+    const repo = createMemoryRepo({
+      users: { u1: { name: 'Ana', tenantId: 't1', deliveryType: 'entrega', frequency: 'semanal' } },
+      tenants: { t1: { freteDelivery: 12 } },
+    })
+    const svc = createPaymentService({ repo }, config)
+    const id = ((await svc.generateFreteForUser('u1', 't1', MONTH)) as PaymentDoc & { id: string }).id
+    await repo.updateDoc<PaymentDoc>('payments', id, { amount: 36, corrigido: true })
+    await repo.updateDoc<PaymentDoc>('payments', id, { amount: 48, corrigido: false })
+    await svc.generateFreteForAll('t1', MONTH)
+    expect((await repo.getDoc<PaymentDoc>('payments', id))!.amount).toBe(48)
+  })
+
+  it('fatura de produtor corrigida não é recalculada nem zerada pelo pedido', async () => {
+    const repo = createMemoryRepo({
+      orders: {
+        o1: {
+          userId: 'u1', userName: 'Ana', tenantId: 't1', weekId: '2025-08-04', status: 'enviado',
+          items: [{ producerName: 'Sítio', price: 10, qty: 2 }],
+        },
+      },
+      payments: {
+        pSitio: {
+          userId: 'u1', userName: 'Ana', tenantId: 't1', month: MONTH,
+          producerName: 'Sítio', amount: 15, corrigido: true, verified: false, dateCreated: 'd', dateUpdated: 'd',
+        },
+        pSumiu: {
+          userId: 'u1', userName: 'Ana', tenantId: 't1', month: MONTH,
+          producerName: 'Quitanda', amount: 7, corrigido: true, verified: false, dateCreated: 'd', dateUpdated: 'd',
+        },
+      },
+    })
+    const svc = createPaymentService({ repo }, config)
+    await svc.upsertPaymentsForOrder('u1', 'Ana', 't1', MONTH)
+    expect((await repo.getDoc<PaymentDoc>('payments', 'pSitio'))!.amount).toBe(15) // não vira 20
+    expect((await repo.getDoc<PaymentDoc>('payments', 'pSumiu'))!.amount).toBe(7) // não zera
+  })
+})
+
 // --- Acolhida: cobra a semana confirmada, não o mês ---
 //
 // O ponto do período de experiência é o membro novo pagar só o que vai consumir. Estes testes

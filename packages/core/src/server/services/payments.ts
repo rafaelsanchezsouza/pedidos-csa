@@ -90,6 +90,7 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
       [...byProducer.entries()].map(async ([producerName, amount]) => {
         const prev = existingByProducer.get(producerName)
         if (prev) {
+          if (prev.corrigido) return // correção manual do admin vence o recálculo
           await repo.updateDoc<PaymentDoc>('payments', prev.id, { amount, dateUpdated: now })
         } else {
           await repo.createDoc<PaymentDoc>('payments', {
@@ -100,10 +101,11 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
       }),
     )
 
-    // Zerar docs de produtores que não aparecem mais nos pedidos enviados
+    // Zerar docs de produtores que não aparecem mais nos pedidos enviados (menos os corrigidos
+    // à mão: zerar apagaria o ajuste do admin).
     await Promise.all(
       [...existingByProducer.entries()]
-        .filter(([producerName]) => !byProducer.has(producerName))
+        .filter(([producerName, doc]) => !byProducer.has(producerName) && !doc.corrigido)
         .map(([, doc]) => repo.updateDoc<PaymentDoc>('payments', doc.id, { amount: 0, dateUpdated: now })),
     )
   }
@@ -129,8 +131,12 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
     const comVenc = dueDate === undefined ? {} : { dueDate }
     if (existing.length > 0) {
       const prev = existing[0]!
-      await repo.updateDoc<PaymentDoc>('payments', prev.id, { amount, ...comVenc, dateUpdated: now })
-      return { doc: { ...prev, amount, ...comVenc, dateUpdated: now }, created: false }
+      // Correção manual do admin vence a geração. Esta passada não roda só no cron do dia 1:
+      // `POST /payments/frete` dispara a cada abertura de Meus Pagamentos e a confirmação da
+      // acolhida dispara as duas — sem a trava o ajuste seria desfeito em silêncio.
+      const campos = prev.corrigido ? { ...comVenc } : { amount, ...comVenc }
+      await repo.updateDoc<PaymentDoc>('payments', prev.id, { ...campos, dateUpdated: now })
+      return { doc: { ...prev, ...campos, dateUpdated: now }, created: false }
     }
     const doc = await repo.createDoc<PaymentDoc>('payments', {
       userId: uid, userName, tenantId, month, producerName, amount, ...comVenc,

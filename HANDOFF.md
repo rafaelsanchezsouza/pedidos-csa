@@ -205,14 +205,25 @@ alguém de fora fosse testar pelo celular (rede que bloqueia porta alta não car
 | Firebase | `pedidos-csa` | `pedidos-csa-dev` |
 | cron | ligado | **desligado** (`CRON_ENABLED=false`) |
 
-**Falta um passo que só você faz:** abrir a **porta 8193 na Security List da Oracle**. Sem
-isso a página não carrega e o nginx não registra nada — não há erro para debugar, só timeout.
+**A porta passa por DOIS portões, não um** (descoberto ao subir, 2026-09-28):
+
+| portão | estado |
+|---|---|
+| `iptables` da VM | ✅ **aberto** — `-A INPUT -p tcp --dport 8193 -j ACCEPT`, salvo com `netfilter-persistent` |
+| Security List da Oracle | ⛔ **pendente — só pelo console da Oracle** |
+
+As portas que já funcionam (8092, 8190) têm regra explícita no iptables; a 8193 não tinha, e
+abrir só na Oracle não bastaria. Enquanto a Oracle não liberar, a página não carrega e **o
+nginx não registra nada** — não há erro para debugar, só timeout.
+
+Estado em 2026-09-28: deploy feito, nginx instalado e recarregado, iptables aberto. Testado de
+dentro da VM: front `200`, API `401`, produção intacta em `200`. De fora ainda não responde.
 
 ```bash
 cd apps/csa
 bash deploy-dev.sh                       # build em modo development + pm2 pedidos-csa-dev
 
-# nginx (uma vez):
+# nginx (uma vez) — JÁ FEITO em 2026-09-28, fica aqui para reconstruir a VM:
 scp -i <chave> deploy/nginx-pedidos-csa-dev.conf ubuntu@csaparahyba.com.br:/tmp/
 ssh -i <chave> ubuntu@csaparahyba.com.br '
   sudo cp /tmp/nginx-pedidos-csa-dev.conf /etc/nginx/sites-available/pedidos-csa-dev
