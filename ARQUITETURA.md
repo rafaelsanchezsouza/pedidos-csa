@@ -7,9 +7,10 @@ são **configuração**, não fork de código.
 > Estado: **tasks 1–6 concluídas**. Os dois apps rodam do monorepo em produção, a migração
 > canônica da CSA foi executada (2026-08-21) e a **autorização no servidor** está no ar nos dois.
 > Limpeza do legado **concluída em 2026-08-31** (460 docs; o `colmeiaId` não existe mais).
-> Branch `feat/monorepo-motor-compartilhado`. Os repos originais (`~/repos/pedidos-csa`,
-> `~/repos/pedidos-app`) seguem intactos **como plano de rollback** — não são mais a fonte da
-> verdade, e não devem ser aposentados antes da limpeza do legado.
+> Os repos originais (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) foram **apagados em
+> 2026-09-28**: o conteúdo deles estava todo no monorepo e a limpeza do legado já tinha
+> encerrado o papel de rollback. As notas e segredos que viviam soltos lá foram para
+> `apps/csa/private/` (gitignored).
 
 ---
 
@@ -633,8 +634,8 @@ Consequências na tela de ofertas (CSA):
   Pendência F3 do Fermentou, que estava aberta desde julho e valia para os dois apps.
 - **Pendências, em ordem:**
   1. ~~**Limpeza do legado**~~ — **feita em 2026-08-31**. Sem rollback por redeploy a partir daqui.
-  2. **Aposentar os repos originais** (`~/repos/pedidos-csa`, `~/repos/pedidos-app`): eles ainda
-     são o plano de rollback, então só depois do item 1. Arquivar, não apagar.
+  2. ~~**Aposentar os repos originais**~~ — **apagados em 2026-09-28**, depois de conferir
+     arquivo a arquivo que nada único sobrava.
   3. Apagar o backup com dados pessoais (`~/backup-csa-2026-08-21.json`) quando não for mais
      necessário.
   4. **`producerId` no cadastro de fornecedor**: a trava de escopo depende dele. Fornecedor sem
@@ -680,9 +681,9 @@ npm install                                  # workspaces
 npm run build -w @pedidos/core               # gera dist do motor (necessário p/ os apps)
 npm run test:tz --workspaces --if-present    # todos os workspaces × BR/UTC/UTC+14
 # por app:
-npm run test:tz  -w pedidos-app              # (fermentou)
-npm run build    -w pedidos-app              # front: tsc -b + vite
-npm run build:backend -w pedidos-app         # server: tsc node16
+npm run test:tz  -w fermentou              # (fermentou)
+npm run build    -w fermentou              # front: tsc -b + vite
+npm run build:backend -w fermentou         # server: tsc node16
 ```
 
 Sem CI: **o verde local é o único portão**. `test:tz` cobre a regra de fuso (já quebrou 3×) e
@@ -691,7 +692,8 @@ Sem CI: **o verde local é o único portão**. `test:tz` cobre a regra de fuso (
 ---
 
 ## 7. Docs relacionados
-- `pedidos-csa/ARQUITETURA_MOTOR_COMPARTILHADO.md` — plano original aprovado.
-- `pedidos-app/MERGE.md` — mapa seção-a-seção das divergências fork×CSA (segue válido como
+- `apps/csa/ARQUITETURA_MOTOR_COMPARTILHADO.md` — plano original aprovado (veio do repo antigo
+  em 2026-09-28, quando ele foi apagado).
+- `apps/fermentou/MERGE.md` — mapa seção-a-seção das divergências fork×CSA (segue válido como
   referência; muda só a direção de deploy: de "único multi-tenant" para "apps separados").
-- `pedidos-app/HANDOFF.md`, `PENDENCIAS.md`, `BUSINESS_RULES.md`.
+- `apps/fermentou/HANDOFF.md`, `PENDENCIAS.md`, `BUSINESS_RULES.md`.

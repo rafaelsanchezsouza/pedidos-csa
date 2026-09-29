@@ -1,4 +1,4 @@
-# Regras de Negócio — pedidos-app
+# Regras de Negócio — Fermentou
 
 ## Organização (Multi-tenancy)
 

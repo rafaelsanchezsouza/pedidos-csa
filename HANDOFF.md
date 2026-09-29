@@ -59,7 +59,7 @@ npm install
 npm run build -w @pedidos/core               # SEMPRE antes dos apps — eles consomem o dist/
 npm run test:tz --workspaces --if-present    # ×3 fusos (BR/UTC/UTC+14) — NÃO PULAR
 npm run build -w pedidos-csa  && npm run build:backend -w pedidos-csa
-npm run build -w pedidos-app  && npm run build:backend -w pedidos-app
+npm run build -w fermentou  && npm run build:backend -w fermentou
 ```
 
 Placar atual: **core 185**, **csa 31**, **fermentou 9** — todos ×3 fusos. **Sem CI: o verde local
@@ -84,8 +84,13 @@ Cada app precisa de dois arquivos **gitignored**, que não vieram no `git subtre
 
 | Arquivo | O que é | Onde tem cópia |
 |---|---|---|
-| `apps/<app>/.env.production` | Firebase, Evolution, GitHub, OpenAI, `PORT` | `~/repos/pedidos-csa`, `~/repos/pedidos-app` |
-| `apps/csa/.env.development` | idem, apontando para o Firebase `pedidos-csa-dev` | `~/repos/pedidos-csa` |
+| `apps/<app>/.env.production` | Firebase, Evolution, GitHub, OpenAI, `PORT` | só neste diretório |
+| `apps/csa/.env.development` | idem, apontando para o Firebase `pedidos-csa-dev` | só neste diretório |
+| `apps/csa/deploy.env` e `apps/fermentou/deploy.env` | VM_USER/VM_HOST/VM_DIR/SSH_KEY/ENV_FILE | só neste diretório |
+
+⚠️ **Não há mais segunda cópia.** Até 2026-09-28 os repos antigos guardavam um backup desses
+arquivos; eles foram apagados. Perder este diretório é perder as credenciais — as chaves de
+service account do Firebase (prod e dev) estão em `apps/csa/private/`, também gitignored.
 | `apps/<app>/deploy.env` | VM_USER/VM_HOST/VM_DIR/SSH_KEY/ENV_FILE | idem |
 
 Numa máquina nova, copie os quatro antes de qualquer deploy.
@@ -186,8 +191,9 @@ o código novo nunca escreveu o campo legado.
 ## 6. Pendências, em ordem
 
 1. ~~**Limpeza do legado da CSA**~~ — **feita em 2026-08-31**, 460 docs.
-2. **Aposentar os repos originais** (`~/repos/pedidos-csa`, `~/repos/pedidos-app` — os clones
-   locais pré-monorepo). **Destravado**: já não são rollback de nada. Arquivar, não apagar.
+2. ~~**Aposentar os repos originais**~~ — **apagados em 2026-09-28**. Conferido arquivo a
+   arquivo antes: o Fermentou não tinha nada fora do subtree, e as notas/segredos soltos da CSA
+   foram para `apps/csa/private/` (gitignored).
 3. **Apagar o backup** (`~/backup-csa-2026-08-21.json`, dados pessoais) — agora é o **único**
    rollback que existe. Só depois de algumas semanas de acolhida rodando redonda.
 4. **WhatsApp dedicado para o Fermentou** (hoje divide o número da CSA; ver `~/repos/ZAP-PROTOCOL.md`).

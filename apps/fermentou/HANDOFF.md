@@ -3,7 +3,7 @@
 > do server e o estado das features **mudaram** com o monorepo. Segue aqui como histórico do
 > primeiro cliente e das decisões de produto.
 
-# Handoff — pedidos-app (Fermentou)
+# Handoff — Fermentou
 
 Estado em 2026-07-21. Motor genérico de pedidos/entregas multi-tenant, fork do `pedidos-csa`.
 Primeiro cliente: padaria **Fermentou**. **No ar e funcional.**

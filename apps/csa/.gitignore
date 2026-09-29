@@ -54,3 +54,8 @@ scripts/create-owner-user.ts
 scripts/seed-catalogo-jucy.ts
 *.csv
 
+# Material de trabalho da CSA trazido do repo antigo (2026-09-28): chaves de service account,
+# comprovantes, listas de membros, scripts com e-mail e senha. Nada aqui pode ir para o
+# GitHub — o repositório é público. Pasta inteira ignorada de propósito: regra por extensão
+# deixa passar o arquivo novo que ninguém previu.
+private/

@@ -3,7 +3,7 @@
 > existe mais. Para o estado real: [`../../HANDOFF.md`](../../HANDOFF.md).
 > As regras de negócio aqui seguem válidas.
 
-# Definições do Projeto — pedidos-app
+# Definições do Projeto — Fermentou
 
 ## Visão Geral
 

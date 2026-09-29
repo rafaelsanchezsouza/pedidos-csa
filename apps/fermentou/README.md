@@ -1,4 +1,9 @@
-# pedidos-app (Fermentou)
+# Fermentou
+
+> **Nome:** o workspace npm chama-se `fermentou` (use `-w fermentou`), mas a **infra na VM
+> ainda se chama `pedidos-app`**: pm2, `/opt/pedidos-app` e o server block do nginx. A
+> divergência é proposital e temporária — renomear o que está no ar exige deploy e mexer em
+> diretório de produção, então ficou separado da renomeação de código.
 
 Motor multi-tenant de gestão de pedidos e entregas — catálogo, rota de entrega e faturas. Primeiro cliente: uma padaria.
 
@@ -154,8 +159,8 @@ SSH_KEY="~/.ssh/..."
 ENV_FILE=".env.production"
 ```
 
-O `.env.production` também é gitignored e **não veio no monorepo** — há cópia em
-`~/repos/pedidos-app`.
+O `.env.production` é gitignored e **não vai para o GitHub**. A cópia viva é a que está
+aqui mesmo, neste diretório — o repo antigo que guardava o backup foi apagado em 2026-09-28.
 
 ### Rodar o deploy
 

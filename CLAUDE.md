@@ -4,9 +4,9 @@ Motor único `packages/core` consumido por apps **deployáveis sozinhos** (`apps
 `apps/fermentou`). **Os dois estão no ar rodando deste monorepo** (desde 2026-08-21).
 **Leia `HANDOFF.md` primeiro** (onde roda, como deployar, armadilhas, pendências) e
 `ARQUITETURA.md` para as decisões e o histórico. Os repos originais
-(`~/repos/pedidos-csa`, `~/repos/pedidos-app`) seguem no disco, mas **não são fonte da verdade
-nem rollback**: a limpeza do legado rodou em 2026-08-31 e o código antigo não acha mais os
-dados. Podem ser arquivados (`HANDOFF.md` §4).
+(`~/repos/pedidos-csa`, `~/repos/pedidos-app`) foram **apagados em 2026-09-28** — nada deles
+sobrevivia fora daqui. Notas e segredos soltos que viviam lá estão em `apps/csa/private/`,
+gitignored e **sem outra cópia**.
 
 ## Comportamento
 - pt-BR em tudo (commits, comentários, texto ao usuário); extremamente conciso
@@ -18,7 +18,7 @@ dados. Podem ser arquivados (`HANDOFF.md` §4).
 ```bash
 npm run build -w @pedidos/core               # SEMPRE antes dos apps (consomem o dist/)
 npm run test:tz --workspaces --if-present    # ×3 fusos (BR/UTC/UTC+14) — NÃO PULAR
-npm run build -w pedidos-app  && npm run build:backend -w pedidos-app
+npm run build -w fermentou  && npm run build:backend -w fermentou
 npm run build -w pedidos-csa  && npm run build:backend -w pedidos-csa
 ```
 Mudou estrutura de emissão? `rm -rf apps/*/dist-server` antes de rebuildar (tsc não limpa

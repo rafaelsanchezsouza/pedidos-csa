@@ -153,8 +153,8 @@ SSH_KEY="~/.ssh/..."
 ENV_FILE=".env.production"
 ```
 
-O `.env.production` também é gitignored e **não veio no monorepo** — há cópia em
-`~/repos/pedidos-csa`.
+O `.env.production` é gitignored e **não vai para o GitHub**. A cópia viva é a que está
+aqui mesmo, neste diretório — o repo antigo que guardava o backup foi apagado em 2026-09-28.
 
 ### Rodar o deploy
 
