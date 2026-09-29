@@ -54,17 +54,22 @@ Aponta para o Firebase **`pedidos-csa-dev`**, separado do prod. O `.env.developm
 **gitignored**: numa máquina nova, copie junto com os outros segredos (§3). O mesmo projeto
 serve o local e (quando existir) o dev hospedado — não há um terceiro Firebase.
 
-⚠️ **O banco de dev ficou no modelo pré-canônico.** Ele tem dados reais de teste (7 usuários,
-44 produtos), mas em `colmeias`/`colmeiaId` — a migração de 2026-08-21 nunca foi aplicada lá.
-O código de hoje procura `tenants` e enxerga um banco vazio. Correção: a mesma migração,
-que aponta para dev quando **não** recebe `FIREBASE_ENV=prod`. Em dev não há rollback a
-preservar, então vai direto na passada final:
+O banco de dev tinha ficado no modelo pré-canônico (`colmeias`/`colmeiaId`) — a migração de
+2026-08-21 nunca fora aplicada lá, e o código atual, que procura `tenants`, enxergava um banco
+vazio apesar dos dados existirem. **Migrado em 2026-09-28**: 2 tenants, 97 docs, 4
+`deliveryType`, sem erro. Os 7 usuários e 44 produtos de teste seguem lá.
+
+O script aponta para dev sempre que **não** recebe `FIREBASE_ENV=prod` — útil para repetir num
+banco de dev novo:
 
 ```bash
 cd apps/csa
 npx tsx scripts/migrate-csa-canonico.ts                        # ensaio
 npx tsx scripts/migrate-csa-canonico.ts --executar --limpar-legado
 ```
+
+As senhas dos usuários de dev não estão em lugar nenhum: para entrar, redefina uma no console do
+Firebase (projeto `pedidos-csa-dev` → Authentication → o usuário → editar senha).
 
 ⚠️ **Dev compartilha as integrações externas com a produção — decisão consciente
 (2026-09-28).** Só o Firebase é separado (`pedidos-csa-dev`); a instância do WhatsApp
