@@ -1,9 +1,14 @@
 # Handoff — monorepo `pedidos`
 
-Estado em **2026-09-22**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
-(`apps/csa`, `apps/fermentou`). **Os dois estão no ar rodando deste monorepo** — os repos
-originais não são fonte da verdade **nem rollback** (a limpeza do legado rodou em 2026-08-31 e
-o código antigo não acha mais os dados); ver §4.
+Estado em **2026-09-28**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
+(`apps/csa`, `apps/fermentou`). **Os dois estão no ar rodando deste monorepo.** Os repos
+pré-monorepo (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) foram **apagados em 2026-09-28** —
+a limpeza do legado (2026-08-31) já tinha encerrado o papel de rollback deles; ver §4.
+
+⚠️ **Este diretório é a cópia única** das credenciais de produção: `.env.production` dos dois
+apps, `.env.development` da CSA, os `deploy.env` e as chaves de service account do Firebase em
+`apps/csa/private/`. Até 28/09 havia backup nos repos antigos; não há mais. Nada disso vai para
+o GitHub (o repositório é **público**), então perder o disco é perder as credenciais.
 
 Leia junto: **`ARQUITETURA.md`** (decisões, histórico fatia a fatia, o porquê de cada escolha) e
 **`CLAUDE.md`** (regras de trabalho e portão de verificação).
@@ -25,8 +30,9 @@ Leia junto: **`ARQUITETURA.md`** (decisões, histórico fatia a fatia, o porquê
 
 O código dos **dois** apps vive em `github.com/rafaelsanchezsouza/pedidos-csa` (o repo da CSA
 foi reaproveitado; a `main` de lá é este monorepo desde 2026-08-28). A tag **`pre-monorepo`**
-marca o último commit do layout antigo — é o rollback no remoto. `~/repos/pedidos-app` nunca
-teve remote; agora tem backup por tabela, dentro deste repo.
+marca o último commit do layout antigo — é o único rollback que sobrou no remoto, e ele é
+anterior à migração canônica, então serve de referência histórica, não de plano de volta.
+O Fermentou nunca teve repo no GitHub: o código dele só existe aqui.
 
 VM Oracle única (`csaparahyba.com.br`), nginx na frente, cert Let's Encrypt compartilhado.
 O `evolution-api` (WhatsApp) é **infra da VM**, na 8080 — não é deployado por nenhum dos apps.
@@ -62,9 +68,14 @@ npm run build -w pedidos-csa  && npm run build:backend -w pedidos-csa
 npm run build -w fermentou  && npm run build:backend -w fermentou
 ```
 
-Placar atual: **core 185**, **csa 31**, **fermentou 9** — todos ×3 fusos. **Sem CI: o verde local
-é o único portão.** Mudou estrutura de emissão? `rm -rf apps/*/dist-server` antes (o `tsc` não
-limpa o `outDir`).
+Placar atual (2026-09-28): **core 250**, **csa 52**, **fermentou 9** — todos ×3 fusos.
+**Sem CI: o verde local é o único portão.** Mudou estrutura de emissão? `rm -rf apps/*/dist-server`
+antes (o `tsc` não limpa o `outDir`).
+
+⚠️ O `testTimeout` dos apps é **20s**, não o padrão de 5s (`vite.config.ts`). Não é folga à toa:
+cada teste de componente sobe um jsdom (84s dos ~91s da suíte da CSA) e, sob paralelismo,
+estouravam os 5s de forma aleatória — 4 a 8 falhas variando a cada execução, em testes
+diferentes. Portão que pisca ensina a ignorar vermelho.
 
 ## 3. Deployar
 
@@ -239,7 +250,11 @@ tela fica congelada na versão anterior, sem erro nenhum aparecer.
    hoje — a oferta dele nasce do catálogo, não do parser —, mas o `sendOrdersJob` de lá ainda
    lê o relógio do processo (UTC). Um `./deploy.sh` em `apps/fermentou` resolve, e já sai com
    o `package.json` sem devDependencies.
-9. **Isolamento por cliente + onboarding sem código novo** — questão em aberto, ver
+9. **Renomear a infra do Fermentou na VM** (pm2, `/opt/pedidos-app`, nginx) para bater com o
+   workspace, que virou `fermentou` em 2026-09-28. Procedimento pronto em **§4.1**.
+10. **Backup offline das credenciais** — ver o aviso do topo: `apps/csa/private/` e os `.env`
+    não têm mais segunda cópia em lugar nenhum.
+11. **Isolamento por cliente + onboarding sem código novo** — questão em aberto, ver
    `ARQUITETURA.md` §5 "Questões em aberto" #3. Hoje o repo é **público** e um cliente novo
    custa ~6k linhas copiadas. Decisão adiada conscientemente em 2026-08-28: a solução tem que
    servir a N clientes, não ser um remendo pro Fermentou.

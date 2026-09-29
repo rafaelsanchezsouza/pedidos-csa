@@ -30,8 +30,10 @@
 - **Merge em `main` NÃO faz deploy** — não há CI/CD. Produção só atualiza rodando `./deploy.sh` (build local + scp para a VM Oracle + pm2 restart)
 - Produção: ainda não publicada
 
-## Fork do pedidos-csa
-Este repo é fork de `~/repos/pedidos-csa` (cliente diferente, CSA segue viva). O tenant
+## Origem: fork da CSA (histórico)
+Este app nasceu como fork do da CSA (cliente diferente, CSA segue viva). O fork e a remescla
+já aconteceram: desde 2026-08-21 os dois consomem o mesmo motor (`packages/core`) neste
+monorepo, e o repo separado que hospedava este código foi apagado em 2026-09-28. O tenant
 foi renomeado de `colmeia` para `tenant` no código, junto com o resto do vocabulário
 CSA — a intenção é **remesclar o backend** com o `pedidos-csa`, e a reconciliação sai no
 merge, não via `cherry-pick` (que deixa de funcionar). Na UI o tenant aparece pelo **nome**

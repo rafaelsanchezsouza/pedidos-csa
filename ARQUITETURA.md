@@ -7,6 +7,8 @@ são **configuração**, não fork de código.
 > Estado: **tasks 1–6 concluídas**. Os dois apps rodam do monorepo em produção, a migração
 > canônica da CSA foi executada (2026-08-21) e a **autorização no servidor** está no ar nos dois.
 > Limpeza do legado **concluída em 2026-08-31** (460 docs; o `colmeiaId` não existe mais).
+> Workspace do Fermentou renomeado de `pedidos-app` para `fermentou` (a infra na VM ainda não;
+> `HANDOFF.md` §4.1).
 > Os repos originais (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) foram **apagados em
 > 2026-09-28**: o conteúdo deles estava todo no monorepo e a limpeza do legado já tinha
 > encerrado o papel de rollback. As notas e segredos que viviam soltos lá foram para
@@ -525,8 +527,8 @@ FIREBASE_ENV=prod npx tsx scripts/migrate-csa-canonico.ts --executar --limpar-le
 Front e backend sobem **no mesmo deploy** — o front só passa a mandar `x-tenant-id`/`/api/tenants`
 depois da migração, e o backend antigo não entende os nomes novos.
 
-**Rollback** (enquanto o passo 6 não rodou): redeployar a CSA a partir de `~/repos/pedidos-csa`,
-que segue intacto. O código antigo volta a achar tudo porque `colmeias` e `colmeiaId` continuam
+**Rollback** (registro histórico — **não vale mais**: a limpeza rodou em 2026-08-31 e o repo
+antigo foi apagado em 2026-09-28): redeployar a CSA a partir de `~/repos/pedidos-csa`. O código antigo volta a achar tudo porque `colmeias` e `colmeiaId` continuam
 lá — só os 18 `deliveryType` ficam com o rótulo trocado na tela, sem efeito em regra.
 
 ---
