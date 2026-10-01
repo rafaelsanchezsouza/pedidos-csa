@@ -222,3 +222,21 @@
 - Vencimento: dia `dueDay` do **mês seguinte** (pós-consumo, como extras)
 - **Geração automática:** mesmo cron da cota (dia 1, 08h); `upsertPaymentsForOrder` nunca toca em `'Entrega'`
 - `POST /payments/frete/all` disponível para reprocessamento manual via API; `POST /payments/frete` garante a fatura do próprio membro (auto-ensure ao abrir Meus Pagamentos)
+
+### Correção de fatura pelo admin
+
+- Admin (nunca fornecedor, nunca o dono) ajusta o valor de **qualquer** fatura — cota, frete ou
+  produtor — por `POST /payments/:id/correcao` (`{ amount, motivo? }`)
+- A correção **trava a geração automática**: enquanto `corrigido: true`, nem o cron do dia 1,
+  nem o auto-ensure de Meus Pagamentos, nem a confirmação de semana da acolhida reescrevem o
+  valor; e `upsertPaymentsForOrder` também não recalcula nem zera a fatura de produtor
+  corrigida. Sem essa trava o ajuste sumia sozinho — a geração roda muitas vezes por mês, não
+  só no dia 1, e o próprio membro a dispara ao abrir a tela de pagamentos
+- `amountOriginal` guarda o valor que a **geração** produziu (congelado na 1ª correção); numa
+  segunda correção ele não muda, senão "desfazer" devolveria a correção anterior
+- `correcoes[]` é o histórico — `{ de, para, por (uid), em, motivo? }` — e **acumula**: nada é
+  apagado, nem quando a correção é desfeita
+- `DELETE /payments/:id/correcao` desfaz: volta ao `amountOriginal`, destrava a geração e
+  **registra a volta** no histórico. Fatura sem correção responde 400
+- O histórico é carimbado **no servidor**. `PUT /payments/:id` deixou de aceitar `amount`,
+  `corrigido`, `amountOriginal` e `correcoes` — aceitar pelo corpo permitiria forjar o registro

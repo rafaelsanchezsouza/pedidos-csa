@@ -627,6 +627,31 @@ Consequências na tela de ofertas (CSA):
 - dá para **adicionar produto que não veio na mensagem** sem re-gerar (re-gerar substitui a
   lista e apagava as correções — o botão diz isso quando já há itens).
 
+### 4.9 Correção de fatura vence a geração (2026-09-29)
+
+O admin precisa poder ajustar o valor de uma fatura (entrega que não saiu, acerto combinado
+com o membro). A armadilha não é a escrita, é a **frequência da geração**: `upsertGenerated`
+reescreve `amount` a cada passada, e ela não roda só no cron do dia 1 — `POST /payments/frete`
+dispara **toda vez que o membro abre Meus Pagamentos** e a confirmação de semana da acolhida
+dispara cota e frete juntas. Sem trava, o ajuste do admin era desfeito pelo próprio membro
+abrindo a tela, sem erro e sem log.
+
+Decisão: `PaymentDoc.corrigido` **trava** a geração (nos dois funis — `upsertGenerated` e
+`upsertPaymentsForOrder`, que também deixa de zerar a fatura corrigida cujo produtor sumiu do
+pedido). `amountOriginal` congela o valor **gerado** na 1ª correção, para o desfazer voltar ao
+calculado e não à correção anterior; `correcoes[]` acumula `{ de, para, por, em, motivo? }`.
+
+**O histórico é do servidor, não do corpo da requisição.** Por isso a correção é endpoint
+próprio (`POST`/`DELETE /payments/:id/correcao`, só `ehAdmin`) — mesma razão que já valia para
+`POST /:id/comprovante` — e o `PUT /:id` **parou de aceitar** `amount`/`corrigido`/
+`amountOriginal`/`correcoes`: enquanto ele gravava o corpo inteiro para `ehAdminOuFornecedor`,
+qualquer fornecedor remarcava valor e escrevia o histórico que quisesse. Desfazer **registra a
+volta** em vez de apagar a linha: quem conferiu a fatura ontem precisa achar o que houve.
+
+*Consequência aceita:* fatura travada não acompanha mais mudança de cadastro (trocou de tier,
+confirmou outra semana). É o ponto — o admin destrava com o desfazer, e a próxima passada
+recalcula.
+
 ## 5. O que falta
 
 - ~~**Task 6**~~ **concluída.** Os dois apps rodam do monorepo em produção e a CSA está no
