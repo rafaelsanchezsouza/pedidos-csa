@@ -73,6 +73,8 @@ export const config = defineAppConfig({
     // É só rótulo de UI: o motor grava o canônico 'retirada' e só pergunta isEntrega(u).
     pickupLabel: 'Colmeia',
     otpAppName: BRAND.name,
+    // O membro lê "Delivery"; o dado continua sendo a sentinela 'Entrega' em produção.
+    deliveryFeeLabel: 'Delivery',
   },
   capabilities: {
     // A oferta nasce da mensagem do produtor no WhatsApp (o cardápio muda toda semana).

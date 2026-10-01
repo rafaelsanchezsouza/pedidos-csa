@@ -456,7 +456,7 @@ Objeto tipado por app, injetado no motor. Só o **estático e seguro no front**:
 ```ts
 interface AppConfig {
   brand:        Brand           // nome, tagline, ícone, paleta (light/dark)
-  vocabulary:   { pickupLabel; otpAppName }
+  vocabulary:   { pickupLabel; otpAppName; deliveryFeeLabel }
   capabilities: { offeringSource: 'parse-message'|'from-catalog'; messageParser?; multiTenant; paymentStrategy }
   tenantDefaults: { quotaTerm; quotas[]; quotaInteira; quotaMeia; roleDefaults[];
                     dueDay; orderSendDay; orderSendHour; weekChangeDay }
@@ -474,6 +474,10 @@ runtime do server e injetadas no boot do engine (task 5). É o que separa identi
 > `pickupValue` foi **removido** do contrato (task 5): nenhuma regra usa o token de
 > não-entrega — o engine só testa `isEntrega(u)` e grava o canônico `'retirada'`.
 | `vocabulary.pickupLabel` | `Colmeia` | `Retirada` |
+| `vocabulary.deliveryFeeLabel` | `Delivery` | `Frete da Entrega` |
+> `deliveryFeeLabel` é só o rótulo da fatura de frete na tela. O **dado** continua sendo a
+> sentinela canônica `producerName: 'Entrega'` — mesma separação de `pickupLabel`, e o motor
+> não lê nenhum dos dois para decidir regra.
 
 ### 4.3 Ports & Adapters (DIP, já exigido no CLAUDE.md)
 O motor depende de **interfaces**; cada app pluga **adapters** concretos e injeta a config.

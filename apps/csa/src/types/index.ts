@@ -122,6 +122,11 @@ export interface Payment {
   verified: boolean
   amount: number
   dueDate?: string
+  /** Valor ajustado à mão pelo admin: trava a geração automática (ver BUSINESS_RULES). */
+  corrigido?: boolean
+  /** Valor que a geração produziu, congelado na 1ª correção. */
+  amountOriginal?: number
+  correcoes?: Array<{ de: number; para: number; por: string; em: string; motivo?: string }>
   dateCreated: string
   dateUpdated: string
 }

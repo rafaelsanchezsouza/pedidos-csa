@@ -24,6 +24,12 @@ export type PaymentStrategy = 'monthly-post' | 'per-order-pix'
 export interface AppVocabulary {
   pickupLabel: string // rótulo de deliveryType de retirada na UI ("Retirada" | "Colmeia")
   otpAppName: string  // nome usado na mensagem de OTP (normalmente = brand.name)
+  /**
+   * Rótulo da fatura de frete na UI ("Delivery" | "Frete da Entrega"). O DADO continua sendo
+   * a sentinela canônica `producerName: 'Entrega'` em produção — isto é só o que o membro lê,
+   * mesma separação de `pickupLabel`.
+   */
+  deliveryFeeLabel: string
 }
 
 export interface AppCapabilities {
@@ -78,6 +84,7 @@ export function validateAppConfig(c: AppConfig): string[] {
   if (!c.tenantDefaults.quotas.length) errs.push('tenantDefaults.quotas não pode ser vazio')
   if (!c.vocabulary.otpAppName.trim()) errs.push('vocabulary.otpAppName não pode ser vazio')
   if (!c.vocabulary.pickupLabel.trim()) errs.push('vocabulary.pickupLabel não pode ser vazio')
+  if (!c.vocabulary.deliveryFeeLabel.trim()) errs.push('vocabulary.deliveryFeeLabel não pode ser vazio')
 
   const d = c.tenantDefaults
   const range = (v: number, lo: number, hi: number) => Number.isInteger(v) && v >= lo && v <= hi

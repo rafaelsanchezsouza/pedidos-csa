@@ -7,7 +7,7 @@ import type { AppConfig } from '../../config.js'
 
 const config: AppConfig = {
   brand: { name: 'Fermentou!', tagline: 't', icon: '/i.png', colors: { light: {}, dark: {} } },
-  vocabulary: { pickupLabel: 'Retirada', otpAppName: 'Fermentou!' },
+  vocabulary: { pickupLabel: 'Retirada', otpAppName: 'Fermentou!', deliveryFeeLabel: 'Entrega' },
   capabilities: { offeringSource: 'from-catalog', multiTenant: false, paymentStrategy: 'monthly-post' },
   tenantDefaults: {
     quotaTerm: 'F', quotas: [{ name: 'F', price: 65 }], quotaInteira: 65, quotaMeia: 40,

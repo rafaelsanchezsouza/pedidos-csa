@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi, ordersApi } from '@/services/api'
 import { useUploadProof } from '@/hooks/useUploadProof'
-import type { Payment, User, Order, OrderItem } from '@/types'
-import { statusLabel, statusVariant } from '@pedidos/core'
+import type { Tenant, Payment, User, Order, OrderItem } from '@/types'
+import { statusLabel, statusVariant, resolveFrete } from '@pedidos/core'
+import { config } from '@/config'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, MonthNavigator } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
 import { getWeekDelivery } from '@pedidos/core'
@@ -210,6 +211,7 @@ function QuotaCard({
   month,
   onReload,
   title = 'Cota Mensal',
+  detalhe,
 }: {
   payment: Payment
   tenantId: string
@@ -217,6 +219,7 @@ function QuotaCard({
   month: string
   onReload: () => void
   title?: string
+  detalhe?: ReactNode
 }) {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
@@ -248,6 +251,8 @@ function QuotaCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="text-2xl font-bold">R$ {payment.amount.toFixed(2)}</div>
+
+        {detalhe}
 
         {payment.proofUrl && (
           <a
@@ -286,9 +291,30 @@ function QuotaCard({
   )
 }
 
+// --- Delivery: quanto custa cada entrega e quantas entraram na conta ---
+
+// O número de entregas sai da PRÓPRIA fatura (amount / frete), não de um `countDeliveryWeeks`
+// refeito aqui: a contagem tem quinzenal e acolhida dentro, já quebrou 3× por fuso, e uma
+// segunda conta no front só criaria divergência com o valor que está sendo cobrado.
+function DetalheDelivery({ payment, user, colmeia }: { payment: Payment; user: User; colmeia: Tenant }) {
+  // Fatura ajustada à mão não bate com a conta — dizer "R$ 12 × 3" ali seria mentira.
+  if (payment.corrigido) {
+    return <p className="text-sm text-muted-foreground">Valor ajustado pela organização.</p>
+  }
+  const frete = resolveFrete(user, colmeia)
+  if (frete <= 0) return null
+  const entregas = Math.round(payment.amount / frete)
+  return (
+    <p className="text-sm text-muted-foreground">
+      R$ {frete.toFixed(2)} por entrega · {entregas} {entregas === 1 ? 'entrega' : 'entregas'}
+    </p>
+  )
+}
+
 // --- Meus Pagamentos (todos os papéis) ---
 
-function MyPayments({ user, tenantId }: { user: User; tenantId: string }) {
+function MyPayments({ user, colmeia }: { user: User; colmeia: Tenant }) {
+  const tenantId = colmeia.id
   const [month, setMonth] = useState(currentMonth())
   const [payments, setPayments] = useState<Payment[]>([])
   const [quotaPayment, setQuotaPayment] = useState<Payment | null>(null)
@@ -346,11 +372,14 @@ function MyPayments({ user, tenantId }: { user: User; tenantId: string }) {
           userId={user.id}
           month={month}
           onReload={load}
-          title="Frete da Entrega"
+          title={config.vocabulary.deliveryFeeLabel}
+          detalhe={<DetalheDelivery payment={fretePayment} user={user} colmeia={colmeia} />}
         />
       )}
 
-      {payments.length === 0 ? (
+      {/* "Nenhum pagamento" só quando não há card NENHUM: com cota ou delivery na tela, a
+          frase contradizia o que o membro estava vendo. */}
+      {payments.length === 0 && !quotaPayment && !fretePayment ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             Nenhum pagamento para este mês. Envie um pedido para gerar faturas.
@@ -377,5 +406,5 @@ function MyPayments({ user, tenantId }: { user: User; tenantId: string }) {
 export function PagamentosPage() {
   const { user, colmeia } = useAuth()
   if (!user || !colmeia) return null
-  return <MyPayments user={user} tenantId={colmeia.id} />
+  return <MyPayments user={user} colmeia={colmeia} />
 }

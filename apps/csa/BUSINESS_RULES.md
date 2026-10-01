@@ -222,6 +222,9 @@
 - Vencimento: dia `dueDay` do **mês seguinte** (pós-consumo, como extras)
 - **Geração automática:** mesmo cron da cota (dia 1, 08h); `upsertPaymentsForOrder` nunca toca em `'Entrega'`
 - `POST /payments/frete/all` disponível para reprocessamento manual via API; `POST /payments/frete` garante a fatura do próprio membro (auto-ensure ao abrir Meus Pagamentos)
+- **Na tela o membro lê "Delivery"** (`vocabulary.deliveryFeeLabel`), como se fosse mais um produtor; o dado segue sendo a sentinela `'Entrega'`
+- O card mostra a **composição**: `R$ {frete} por entrega · {n} entregas`. O `n` é derivado da própria fatura (`amount / frete`), não recalculado na tela — a contagem de semanas tem quinzenal e acolhida dentro, e uma segunda conta no front divergiria do valor cobrado
+- Fatura **corrigida** troca a composição por "Valor ajustado pela organização": a conta deixou de fechar de propósito
 
 ### Correção de fatura pelo admin
 

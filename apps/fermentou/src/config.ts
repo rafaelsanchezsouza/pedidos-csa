@@ -13,6 +13,7 @@ export const config = defineAppConfig({
   vocabulary: {
     pickupLabel: 'Retirada',
     otpAppName: BRAND.name,
+    deliveryFeeLabel: 'Frete da Entrega', // preserva o rótulo atual desta padaria
   },
   capabilities: {
     offeringSource: 'from-catalog', // padaria gera a oferta do catálogo (sem parseMessage)

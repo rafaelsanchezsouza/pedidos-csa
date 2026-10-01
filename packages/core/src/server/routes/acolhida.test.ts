@@ -8,7 +8,7 @@ import type { AcolhidaWeekDoc, PaymentDoc } from '../../types.js'
 
 const config: AppConfig = {
   brand: { name: 'X', tagline: 't', icon: '/i.png', colors: { light: {}, dark: {} } },
-  vocabulary: { pickupLabel: 'Retirada', otpAppName: 'X' },
+  vocabulary: { pickupLabel: 'Retirada', otpAppName: 'X', deliveryFeeLabel: 'Entrega' },
   capabilities: { offeringSource: 'from-catalog', multiTenant: false, paymentStrategy: 'monthly-post' },
   tenantDefaults: {
     quotaTerm: 'Cota', quotas: [{ name: 'Cota inteira', price: 65 }],

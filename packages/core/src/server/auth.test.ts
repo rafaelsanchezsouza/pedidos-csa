@@ -13,7 +13,7 @@ import type { AppConfig } from '../config.js'
 
 const config: AppConfig = {
   brand: { name: 'X', tagline: 't', icon: '/i.png', colors: { light: {}, dark: {} } },
-  vocabulary: { pickupLabel: 'Retirada', otpAppName: 'X' },
+  vocabulary: { pickupLabel: 'Retirada', otpAppName: 'X', deliveryFeeLabel: 'Entrega' },
   capabilities: { offeringSource: 'from-catalog', multiTenant: true, paymentStrategy: 'monthly-post' },
   tenantDefaults: {
     quotaTerm: 'Cota', quotas: [{ name: 'C', price: 65 }], quotaInteira: 65, quotaMeia: 40,
