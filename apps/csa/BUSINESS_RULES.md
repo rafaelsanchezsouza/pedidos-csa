@@ -226,6 +226,23 @@
 - O card mostra a **composição**: `R$ {frete} por entrega · {n} entregas`. O `n` é derivado da própria fatura (`amount / frete`), não recalculado na tela — a contagem de semanas tem quinzenal e acolhida dentro, e uma segunda conta no front divergiria do valor cobrado
 - Fatura **corrigida** troca a composição por "Valor ajustado pela organização": a conta deixou de fechar de propósito
 
+### Conferência do Delivery (tela própria)
+
+- `/verificar-delivery` (**só admin** — fornecedor confere o que é dele, e o frete não é de
+  produtor nenhum) lista **apenas** as faturas `producerName === 'Entrega'` do mês
+- Por isso elas **saíram** de "Verificar Pagamentos": duas telas listando a mesma fatura seriam
+  dois lugares para marcar o mesmo pagamento como verificado
+- Resumo do mês: faturado, verificado, a conferir (tem comprovante) e sem comprovante — em
+  valor e em nº de membros
+- Cada linha mostra frete unitário (`resolveFrete`), nº de entregas, valor, status e comprovante
+- **Editar** por linha: corrigir o valor (com motivo), trocar o comprovante e desfazer a
+  correção; o histórico aparece no mesmo dialog
+- O comprovante trocado pelo admin sobe na pasta do **membro**
+  (`comprovantes/{tenantId}/{userId do membro}/{mês}/`), não na do admin — é onde as outras
+  telas procuram
+- **Gerar faturas do mês** (`POST /payments/frete/all`) cobre quem virou `entrega` depois do
+  dia 1 e nunca abriu Meus Pagamentos
+
 ### Correção de fatura pelo admin
 
 - Admin (nunca fornecedor, nunca o dono) ajusta o valor de **qualquer** fatura — cota, frete ou

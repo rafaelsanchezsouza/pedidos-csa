@@ -131,6 +131,24 @@ export const paymentsApi = {
       { method: 'POST', body: JSON.stringify({ weekId, url }) },
       tenantId,
     ),
+  // Gera/atualiza a fatura de frete de todos os membros de entrega do mês (admin). Cobre quem
+  // virou 'entrega' depois do dia 1 e nunca abriu Meus Pagamentos.
+  gerarFretes: (month: string, tenantId: string) =>
+    request<{ generated: number }>(
+      '/payments/frete/all',
+      { method: 'POST', body: JSON.stringify({ month, tenantId }) },
+      tenantId,
+    ),
+  // Correção de valor: endpoint próprio porque o histórico (de-para, autor, data) é carimbado
+  // no servidor — o PUT não aceita `amount` nem `correcoes`.
+  corrigirValor: (id: string, amount: number, motivo: string, tenantId: string) =>
+    request<Payment>(
+      `/payments/${id}/correcao`,
+      { method: 'POST', body: JSON.stringify({ amount, ...(motivo ? { motivo } : {}) }) },
+      tenantId,
+    ),
+  desfazerCorrecao: (id: string, tenantId: string) =>
+    request<Payment>(`/payments/${id}/correcao`, { method: 'DELETE' }, tenantId),
 }
 
 export const acolhidaApi = {

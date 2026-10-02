@@ -61,7 +61,7 @@ src/
 ├── lib/                       # utils (cn), quota
 ├── pages/                     # Login, DefinirSenha, Pedidos, Perfil, Pagamentos, Acolhida,
 │                              # Catalogo, Ofertas, Entregas, ConsolidadoGeral,
-│                              # VerificarPagamentos, Admin
+│                              # VerificarPagamentos, VerificarDelivery, Admin
 ├── services/                  # firebase (client), api (HTTP tipado, Bearer + x-tenant-id)
 └── types/index.ts             # Interfaces do app (fonte da verdade dos modelos)
 
@@ -121,7 +121,7 @@ listagens). **Quem monta é o app, mas os routers são do engine**
 | `/api/producers` | `GET /`, `POST /`, `PUT /:id`, `DELETE /:id` |
 | `/api/offerings` | `GET /`, `POST /parse`, `POST /fallback`, `POST /`, `PUT /:id` |
 | `/api/orders` | `GET /my`, `GET /consolidated`, `GET /consolidated-text`, `GET /week-lock`, `GET /history`, `GET /monthly`, `POST /send-consolidated-whatsapp`, `POST /`, `PUT /:id` |
-| `/api/payments` | `GET /my`, `GET /`, `POST /quota`, `POST /quota/all`, `POST /frete`, `POST /frete/all`, `POST /:id/comprovante`, `PUT /:id` |
+| `/api/payments` | `GET /my`, `GET /`, `POST /quota`, `POST /quota/all`, `POST /frete`, `POST /frete/all`, `POST /:id/comprovante`, `POST /:id/correcao`, `DELETE /:id/correcao`, `PUT /:id` |
 | `/api/acolhida` | `GET /:weekId`, `GET /:weekId/todos`, `POST /` |
 | `/api/roles` | `GET /`, `POST /`, `DELETE /:id` |
 | `/api/issues` | `POST /` (abre issue no GitHub a partir do "Reportar problema") |

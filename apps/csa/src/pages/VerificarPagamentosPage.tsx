@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi } from '@/services/api'
 import type { Payment } from '@/types'
-import { statusLabel, statusVariant, isAdmin, isFornecedor } from '@pedidos/core'
+import { statusLabel, statusVariant, isAdmin, isFornecedor, PRODUCER_FRETE } from '@pedidos/core'
 import { Button, Card, CardContent, Badge, EstadoLista, MonthNavigator, Comprovantes } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
 
@@ -28,7 +28,10 @@ export function VerificarPagamentosPage() {
     setLoading(true)
     try {
       const all = await paymentsApi.list(month, tenantId)
-      const filtered = isProdutor ? all.filter((p) => p.producerName === user?.name) : all
+      // O delivery tem tela própria (/verificar-delivery), com frete por entrega, correção de
+      // valor e resumo do mês. Deixá-lo aqui também duplicaria a conferência.
+      const semDelivery = all.filter((p) => p.producerName !== PRODUCER_FRETE)
+      const filtered = isProdutor ? semDelivery.filter((p) => p.producerName === user?.name) : semDelivery
       filtered.sort((a, b) =>
   a.userName.localeCompare(b.userName, 'pt-BR') ||
   a.producerName.localeCompare(b.producerName, 'pt-BR')

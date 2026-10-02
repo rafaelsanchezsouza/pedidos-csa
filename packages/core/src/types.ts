@@ -153,6 +153,13 @@ export interface AcolhidaWeekDoc {
   dateUpdated: string
 }
 
+// Sentinelas de `producerName` nas faturas que NÃO vêm de pedido. São TOKENS DE DADO
+// canônicos, iguais nos dois apps e gravados assim em produção — o rótulo que o membro lê é
+// vocabulário de UI (`vocabulary.deliveryFeeLabel`). Ficam aqui, e não no serviço, porque o
+// front também precisa distinguir as faturas e não pode importar '@pedidos/core/server'.
+export const PRODUCER_COTA = 'Cota'
+export const PRODUCER_FRETE = 'Entrega'
+
 // Uma entrada do histórico de correção de fatura. Acumula, nunca é reescrita.
 export interface CorrecaoPagamento {
   de: number

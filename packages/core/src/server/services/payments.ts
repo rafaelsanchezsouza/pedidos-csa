@@ -9,10 +9,10 @@ import type { EngineDeps } from '../repo.js'
 
 export type { PaymentDoc }
 
-// Sentinelas de producerName nas faturas geradas (não vêm de pedido). São TOKENS DE DADO
-// canônicos, iguais nos dois apps — o rótulo que o membro vê é vocabulário da UI.
-export const PRODUCER_COTA = 'Cota'
-export const PRODUCER_FRETE = 'Entrega'
+// Definidos em types.ts (o front também precisa deles e não pode importar daqui);
+// re-exportados para a API de '@pedidos/core/server' não mudar.
+export { PRODUCER_COTA, PRODUCER_FRETE } from '../../types.js'
+import { PRODUCER_COTA, PRODUCER_FRETE } from '../../types.js'
 
 // Visão de configuração financeira do tenant (subconjunto do TenantDoc canônico).
 type TenantSettings = Pick<TenantDoc, 'quotas' | 'quotaInteira' | 'quotaMeia' | 'freteDelivery' | 'dueDay'>

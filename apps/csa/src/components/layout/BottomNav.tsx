@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   ShoppingCart, BookOpen, Wheat, Settings, ClipboardList,
-  CreditCard, UserCircle, Truck, CheckCircle, MoreHorizontal, X, CalendarCheck,
+  CreditCard, UserCircle, Truck, CheckCircle, MoreHorizontal, X, CalendarCheck, Bike,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -30,6 +30,7 @@ const adminMainItems = [
 ]
 
 const adminMoreItems = [
+  { to: '/verificar-delivery', label: 'Delivery', icon: Bike },
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart },
   { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard },
   { to: '/catalogo', label: 'Catálogo', icon: BookOpen },

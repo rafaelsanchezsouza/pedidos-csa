@@ -11,6 +11,7 @@ import { PerfilPage } from '@/pages/PerfilPage'
 import { EntregasPage } from '@/pages/EntregasPage'
 import { ConsolidadoGeralPage } from '@/pages/ConsolidadoGeralPage'
 import { VerificarPagamentosPage } from '@/pages/VerificarPagamentosPage'
+import { VerificarDeliveryPage } from '@/pages/VerificarDeliveryPage'
 import { DefinirSenhaPage } from '@/pages/DefinirSenhaPage'
 import { AcolhidaPage } from '@/pages/AcolhidaPage'
 import { ReactNode } from 'react'
@@ -86,6 +87,16 @@ function AppRoutes() {
         />
         <Route path="/pagamentos" element={<PagamentosPage />} />
         <Route path="/verificar-pagamentos" element={<VerificarPagamentosPage />} />
+        {/* Conferência do delivery é só do admin: fornecedor confere o que é dele, e o
+            frete não é de produtor nenhum. */}
+        <Route
+          path="/verificar-delivery"
+          element={
+            <ProtectedRoute adminOnly>
+              <VerificarDeliveryPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/perfil" element={<PerfilPage />} />
         <Route
           path="/entregas"

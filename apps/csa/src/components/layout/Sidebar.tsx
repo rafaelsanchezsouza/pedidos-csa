@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, UserCircle, Truck, CheckCircle, CalendarCheck } from 'lucide-react'
+import { ShoppingCart, BookOpen, Wheat, Settings, ClipboardList, CreditCard, UserCircle, Truck, CheckCircle, CalendarCheck, Bike } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { isAdmin as checkAdmin, isFornecedor, isSuperadmin , emAcolhida, UTC_OFFSET_PADRAO } from '@pedidos/core'
@@ -11,6 +11,7 @@ const navItems = [
   { to: '/pedidos', label: 'Meus Pedidos', icon: ShoppingCart, adminOnly: false, produtorVisible: false },
   { to: '/pagamentos', label: 'Pagamentos', icon: CreditCard, adminOnly: false, produtorVisible: false },
   { to: '/verificar-pagamentos', label: 'Verificar Pagamentos', icon: CheckCircle, adminOnly: true, produtorVisible: true },
+  { to: '/verificar-delivery', label: 'Conferir Delivery', icon: Bike, adminOnly: true, produtorVisible: false },
   { to: '/ofertas', label: 'Extras da Semana', icon: Wheat, adminOnly: true, produtorVisible: false },
   { to: '/entregas', label: 'Entregas', icon: Truck, adminOnly: true, produtorVisible: false },
   { to: '/consolidado-geral', label: 'Consolidado', icon: ClipboardList, adminOnly: true, produtorVisible: false },
