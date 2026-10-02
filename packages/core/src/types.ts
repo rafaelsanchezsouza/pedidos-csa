@@ -2,6 +2,8 @@
 // Os *Doc são a forma ARMAZENADA (sem id — a porta Repo devolve WithId<T>); User/Payment no
 // topo são as visões mínimas consumidas pelo cálculo puro do domínio.
 
+import type { PrecoBairro } from './domain/frete.js'
+
 export type Frequency = 'semanal' | 'quinzenal'
 export type QuinzenalParity = 'par' | 'impar'
 // Canônico. O legado 'colmeia' da CSA (até a migração) não entra no tipo: nenhuma regra lê o
@@ -16,6 +18,7 @@ export interface QuotaTier {
 export interface User {
   id: string
   name: string
+  neighborhood?: string
   deliveryType?: DeliveryType
   deliveryOrder?: number
   frequency?: Frequency
@@ -41,6 +44,17 @@ export interface TenantDoc {
   quotaInteira?: number
   quotaMeia?: number
   freteDelivery?: number
+  /** Tabela bairro × preço por entrega. Vence o `freteDelivery` padrão. */
+  fretePorBairro?: PrecoBairro[]
+  /**
+   * Primeiro mês ('YYYY-MM') em que a fatura de frete pode ser gerada. Existe porque a
+   * geração roda retroativa sem querer: `POST /payments/frete` dispara para o mês que o
+   * membro estiver NAVEGANDO em Meus Pagamentos, então sem esta trava passear para setembro
+   * criaria a fatura de setembro. Ausente = sem trava (comportamento antigo).
+   */
+  freteVigenteDesde?: string
+  /** Admin que recebe o aviso de membro sem frete definido. */
+  responsavelEntregasId?: string
   dueDay?: number
   orderSendDay?: number
   orderSendHour?: number
@@ -52,6 +66,8 @@ export interface UserDoc {
   name: string
   email: string
   address: string
+  /** Bairro — define o preço do frete via `tenant.fretePorBairro`, então só admin edita. */
+  neighborhood?: string
   contact: string
   frequency: Frequency
   deliveryType: DeliveryType

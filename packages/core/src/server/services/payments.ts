@@ -1,7 +1,7 @@
 import { countDeliveryWeeks } from '../../domain/week.js'
 import { emAcolhida, semanasConfirmadas, UTC_OFFSET_PADRAO } from '../../domain/acolhida.js'
 import { weeklyRate, quotaAmount } from '../../domain/quota.js'
-import { resolveFrete } from '../../domain/frete.js'
+import { freteDoMembro } from '../../domain/frete.js'
 import { isEntrega } from '../../domain/delivery.js'
 import type { AcolhidaWeekDoc, OrderDoc, PaymentDoc, UserDoc, TenantDoc } from '../../types.js'
 import type { AppConfig } from '../../config.js'
@@ -15,7 +15,32 @@ export { PRODUCER_COTA, PRODUCER_FRETE } from '../../types.js'
 import { PRODUCER_COTA, PRODUCER_FRETE } from '../../types.js'
 
 // Visão de configuração financeira do tenant (subconjunto do TenantDoc canônico).
-type TenantSettings = Pick<TenantDoc, 'quotas' | 'quotaInteira' | 'quotaMeia' | 'freteDelivery' | 'dueDay'>
+type TenantSettings = Pick<
+  TenantDoc,
+  'quotas' | 'quotaInteira' | 'quotaMeia' | 'freteDelivery' | 'fretePorBairro' | 'freteVigenteDesde' | 'dueDay'
+>
+
+/** Por que a fatura de frete não foi gerada. `skipped` é mantido para quem só testa isso. */
+export interface PuloDoFrete {
+  skipped: true
+  motivo: 'nao-e-entrega' | 'fora-da-vigencia' | 'sem-frete' | 'frete-zero'
+}
+
+/** Membro de entrega sem preço de frete resolvível — não gera fatura, vira pendência. */
+export interface PendenciaFrete {
+  userId: string
+  userName: string
+  neighborhood?: string
+}
+
+/**
+ * A geração de frete não roda só no cron do dia 1: `POST /payments/frete` dispara para o mês
+ * que o membro estiver NAVEGANDO em Meus Pagamentos. Sem esta trava, passear para um mês
+ * anterior criaria a fatura daquele mês — cobrança retroativa sem ninguém pedir. A guarda
+ * mora aqui, e não na rota, porque o `acolhida.ts` também gera.
+ */
+const dentroDaVigencia = (month: string, t: TenantSettings): boolean =>
+  !t.freteVigenteDesde || month >= t.freteVigenteDesde
 
 // 'cota' vence no mês anterior (pré-consumo); 'extras' e 'frete' no mês seguinte (pós-consumo).
 function buildDueDate(month: string, type: 'cota' | 'extras' | 'frete', dueDay: number): string {
@@ -43,6 +68,8 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
       quotaInteira: t?.quotaInteira ?? d.quotaInteira,
       quotaMeia: t?.quotaMeia ?? d.quotaMeia,
       freteDelivery: t?.freteDelivery,
+      fretePorBairro: t?.fretePorBairro,
+      freteVigenteDesde: t?.freteVigenteDesde,
       dueDay: t?.dueDay ?? d.dueDay,
     }
   }
@@ -231,16 +258,22 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
     tenantId: string,
     month: string,
     agora = new Date(),
-  ): Promise<(PaymentDoc & { id: string }) | { skipped: true }> {
+  ): Promise<(PaymentDoc & { id: string }) | PuloDoFrete> {
     const [userDoc, tenantDoc] = await Promise.all([
       repo.getDoc<UserDoc>('users', uid),
       repo.getDoc<TenantSettings>('tenants', tenantId),
     ])
     if (!userDoc) throw new Error('Usuário não encontrado')
     const settings = settingsDe(tenantDoc)
-    const frete = resolveFrete(userDoc, settings)
-    // Elegibilidade inalterada: só quem recebe em casa e tem frete > 0.
-    if (!isEntrega(userDoc) || frete <= 0) return { skipped: true }
+    if (!isEntrega(userDoc)) return { skipped: true, motivo: 'nao-e-entrega' as const }
+    if (!dentroDaVigencia(month, settings)) return { skipped: true, motivo: 'fora-da-vigencia' as const }
+
+    // Sem preço resolvível é PENDÊNCIA, não entrega grátis: com tabela por bairro, tratar
+    // indefinido como 0 esconderia o cadastro incompleto atrás de uma fatura de R$ 0.
+    const f = freteDoMembro(userDoc, settings)
+    if (f.origem === 'indefinido') return { skipped: true, motivo: 'sem-frete' as const }
+    if (f.valor <= 0) return { skipped: true, motivo: 'frete-zero' as const }
+    const frete = f.valor
 
     // Em acolhida muda só a CONTAGEM: paga o frete das semanas que confirmou.
     const semanas = await semanasDeCobranca(userDoc, uid, tenantId, month, agora)
@@ -251,28 +284,41 @@ export function createPaymentService({ repo }: EngineDeps, config: AppConfig) {
     )).doc
   }
 
-  async function generateFreteForAll(tenantId: string, month: string, agora = new Date()): Promise<{ generated: number }> {
+  // Devolve também QUEM ficou sem fatura por falta de preço: quem avisa é o job do app
+  // (cron e WhatsApp são infra do app; o motor só apura).
+  async function generateFreteForAll(
+    tenantId: string,
+    month: string,
+    agora = new Date(),
+  ): Promise<{ generated: number; semFrete: PendenciaFrete[] }> {
     const [users, tenantDoc] = await Promise.all([
       repo.listDocs<UserDoc>('users', [['tenantId', '==', tenantId]]),
       repo.getDoc<TenantSettings>('tenants', tenantId),
     ])
     const settings = settingsDe(tenantDoc)
+    if (!dentroDaVigencia(month, settings)) return { generated: 0, semFrete: [] }
+
     const dueDate = buildDueDate(month, 'frete', settings.dueDay!)
     const utcOffset = config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO
-    const eligible = users.filter(
-      (u) => isEntrega(u) && !u.disabled && !u.deleted && resolveFrete(u, settings) > 0,
-    )
+    const deEntrega = users.filter((u) => isEntrega(u) && !u.disabled && !u.deleted)
+
     let generated = 0
-    for (const u of eligible) {
-      const frete = resolveFrete(u, settings)
+    const semFrete: PendenciaFrete[] = []
+    for (const u of deEntrega) {
+      const f = freteDoMembro(u, settings)
+      if (f.origem === 'indefinido') {
+        semFrete.push({ userId: u.id, userName: u.name, ...(u.neighborhood ? { neighborhood: u.neighborhood } : {}) })
+        continue
+      }
+      if (f.valor <= 0) continue // 0 explícito é entrega grátis, não pendência
       const semanas = await semanasDeCobranca(u, u.id, tenantId, month, agora)
       const venc = emAcolhida(u, agora, utcOffset) ? undefined : dueDate
       const { created } = await upsertGenerated(
-        PRODUCER_FRETE, u.id, u.name, tenantId, month, frete * semanas, venc,
+        PRODUCER_FRETE, u.id, u.name, tenantId, month, f.valor * semanas, venc,
       )
       if (created) generated++
     }
-    return { generated }
+    return { generated, semFrete }
   }
 
   return {

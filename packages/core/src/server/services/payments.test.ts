@@ -91,7 +91,7 @@ describe('generateQuotaForAll / generateFreteForAll', () => {
       tenants: { t1: { freteDelivery: 12 } },
     })
     const svc = createPaymentService({ repo }, config)
-    expect(await svc.generateFreteForAll('t1', MONTH)).toEqual({ generated: 1 })
+    expect(await svc.generateFreteForAll('t1', MONTH)).toMatchObject({ generated: 1 })
     const fretes = await pagamentos(repo, PRODUCER_FRETE)
     expect(fretes).toHaveLength(1)
     // agosto/2025: semanas fixas (ímpar) = 2 entregas → 12 × 2; vencimento mês SEGUINTE
@@ -135,6 +135,86 @@ describe('upsertPaymentsForOrder', () => {
     expect(por('Horta').amount).toBe(5)
     expect(por('Quitanda').amount).toBe(0) // sumiu dos pedidos → zera
     expect(por(PRODUCER_COTA).amount).toBe(260) // intocada
+  })
+})
+
+// --- Frete por bairro, vigência e pendências ---
+describe('frete por bairro', () => {
+  const tabela = [{ bairro: 'Manaíra', price: 15 }, { bairro: 'Bessa', price: 20 }]
+
+  it('cobra o preço do bairro × entregas do mês', async () => {
+    const repo = createMemoryRepo({
+      users: { u1: { name: 'Ana', tenantId: 't1', deliveryType: 'entrega', neighborhood: 'manaira', frequency: 'semanal' } },
+      tenants: { t1: { fretePorBairro: tabela } },
+    })
+    const svc = createPaymentService({ repo }, config)
+    expect(await svc.generateFreteForUser('u1', 't1', MONTH)).toMatchObject({ amount: 15 * 4 })
+  })
+
+  it('sem preço resolvível não gera fatura e entra na lista de pendência', async () => {
+    const repo = createMemoryRepo({
+      users: {
+        ok: { name: 'Ana', tenantId: 't1', deliveryType: 'entrega', neighborhood: 'Bessa', frequency: 'semanal' },
+        semBairro: { name: 'Bia', tenantId: 't1', deliveryType: 'entrega', frequency: 'semanal' },
+        foraDaTabela: { name: 'Caio', tenantId: 't1', deliveryType: 'entrega', neighborhood: 'Cabedelo', frequency: 'semanal' },
+        retira: { name: 'Davi', tenantId: 't1', deliveryType: 'retirada', frequency: 'semanal' },
+      },
+      // freteDelivery 0 é o estado real da CSA: não pode virar entrega grátis
+      tenants: { t1: { freteDelivery: 0, fretePorBairro: tabela } },
+    })
+    const svc = createPaymentService({ repo }, config)
+    const r = await svc.generateFreteForAll('t1', MONTH)
+    expect(r.generated).toBe(1)
+    expect(r.semFrete.map((p) => p.userName).sort()).toEqual(['Bia', 'Caio'])
+    expect(r.semFrete.find((p) => p.userName === 'Caio')).toMatchObject({ neighborhood: 'Cabedelo' })
+    // nenhuma fatura de R$ 0 criada para os pendentes
+    expect(await pagamentos(repo, PRODUCER_FRETE)).toHaveLength(1)
+  })
+
+  it('o individual devolve o motivo de ter pulado', async () => {
+    const repo = createMemoryRepo({
+      users: {
+        semFrete: { name: 'Bia', tenantId: 't1', deliveryType: 'entrega', frequency: 'semanal' },
+        retira: { name: 'Davi', tenantId: 't1', deliveryType: 'retirada', frequency: 'semanal' },
+      },
+      tenants: { t1: { freteDelivery: 0 } },
+    })
+    const svc = createPaymentService({ repo }, config)
+    expect(await svc.generateFreteForUser('semFrete', 't1', MONTH)).toEqual({ skipped: true, motivo: 'sem-frete' })
+    expect(await svc.generateFreteForUser('retira', 't1', MONTH)).toEqual({ skipped: true, motivo: 'nao-e-entrega' })
+  })
+})
+
+// A geração dispara para o mês que o membro estiver NAVEGANDO em Meus Pagamentos
+// (`POST /payments/frete`). Sem a trava, passear para trás cria cobrança retroativa.
+describe('freteVigenteDesde — o passado não é afetado', () => {
+  const comVigencia = () => createMemoryRepo({
+    users: { u1: { name: 'Ana', tenantId: 't1', deliveryType: 'entrega', neighborhood: 'Bessa', frequency: 'semanal' } },
+    tenants: { t1: { fretePorBairro: [{ bairro: 'Bessa', price: 20 }], freteVigenteDesde: '2025-08' } },
+  })
+
+  it('mês anterior à vigência não gera nada, nem individual nem em lote', async () => {
+    const repo = comVigencia()
+    const svc = createPaymentService({ repo }, config)
+    expect(await svc.generateFreteForUser('u1', 't1', '2025-07')).toEqual({ skipped: true, motivo: 'fora-da-vigencia' })
+    expect(await svc.generateFreteForAll('t1', '2025-07')).toEqual({ generated: 0, semFrete: [] })
+    expect(await pagamentos(repo, PRODUCER_FRETE)).toHaveLength(0)
+  })
+
+  it('o mês da vigência em diante gera normalmente', async () => {
+    const repo = comVigencia()
+    const svc = createPaymentService({ repo }, config)
+    expect(await svc.generateFreteForUser('u1', 't1', MONTH)).toMatchObject({ amount: 80 })
+  })
+
+  it('sem vigência definida, nada muda (Fermentou)', async () => {
+    const repo = createMemoryRepo({
+      users: { u1: { name: 'Ana', tenantId: 't1', deliveryType: 'entrega', frequency: 'semanal' } },
+      tenants: { t1: { freteDelivery: 12 } },
+    })
+    const svc = createPaymentService({ repo }, config)
+    // janeiro/2025 tem 5 quartas (1, 8, 15, 22, 29)
+    expect(await svc.generateFreteForUser('u1', 't1', '2025-01')).toMatchObject({ amount: 12 * 5 })
   })
 })
 
@@ -293,7 +373,7 @@ describe('acolhida — frete cobra as semanas confirmadas', () => {
       acolhidaWeeks: { w1: { userId: 'u1', tenantId: 't1', weekId: '2025-08-04', confirmado: true } },
     })
     const svc = createPaymentService({ repo }, config)
-    expect(await svc.generateFreteForUser('u1', 't1', MONTH, AGORA)).toEqual({ skipped: true })
+    expect(await svc.generateFreteForUser('u1', 't1', MONTH, AGORA)).toMatchObject({ skipped: true })
   })
 
   it('membro efetivo em entrega segue cobrado pelo calendário (regressão)', async () => {

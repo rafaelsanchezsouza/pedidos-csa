@@ -36,6 +36,7 @@
 - `deleted: boolean` — quando `true`, usuário removido; excluído da geração de cotas
 - `acolhidaExpiry: string (ISO date)` — data de encerramento do período de acolhida; ausente ou vazio = sem acolhida
 - Usuário informa: nome, endereço, contato, frequência (semanal/quinzenal), tipo de retirada (na colmeia ou por entrega)
+- `neighborhood` (bairro) **só o admin altera**: ele define o preço do frete, e quem paga não pode escolher o próprio valor trocando de bairro. Saiu de `CAMPOS_DO_PROPRIO_PERFIL`
 
 ## Período de Acolhida
 
@@ -239,8 +240,14 @@
 ### Frete da Entrega
 - Fatura mensal (`producerName === 'Entrega'`) para membros que recebem por entrega (`deliveryType === 'entrega'`)
 - Valor **por entrega**, não fixo mensal: `frete × countDeliveryWeeks(month, frequency, quinzenalParity)` — mesma contagem da cota, respeita quinzenal
-- Frete efetivo = **override do membro** (`user.freteDelivery`) **ou** o **padrão da colmeia** (`colmeia.freteDelivery`); `0` explícito é entrega grátis e vence o padrão (resolvido por `resolveFrete` em `server/services/freteMath.ts`)
-- **Elegibilidade:** `deliveryType === 'entrega'` + `!disabled` + `!deleted` + frete efetivo `> 0` (frete 0 não gera fatura)
+- **Preço por bairro** (`colmeia.fretePorBairro`: `{ bairro, price }[]`, editável em Configurações → Entregas). Precedência em `freteDoMembro` (`packages/core/src/domain/frete.ts`):
+  1. `user.freteDelivery` — override individual; `0` explícito é entrega grátis
+  2. preço do **bairro** do membro, casado por nome normalizado (sem acento/caixa/espaço — "Manaíra", "manaira" e "MANAÍRA " são o mesmo bairro)
+  3. `colmeia.freteDelivery` — padrão, **só se > 0**. A CSA tem 0 gravado desde que o campo nasceu; tratá-lo como preço válido faria todo mundo virar "entrega grátis" em vez de pendência
+  4. **indefinido** → pendência
+- **Pendência**: membro de entrega sem preço resolvível **não gera fatura** e entra em `semFrete[]`. Nada de fatura de R$ 0, que esconderia cadastro incompleto. O `quotaJob` avisa o **responsável pelas entregas** (`colmeia.responsavelEntregasId`) por WhatsApp — só pelo job, que é o caminho desatendido; no botão "Gerar faturas" o admin já vê a lista na tela
+- **O passado não é afetado:** `colmeia.freteVigenteDesde` (`"YYYY-MM"`) é o primeiro mês em que a fatura de frete pode nascer. Existe porque `POST /payments/frete` dispara para o mês que o membro estiver **navegando** em Meus Pagamentos — sem a trava, passear para setembro criaria a fatura de setembro. A guarda fica no `paymentService`, não na rota: `ensureFrete`, o cron e o `acolhida.ts` são três caminhos para a mesma geração. Ausente = sem trava
+- **Elegibilidade:** `deliveryType === 'entrega'` + `!disabled` + `!deleted` + preço resolvível (bairro na tabela com `0` é grátis de propósito, não pendência)
 - Membro anexa comprovante e admin verifica — mesmo fluxo das outras faturas (reusa Firebase Storage via `useUploadProof`)
 - Vencimento: dia `dueDay` do **mês seguinte** (pós-consumo, como extras)
 - **Geração automática:** mesmo cron da cota (dia 1, 08h); `upsertPaymentsForOrder` nunca toca em `'Entrega'`

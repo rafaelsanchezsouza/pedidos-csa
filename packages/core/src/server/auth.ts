@@ -60,7 +60,8 @@ export function negar(res: Response, motivo = 'Sem permissão para esta operaç�
 export const CAMPOS_DO_PROPRIO_PERFIL = [
   'name',
   'address',
-  'neighborhood',
+  // `neighborhood` NÃO entra: o bairro define o preço do frete (tenant.fretePorBairro), e
+  // quem paga não pode escolher o próprio valor trocando de bairro. Alteração passa pelo admin.
   'contact',
   'frequency',
   'deliveryType',
