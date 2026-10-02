@@ -37,6 +37,8 @@
 - `acolhidaExpiry: string (ISO date)` — data de encerramento do período de acolhida; ausente ou vazio = sem acolhida
 - Usuário informa: nome, endereço, contato, frequência (semanal/quinzenal), tipo de retirada (na colmeia ou por entrega)
 - `neighborhood` (bairro) **só o admin altera**: ele define o preço do frete, e quem paga não pode escolher o próprio valor trocando de bairro. Saiu de `CAMPOS_DO_PROPRIO_PERFIL`
+- O bairro é **campo fechado** (dropdown da tabela de fretes) no cadastro e na edição, com opção de **adicionar bairro**. Texto livre criava "Manaíra", "manaira" e "MANAIRA" como três bairros — três preços possíveis para a mesma rua. Bairro escolhido que ainda não tem preço aparece avisado no próprio formulário
+- **Import por CSV**: o bairro da planilha é **casado** com a tabela (sem acento/caixa/espaço) e gravado com a **grafia da tabela** — guardar "manaira" ao lado de "Manaíra" deixaria o dado sujo para sempre, e o dropdown não corrige o que já entrou. Sem match, o membro **é criado assim mesmo** e a conferência marca `"<bairro> — corrigir"` antes de importar; ele fica sem fatura de frete até o bairro ganhar preço
 
 ## Período de Acolhida
 

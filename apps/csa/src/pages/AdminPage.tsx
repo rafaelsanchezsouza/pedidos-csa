@@ -103,6 +103,66 @@ function parseGoogleFormCsv(text: string): ParsedRow[] {
 const expiryAcolhida = () =>
   fimDaAcolhida(new Date(), config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO)
 
+// Bairro é campo fechado: ele define o preço do frete, e texto livre criava "Manaíra",
+// "manaira" e "MANAIRA" como três bairros — três preços possíveis para a mesma rua. A opção
+// de adicionar continua aí, porque bairro novo aparece de verdade; o preço dele é definido
+// em Configurações → Entregas (sem preço, o membro vira pendência em vez de ser cobrado errado).
+function SelectBairro({
+  valor, bairros, onChange,
+}: {
+  valor: string
+  bairros: PrecoBairro[]
+  onChange: (b: string) => void
+}) {
+  const [novo, setNovo] = useState('')
+  const [adicionando, setAdicionando] = useState(false)
+  // Bairro já gravado que saiu da tabela não pode sumir do formulário em silêncio.
+  const opcoes = bairros.some((b) => normalizarBairro(b.bairro) === normalizarBairro(valor)) || !valor
+    ? bairros.map((b) => b.bairro)
+    : [valor, ...bairros.map((b) => b.bairro)]
+
+  return (
+    <>
+      <select
+        aria-label="Bairro"
+        value={valor}
+        onChange={(e) => {
+          if (e.target.value === '__novo__') { setAdicionando(true); return }
+          onChange(e.target.value)
+        }}
+        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+      >
+        <option value="">— selecione —</option>
+        {opcoes.map((b) => <option key={b} value={b}>{b}</option>)}
+        <option value="__novo__">Adicionar bairro...</option>
+      </select>
+      {adicionando && (
+        <div className="flex gap-2 mt-1">
+          <Input value={novo} onChange={(e) => setNovo(e.target.value)} placeholder="Nome do bairro" className="flex-1" />
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              const n = novo.trim()
+              if (!n) return
+              onChange(n)
+              setNovo('')
+              setAdicionando(false)
+            }}
+          >
+            Usar
+          </Button>
+        </div>
+      )}
+      {valor && !bairros.some((b) => normalizarBairro(b.bairro) === normalizarBairro(valor)) && (
+        <p className="text-xs text-yellow-700">
+          Sem preço em Configurações → Entregas: não gera fatura de frete até ser definido.
+        </p>
+      )}
+    </>
+  )
+}
+
 export function AdminPage() {
   const { colmeia, colmeias, user, refreshUser } = useAuth()
   const [tab, setTab] = useState('usuarios')
@@ -120,6 +180,15 @@ export function AdminPage() {
   const [freteDelivery, setFreteDelivery] = useState(String(colmeia?.freteDelivery ?? 0))
   const [bairros, setBairros] = useState<PrecoBairro[]>(colmeia?.fretePorBairro ?? [])
   const [responsavel, setResponsavel] = useState(colmeia?.responsavelEntregasId ?? '')
+
+  // Casa o bairro escrito no CSV com a grafia da tabela. O import é o caminho em que o
+  // texto chega mais sujo (Google Forms, digitado pelo membro), e é onde o dropdown não
+  // protege — por isso o match acontece aqui e a conferência mostra o resultado.
+  const casarBairro = (escrito: string): string | null => {
+    const alvo = normalizarBairro(escrito)
+    if (!alvo) return null
+    return bairros.find((b) => normalizarBairro(b.bairro) === alvo)?.bairro ?? null
+  }
 
   // Bairros que têm membro de entrega cadastrado e NÃO estão na tabela: é exatamente quem
   // vira pendência e não recebe fatura. Mostrar aqui evita descobrir isso só no fim do mês.
@@ -356,6 +425,10 @@ export function AdminPage() {
     try {
       const members = csvRows.map(({ inicio, ...r }) => ({
         ...r,
+        // Casou com a tabela? grava a grafia DELA. Guardar "manaira" ao lado de "Manaíra"
+        // deixaria o dado sujo para sempre, e o dropdown não corrige o que já entrou.
+        // Não casou: mantém o que veio, para o admin ver e corrigir.
+        neighborhood: casarBairro(r.neighborhood) ?? r.neighborhood,
         tenantId: colmeia.id,
         // 30 dias contados da 1ª entrega informada; sem data, de hoje. Quem se inscreveu em
         // 15/08 e só foi importado em 31/08 não deve ganhar duas semanas a mais.
@@ -953,7 +1026,11 @@ export function AdminPage() {
               </div>
               <div className="space-y-1">
                 <Label>Bairro</Label>
-                <Input value={memberForm.neighborhood} onChange={(e) => setMember('neighborhood', e.target.value)} />
+                <SelectBairro
+                  valor={memberForm.neighborhood}
+                  bairros={bairros}
+                  onChange={(b) => setMember('neighborhood', b)}
+                />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1149,7 +1226,8 @@ export function AdminPage() {
                       <th className="pb-1 pr-3">E-mail</th>
                       <th className="pb-1 pr-3">Retirada</th>
                       <th className="pb-1 pr-3">Frequência</th>
-                      <th className="pb-1">Semana</th>
+                      <th className="pb-1 pr-3">Semana</th>
+                      <th className="pb-1">Bairro</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1161,11 +1239,25 @@ export function AdminPage() {
                         <td className="py-1 pr-3 capitalize">{r.frequency}</td>
                         {/* Ciclo derivado da 1ª entrega — visível antes de criar, porque
                             corrigir depois é editar cadastro por cadastro. */}
-                        <td className="py-1">
+                        <td className="py-1 pr-3">
                           {r.frequency === 'quinzenal'
                             ? (r.quinzenalParity === 'impar' ? 'A' : r.quinzenalParity === 'par' ? 'B' : '—')
                             : '—'}
                         </td>
+                        {/* O membro é criado de qualquer jeito; o que não casa com a tabela
+                            fica marcado aqui, porque sem preço ele não gera fatura de frete. */}
+                        <td className="py-1">{(() => {
+                          const casado = casarBairro(r.neighborhood)
+                          if (!r.neighborhood.trim()) {
+                            return <span className="text-yellow-700">sem bairro</span>
+                          }
+                          if (!casado) {
+                            return <span className="text-yellow-700">{r.neighborhood} — corrigir</span>
+                          }
+                          return casado !== r.neighborhood
+                            ? <span className="text-muted-foreground">{casado}</span>
+                            : casado
+                        })()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1246,7 +1338,11 @@ export function AdminPage() {
             </div>
             <div className="space-y-1">
               <Label>Bairro</Label>
-              <Input value={editForm.neighborhood ?? ''} onChange={(e) => setEdit('neighborhood', e.target.value)} />
+              <SelectBairro
+                valor={editForm.neighborhood ?? ''}
+                bairros={bairros}
+                onChange={(b) => setEdit('neighborhood', b)}
+              />
             </div>
             <div className="space-y-1">
               <Label>Contato</Label>
