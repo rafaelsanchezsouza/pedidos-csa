@@ -200,10 +200,18 @@ describe('PUT /:id — frete por bairro e vigência', () => {
     expect((await repo.getDoc<TenantDoc>('tenants', 't1'))!.freteVigenteDesde).toBe('2025-03')
   })
 
-  it('tabela vazia não carimba vigência', async () => {
+  it('salvar só o frete padrão também carimba — o padrão sozinho já cobra', async () => {
     const repo = comAdmin()
     await withApp(repo, async (get) => {
-      await salvar(get, { fretePorBairro: [] })
+      await salvar(get, { freteDelivery: 12, fretePorBairro: [] })
+    })
+    expect((await repo.getDoc<TenantDoc>('tenants', 't1'))!.freteVigenteDesde).toMatch(/^\d{4}-\d{2}$/)
+  })
+
+  it('tabela vazia e padrão zero não carimbam nada', async () => {
+    const repo = comAdmin()
+    await withApp(repo, async (get) => {
+      await salvar(get, { fretePorBairro: [], freteDelivery: 0 })
     })
     expect((await repo.getDoc<TenantDoc>('tenants', 't1'))!.freteVigenteDesde).toBeUndefined()
   })

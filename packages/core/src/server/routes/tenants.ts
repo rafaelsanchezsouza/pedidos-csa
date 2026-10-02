@@ -130,12 +130,16 @@ export function createTenantsRouter({ repo }: EngineDeps, config: AppConfig): Ro
       if (freteDelivery !== undefined) updates.freteDelivery = Number(freteDelivery) || 0
       if (responsavelEntregasId !== undefined) updates.responsavelEntregasId = String(responsavelEntregasId)
       const bairros = sanitizeBairros(fretePorBairro)
-      if (bairros !== undefined) {
-        updates.fretePorBairro = bairros
-        // Carimba a vigência no primeiro salvamento com tabela: esquecer esse campo é
-        // exatamente o erro que faz a cobrança nascer retroativa.
+      if (bairros !== undefined) updates.fretePorBairro = bairros
+
+      // Carimba a vigência quando o frete passa a EXISTIR — por tabela ou pelo padrão. Vale
+      // para os dois porque qualquer um deles sozinho já torna um mês cobrável, e `ensureFrete`
+      // dispara para o mês que o membro estiver navegando: sem o carimbo, abrir setembro
+      // criaria a fatura de setembro. Esquecer o campo é exatamente o erro que cobra o passado.
+      const passaAcobrar = (bairros?.length ?? 0) > 0 || (updates.freteDelivery ?? 0) > 0
+      if (passaAcobrar) {
         const atual = await repo.getDoc<TenantDoc>('tenants', req.params['id'] as string)
-        if (bairros.length > 0 && !atual?.freteVigenteDesde) {
+        if (!atual?.freteVigenteDesde) {
           const utcOffset = config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO
           updates.freteVigenteDesde = relogioDoTenant(new Date(), utcOffset).data.slice(0, 7)
         }
