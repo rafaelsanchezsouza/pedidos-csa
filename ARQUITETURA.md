@@ -439,7 +439,8 @@ packages/core/
              portas (Repo/Auth/WhatsApp/MessageParser) — recebem (deps, config).
              Jobs ficaram no app: cron é infra, o core expõe a lógica
   ui/        design-system kit (feito)          → cn, applyBrand, PageHeader, EstadoLista,
-             build próprio (tsconfig.ui.json)      Week/MonthNavigator, 10 primitives shadcn
+             build próprio (tsconfig.ui.json)      Week/MonthNavigator, Comprovantes,
+                                                   10 primitives shadcn
 apps/<app>/
   src/       páginas + vocabulário próprios (consomem core + config)
   server/    entrypoint fino: monta integrações do .env + injeta AppConfig no engine

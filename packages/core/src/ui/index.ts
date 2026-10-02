@@ -19,6 +19,9 @@ export { PageHeader } from './PageHeader.js'
 export { EstadoLista } from './EstadoLista.js'
 export { WeekNavigator } from './WeekNavigator.js'
 export { MonthNavigator } from './MonthNavigator.js'
+export {
+  Comprovantes, type ComprovanteDaSemana, type FaturaComComprovantes,
+} from './Comprovantes.js'
 
 // Primitives shadcn — eram cópia byte a byte nos dois apps.
 export { Badge, badgeVariants, type BadgeProps } from './primitives/badge.js'
