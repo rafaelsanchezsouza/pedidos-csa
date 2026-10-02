@@ -5,6 +5,7 @@ import { useUploadProof } from '@/hooks/useUploadProof'
 import type { Payment, User } from '@/types'
 import {
   statusLabel, statusVariant, resolveFrete, formatDeliveryDate, PRODUCER_FRETE,
+  freteDoMembro, isEntrega,
 } from '@pedidos/core'
 import {
   Button, Card, CardContent, Badge, EstadoLista, MonthNavigator, PageHeader, Comprovantes,
@@ -240,6 +241,13 @@ export function VerificarDeliveryPage() {
     return u ? resolveFrete(u, colmeia ?? null) : 0
   }
 
+  // Quem recebe em casa e não tem preço resolvível NÃO gera fatura — logo, não aparece na
+  // tabela acima. Sem este bloco, some da tela e ninguém cobra, que é o pior dos mundos.
+  const semFrete = users.filter(
+    (u) => isEntrega(u) && !u.disabled && !u.deleted
+      && freteDoMembro(u, colmeia ?? null).origem === 'indefinido',
+  )
+
   async function verificar(p: Payment) {
     setVerifying(p.id)
     try {
@@ -278,9 +286,30 @@ export function VerificarDeliveryPage() {
 
       {aviso && <p className="text-sm text-muted-foreground">{aviso}</p>}
 
+      {!loading && semFrete.length > 0 && (
+        <Card className="border-yellow-300 bg-yellow-50">
+          <CardContent className="py-3 px-4 space-y-1">
+            <p className="text-sm font-medium text-yellow-900">
+              {semFrete.length} membro(s) de entrega sem frete definido — nenhuma fatura foi gerada
+            </p>
+            <ul className="text-sm text-yellow-900">
+              {semFrete.map((u) => (
+                <li key={u.id}>
+                  {u.name} — {u.neighborhood?.trim() || 'sem bairro cadastrado'}
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-yellow-800">
+              Defina o preço do bairro em Administração → Configurações → Entregas, ou um frete
+              próprio no cadastro do membro. Depois use "Gerar faturas do mês".
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <EstadoLista
         loading={loading}
-        vazio={payments.length === 0}
+        vazio={payments.length === 0 && semFrete.length === 0}
         mensagemVazia="Nenhuma fatura de entrega neste mês."
       >
         <div className="space-y-4">

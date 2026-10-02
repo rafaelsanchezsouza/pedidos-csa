@@ -6,6 +6,7 @@ import { createTenantsRouter } from './tenants'
 import { createMemoryRepo } from '../memoryRepo'
 import type { Repo } from '../repo.js'
 import type { AppConfig } from '../../config.js'
+import type { TenantDoc } from '../../types.js'
 
 const baseConfig: AppConfig = {
   brand: { name: 'X', tagline: 't', icon: '/i.png', colors: { light: {}, dark: {} } },
@@ -156,5 +157,54 @@ describe('createTenantsRouter — PUT', () => {
         expect(res.status).toBe(403)
       }, { uid })
     }
+  })
+})
+
+// O frete só passa a existir quando a tabela é salva — e o mês em que isso acontece é o
+// primeiro cobrável. Sem o carimbo, a geração nasceria valendo para trás.
+describe('PUT /:id — frete por bairro e vigência', () => {
+  const comAdmin = () => createMemoryRepo({
+    users: { u1: { name: 'Admin', tenantId: 't1', acesso: ['admin'] } },
+    tenants: { t1: { name: 'CSA', adminId: 'u1', dateCreated: 'd' } },
+  })
+  const salvar = (get: (p: string, i?: RequestInit) => Promise<Response>, body: object) =>
+    get('/api/tenants/t1', { method: 'PUT', body: JSON.stringify(body), ...json })
+
+  it('salva o frete padrão — que a rota descartava calado', async () => {
+    const repo = comAdmin()
+    await withApp(repo, async (get) => {
+      expect((await salvar(get, { freteDelivery: 12 })).status).toBe(200)
+    })
+    expect((await repo.getDoc<TenantDoc>('tenants', 't1'))!.freteDelivery).toBe(12)
+  })
+
+  it('a primeira tabela carimba a vigência no mês corrente', async () => {
+    const repo = comAdmin()
+    await withApp(repo, async (get) => {
+      await salvar(get, { fretePorBairro: [{ bairro: ' Manaíra ', price: '7' }, { bairro: '', price: 9 }] })
+    })
+    const t = (await repo.getDoc<TenantDoc>('tenants', 't1'))!
+    // bairro sem nome é descartado; preço vira número; nome é aparado
+    expect(t.fretePorBairro).toEqual([{ bairro: 'Manaíra', price: 7 }])
+    expect(t.freteVigenteDesde).toMatch(/^\d{4}-\d{2}$/)
+  })
+
+  it('salvar de novo NÃO reescreve a vigência já definida', async () => {
+    const repo = createMemoryRepo({
+      users: { u1: { name: 'Admin', tenantId: 't1', acesso: ['admin'] } },
+      tenants: { t1: { name: 'CSA', adminId: 'u1', dateCreated: 'd', freteVigenteDesde: '2025-03' } },
+    })
+    await withApp(repo, async (get) => {
+      await salvar(get, { fretePorBairro: [{ bairro: 'Bessa', price: 9 }] })
+    })
+    expect((await repo.getDoc<TenantDoc>('tenants', 't1'))!.freteVigenteDesde).toBe('2025-03')
+  })
+
+  it('tabela vazia não carimba vigência', async () => {
+    const repo = comAdmin()
+    await withApp(repo, async (get) => {
+      await salvar(get, { fretePorBairro: [] })
+    })
+    expect((await repo.getDoc<TenantDoc>('tenants', 't1'))!.freteVigenteDesde).toBeUndefined()
   })
 })

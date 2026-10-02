@@ -1,4 +1,4 @@
-import type { DeliveryType } from '@pedidos/core'
+import type { DeliveryType, PrecoBairro } from '@pedidos/core'
 
 export interface Tenant {
   id: string
@@ -8,6 +8,9 @@ export interface Tenant {
   quotaInteira?: number
   quotaMeia?: number
   freteDelivery?: number  // frete padrão da colmeia (por entrega); membro pode ter override
+  fretePorBairro?: PrecoBairro[]   // tabela bairro × frete; vence o padrão acima
+  freteVigenteDesde?: string       // 'YYYY-MM' — 1º mês cobrável; protege o passado
+  responsavelEntregasId?: string   // admin avisado quando alguém fica sem frete definido
   dueDay?: number
   orderSendDay?: number   // 0-6 (0=Dom, 2=Ter), default 2
   orderSendHour?: number  // 0-23, default 6

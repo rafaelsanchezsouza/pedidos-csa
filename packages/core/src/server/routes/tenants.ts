@@ -2,6 +2,9 @@ import { Router, type Request, type Response } from 'express'
 import { isSuperadmin, isAdmin } from '../../acesso.js'
 import type { AppConfig } from '../../config.js'
 import type { QuotaTier, TenantDoc } from '../../types.js'
+import type { PrecoBairro } from '../../domain/frete.js'
+import { relogioDoTenant } from '../../domain/week.js'
+import { UTC_OFFSET_PADRAO } from '../../domain/acolhida.js'
 import type { EngineDeps } from '../repo.js'
 import '../types.js'
 
@@ -14,6 +17,19 @@ interface UserAccessDoc {
 }
 
 // Valida/normaliza a lista de tiers recebida do cliente.
+// Mesmo saneamento das cotas. Bairro sem nome é descartado; preço vira número (0 = grátis
+// de propósito, que é diferente de bairro ausente da tabela).
+function sanitizeBairros(raw: unknown): PrecoBairro[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  return raw
+    .filter((b): b is { bairro: unknown; price: unknown } => !!b && typeof b === 'object')
+    .map((b) => ({
+      bairro: String((b as { bairro: unknown }).bairro ?? '').trim(),
+      price: Number((b as { price: unknown }).price) || 0,
+    }))
+    .filter((b) => b.bairro)
+}
+
 function sanitizeQuotas(raw: unknown): QuotaTier[] | undefined {
   if (!Array.isArray(raw)) return undefined
   return raw
@@ -87,11 +103,15 @@ export function createTenantsRouter({ repo }: EngineDeps, config: AppConfig): Ro
       if (!isSuperAdmin && !isTenantAdmin) {
         res.status(403).json({ message: 'Sem permissão' }); return
       }
-      const { quotas, quotaTerm, quotaInteira, quotaMeia, dueDay, orderSendDay, orderSendHour, weekChangeDay, extrasAberto } = req.body as {
+      const {
+        quotas, quotaTerm, quotaInteira, quotaMeia, dueDay, orderSendDay, orderSendHour,
+        weekChangeDay, extrasAberto, freteDelivery, fretePorBairro, responsavelEntregasId,
+      } = req.body as {
         quotas?: unknown; quotaTerm?: string
         quotaInteira?: number; quotaMeia?: number; dueDay?: number
         orderSendDay?: number; orderSendHour?: number; weekChangeDay?: number
         extrasAberto?: boolean
+        freteDelivery?: number; fretePorBairro?: unknown; responsavelEntregasId?: string
       }
       const updates: Partial<TenantDoc> = {}
       const tiers = sanitizeQuotas(quotas)
@@ -104,6 +124,22 @@ export function createTenantsRouter({ repo }: EngineDeps, config: AppConfig): Ro
       if (orderSendHour !== undefined) updates.orderSendHour = orderSendHour
       if (weekChangeDay !== undefined) updates.weekChangeDay = weekChangeDay
       if (extrasAberto !== undefined) updates.extrasAberto = extrasAberto
+      // `freteDelivery` ficou FORA desta lista desde sempre: a tela mandava, o servidor
+      // descartava calado e respondia "Salvo!". É por isso que o frete da CSA é 0 — não foi
+      // config esquecida, foi salvamento que nunca funcionou.
+      if (freteDelivery !== undefined) updates.freteDelivery = Number(freteDelivery) || 0
+      if (responsavelEntregasId !== undefined) updates.responsavelEntregasId = String(responsavelEntregasId)
+      const bairros = sanitizeBairros(fretePorBairro)
+      if (bairros !== undefined) {
+        updates.fretePorBairro = bairros
+        // Carimba a vigência no primeiro salvamento com tabela: esquecer esse campo é
+        // exatamente o erro que faz a cobrança nascer retroativa.
+        const atual = await repo.getDoc<TenantDoc>('tenants', req.params['id'] as string)
+        if (bairros.length > 0 && !atual?.freteVigenteDesde) {
+          const utcOffset = config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO
+          updates.freteVigenteDesde = relogioDoTenant(new Date(), utcOffset).data.slice(0, 7)
+        }
+      }
       await repo.updateDoc<TenantDoc>('tenants', req.params['id'] as string, updates)
       const tenant = await repo.getDoc<TenantDoc>('tenants', req.params['id'] as string)
       res.json(tenant)

@@ -8,7 +8,8 @@ import type { User, Producer, TenantRole } from '@/types'
 import { formatQuota } from '@/lib/quota'
 import {
   parseCsvLine, parseDataBR, isSuperadmin, isEntrega, fimDaAcolhida, fimDaAcolhidaDesde,
-  paridadeDaSemanaDe, UTC_OFFSET_PADRAO, type DeliveryType,
+  paridadeDaSemanaDe, UTC_OFFSET_PADRAO, normalizarBairro, isAdmin as ehAdmin,
+  type DeliveryType, type PrecoBairro,
 } from '@pedidos/core'
 import { config } from '@/config'
 import { Button, Input, Label, Card, CardContent, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@pedidos/core/ui'
@@ -117,6 +118,19 @@ export function AdminPage() {
   const [quotaInteira, setQuotaInteira] = useState(String(colmeia?.quotaInteira ?? 65))
   const [quotaMeia, setQuotaMeia] = useState(String(colmeia?.quotaMeia ?? 40))
   const [freteDelivery, setFreteDelivery] = useState(String(colmeia?.freteDelivery ?? 0))
+  const [bairros, setBairros] = useState<PrecoBairro[]>(colmeia?.fretePorBairro ?? [])
+  const [responsavel, setResponsavel] = useState(colmeia?.responsavelEntregasId ?? '')
+
+  // Bairros que têm membro de entrega cadastrado e NÃO estão na tabela: é exatamente quem
+  // vira pendência e não recebe fatura. Mostrar aqui evita descobrir isso só no fim do mês.
+  const bairrosSemPreco = [
+    ...new Set(
+      users
+        .filter((u) => isEntrega(u) && !u.disabled && !u.deleted && u.freteDelivery === undefined)
+        .map((u) => (u.neighborhood ?? '').trim())
+        .filter((n) => n && !bairros.some((b) => normalizarBairro(b.bairro) === normalizarBairro(n))),
+    ),
+  ].sort((a, b) => a.localeCompare(b, 'pt-BR'))
   const [dueDay, setDueDay] = useState(String(colmeia?.dueDay ?? 10))
   const [orderSendDay, setOrderSendDay] = useState(String(colmeia?.orderSendDay ?? 2))
   const [orderSendHour, setOrderSendHour] = useState(String(colmeia?.orderSendHour ?? 6))
@@ -377,6 +391,8 @@ export function AdminPage() {
         quotaInteira: parseFloat(quotaInteira) || 0,
         quotaMeia: parseFloat(quotaMeia) || 0,
         freteDelivery: parseFloat(freteDelivery) || 0,
+        fretePorBairro: bairros.filter((b) => b.bairro.trim()),
+        responsavelEntregasId: responsavel,
         dueDay: parseInt(dueDay) || 10,
         orderSendDay: parseInt(orderSendDay),
         orderSendHour: parseInt(orderSendHour),
@@ -689,6 +705,86 @@ export function AdminPage() {
                   />
                 </div>
               </div>
+              <h2 className="font-semibold pt-2">Entregas</h2>
+              <div className="space-y-1">
+                <Label>Responsável pelas entregas</Label>
+                <select
+                  value={responsavel}
+                  onChange={(e) => setResponsavel(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                >
+                  <option value="">— ninguém —</option>
+                  {users.filter((u) => ehAdmin(u) && !u.disabled && !u.deleted).map((u) => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Recebe no WhatsApp o aviso de membro sem frete definido, quando as faturas do mês são geradas.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Taxa de entrega por bairro</Label>
+                  <div className="flex gap-2">
+                    {config.tenantDefaults.fretePorBairro?.length ? (
+                      <Button
+                        type="button" size="sm" variant="outline"
+                        onClick={() => setBairros(config.tenantDefaults.fretePorBairro!.map((b) => ({ ...b })))}
+                      >
+                        Carregar tabela padrão
+                      </Button>
+                    ) : null}
+                    <Button type="button" size="sm" variant="outline" onClick={() => setBairros((p) => [...p, { bairro: '', price: 0 }])}>
+                      Adicionar bairro
+                    </Button>
+                  </div>
+                </div>
+
+                {bairrosSemPreco.length > 0 && (
+                  <p className="text-xs text-yellow-700 bg-yellow-50 rounded px-2 py-1">
+                    Sem preço, e com membro cadastrado: {bairrosSemPreco.join(', ')}. Quem mora neles
+                    não gera fatura de frete até o bairro entrar na tabela.
+                  </p>
+                )}
+
+                {bairros.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum bairro com preço. Enquanto a tabela estiver vazia, ninguém é cobrado pela entrega.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {bairros.map((b, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Input
+                          aria-label={`Bairro ${i + 1}`}
+                          value={b.bairro}
+                          placeholder="Bairro"
+                          onChange={(e) => setBairros((p) => p.map((x, j) => (j === i ? { ...x, bairro: e.target.value } : x)))}
+                        />
+                        <Input
+                          aria-label={`Preço do bairro ${i + 1}`}
+                          type="number" step="0.01" min="0" className="w-24"
+                          value={b.price}
+                          onChange={(e) => setBairros((p) => p.map((x, j) => (j === i ? { ...x, price: Number(e.target.value) || 0 } : x)))}
+                        />
+                        <Button
+                          type="button" size="sm" variant="ghost"
+                          onClick={() => setBairros((p) => p.filter((_, j) => j !== i))}
+                          title="Remover bairro"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  O preço do bairro vence o padrão acima; o frete próprio no cadastro do membro vence os dois.
+                  Salvar a tabela pela primeira vez fixa o mês de início da cobrança — meses anteriores nunca são cobrados.
+                </p>
+              </div>
+
               <h2 className="font-semibold pt-2">Agendamento</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">

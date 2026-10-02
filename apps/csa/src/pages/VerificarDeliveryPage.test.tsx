@@ -8,7 +8,10 @@ import type { Payment, Tenant, User } from '@/types'
 // resumo soma o que deve, e a edição de linha fala com os endpoints de correção (não com o
 // PUT, que não aceita mais `amount`).
 
-const { corrigirSpy, desfazerSpy, updateSpy, gerarSpy, listSpy, usersSpy, uploadSpy } = vi.hoisted(() => ({
+// `colmeia` é a MESMA referência entre renders (no app real vem de useState): devolver um
+// literal novo faria o efeito de carga rodar a cada render.
+const { colmeia, corrigirSpy, desfazerSpy, updateSpy, gerarSpy, listSpy, usersSpy, uploadSpy } = vi.hoisted(() => ({
+  colmeia: { id: 'c1', name: 'CSA', freteDelivery: 12 } as Tenant,
   corrigirSpy: vi.fn().mockResolvedValue({}),
   desfazerSpy: vi.fn().mockResolvedValue({}),
   updateSpy: vi.fn().mockResolvedValue({}),
@@ -19,10 +22,7 @@ const { corrigirSpy, desfazerSpy, updateSpy, gerarSpy, listSpy, usersSpy, upload
 }))
 
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({
-    colmeia: { id: 'c1', name: 'CSA', freteDelivery: 12 } as Tenant,
-    user: { id: 'a1', acesso: ['admin'] },
-  }),
+  useAuth: () => ({ colmeia, user: { id: 'a1', acesso: ['admin'] } }),
 }))
 vi.mock('@/hooks/useUploadProof', () => ({ useUploadProof: () => ({ uploadProof: uploadSpy }) }))
 vi.mock('@/services/api', () => ({
@@ -48,6 +48,8 @@ const membros = [
 
 beforeEach(() => {
   vi.clearAllMocks()
+  colmeia.freteDelivery = 12
+  delete colmeia.fretePorBairro
   usersSpy.mockResolvedValue(membros)
 })
 
@@ -126,6 +128,27 @@ describe('VerificarDeliveryPage', () => {
 
     expect(uploadSpy).toHaveBeenCalledWith(expect.any(File), 'c1', 'u1', expect.any(String))
     expect(updateSpy).toHaveBeenCalledWith('p1', { proofUrl: 'http://s/novo.jpg' }, 'c1')
+  })
+
+  it('quem recebe em casa sem preço de frete aparece como pendência, com o bairro', async () => {
+    // estado real da CSA: padrão 0 (não vale como preço) + tabela por bairro
+    colmeia.freteDelivery = 0
+    colmeia.fretePorBairro = [{ bairro: 'Manaíra', price: 7 }]
+    usersSpy.mockResolvedValue([
+      { id: 'u1', name: 'Ana', neighborhood: 'manaira', deliveryType: 'entrega' },
+      { id: 'u3', name: 'Caio', deliveryType: 'entrega', neighborhood: 'Cabedelo' },
+      { id: 'u4', name: 'Dora', deliveryType: 'entrega' },
+      { id: 'u5', name: 'Edu', deliveryType: 'retirada' },
+    ] as unknown as User[])
+    listSpy.mockResolvedValue([fatura()])
+    render(<VerificarDeliveryPage />)
+
+    expect(await screen.findByText(/sem frete definido/i)).toBeInTheDocument()
+    expect(screen.getByText('Caio — Cabedelo')).toBeInTheDocument()
+    expect(screen.getByText('Dora — sem bairro cadastrado')).toBeInTheDocument()
+    // Ana casa com a tabela mesmo escrevendo "manaira"; Edu retira. Nenhum dos dois é pendência
+    expect(screen.queryByText(/^Ana —/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Edu/)).not.toBeInTheDocument()
   })
 
   it('gerar faturas do mês chama /frete/all', async () => {

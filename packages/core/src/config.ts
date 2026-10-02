@@ -5,6 +5,7 @@
 // runtime do server e entram no boot do engine — NÃO ficam aqui.
 
 import type { QuotaTier } from './types.js'
+import type { PrecoBairro } from './domain/frete.js'
 
 // Identidade visual do tenant. Cores no formato HSL do shadcn ("H S% L%"), por tema.
 // O valor (BRAND) e applyBrand() (DOM) ficam no app; aqui só o contrato.
@@ -47,6 +48,8 @@ export interface TenantDefaults {
   quotaInteira: number
   quotaMeia: number
   roleDefaults: string[] // CSA: ['colmeia','coagricultor'] | padaria: []
+  /** Tabela bairro × frete do cliente, para semear o tenant (e repor pela tela). */
+  fretePorBairro?: PrecoBairro[]
   dueDay: number
   orderSendDay: number
   orderSendHour: number

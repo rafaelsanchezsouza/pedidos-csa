@@ -256,6 +256,23 @@
 - O card mostra a **composição**: `R$ {frete} por entrega · {n} entregas`. O `n` é derivado da própria fatura (`amount / frete`), não recalculado na tela — a contagem de semanas tem quinzenal e acolhida dentro, e uma segunda conta no front divergiria do valor cobrado
 - Fatura **corrigida** troca a composição por "Valor ajustado pela organização": a conta deixou de fechar de propósito
 
+### Configurações → Entregas
+
+- **Tabela bairro × preço** (`colmeia.fretePorBairro`): adicionar/remover linha, igual às cotas.
+  O botão **"Carregar tabela padrão"** repõe a tabela do app (`config.tenantDefaults.fretePorBairro`,
+  35 bairros da CSA) — ela vive versionada no código, não digitada na tela
+- **Aviso de bairro sem preço**: a tela lista os bairros que **têm membro de entrega cadastrado**
+  e não estão na tabela. São exatamente os que virariam pendência no fim do mês
+- **Responsável pelas entregas** (`colmeia.responsavelEntregasId`): escolhido entre os admins
+  ativos; recebe o aviso de pendência no WhatsApp quando o job gera as faturas
+- **A vigência é carimbada sozinha**: salvar a tabela pela primeira vez grava
+  `freteVigenteDesde` com o mês corrente (relógio do tenant). Depender de alguém lembrar de
+  preencher esse campo seria depender de ninguém errar justamente onde o erro cobra retroativo
+- ⚠️ **`freteDelivery` nunca foi salvo antes de 2026-10-02**: o campo existia na tela desde o
+  PR #56, mas não estava na whitelist do `PUT /tenants/:id` — o servidor descartava em silêncio
+  e a tela respondia "Salvo!". É por isso que o frete da CSA estava 0: não foi configuração
+  esquecida, foi salvamento que nunca funcionou. Valia para os dois apps
+
 ### Conferência do Delivery (tela própria)
 
 - `/verificar-delivery` (**só admin** — fornecedor confere o que é dele, e o frete não é de
@@ -264,6 +281,8 @@
   dois lugares para marcar o mesmo pagamento como verificado
 - Resumo do mês: faturado, verificado, a conferir (tem comprovante) e sem comprovante — em
   valor e em nº de membros
+- **Bloco de pendência no topo**: quem recebe em casa e está sem frete definido não gera fatura
+  e, por isso, não apareceria na tabela. Sem esse bloco sumiria da tela e ninguém cobraria
 - Cada linha mostra frete unitário (`resolveFrete`), nº de entregas, valor, status e comprovante
 - **Editar** por linha: corrigir o valor (com motivo), trocar o comprovante e desfazer a
   correção; o histórico aparece no mesmo dialog

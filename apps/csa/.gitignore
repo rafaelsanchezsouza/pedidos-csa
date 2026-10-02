@@ -59,3 +59,6 @@ scripts/seed-catalogo-jucy.ts
 # GitHub — o repositório é público. Pasta inteira ignorada de propósito: regra por extensão
 # deixa passar o arquivo novo que ninguém previu.
 private/
+
+# Imagens soltas (prints de WhatsApp com tabelas, etc.) — referência local, não fonte
+WhatsApp Image *
