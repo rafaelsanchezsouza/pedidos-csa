@@ -3,7 +3,10 @@ import { useAuth } from '@/hooks/useAuth'
 import { acolhidaApi, paymentsApi, usersApi } from '@/services/api'
 import { useUploadProof } from '@/hooks/useUploadProof'
 import type { AcolhidaSemana, Payment } from '@/types'
-import { getPresentWeekId, getWeekDelivery, formatDeliveryDate, isEntrega } from '@pedidos/core'
+import {
+  getPresentWeekId, getWeekDelivery, formatDeliveryDate, isEntrega,
+  PRODUCER_COTA, PRODUCER_FRETE,
+} from '@pedidos/core'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, PageHeader } from '@pedidos/core/ui'
 import { config } from '@/config'
 
@@ -21,6 +24,66 @@ const formatarPrazo = (iso: string) =>
   })
 
 /**
+ * Um comprovante por fatura da semana. Quem recebe em casa tem DUAS (cota e delivery) e
+ * precisa anexar as duas: até aqui a tela só oferecia a da cota, e a fatura de frete —
+ * gerada junto, na confirmação da semana — não tinha onde receber comprovante.
+ */
+function BlocoComprovante({
+  fatura, titulo, weekId, enviando, onArquivo,
+}: {
+  fatura: Payment
+  titulo: string
+  weekId: string
+  enviando: boolean
+  onArquivo: (f: File) => void
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const daSemana = fatura.proofs?.find((p) => p.weekId === weekId)
+  const enviados = fatura.proofs?.length ?? 0
+
+  return (
+    <section aria-label={titulo} className="space-y-2 border-t pt-3 first:border-t-0 first:pt-0">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">{titulo}</span>
+        {daSemana && <Badge variant="secondary">Enviado</Badge>}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Total do mês até agora: <strong>R$ {fatura.amount.toFixed(2)}</strong>
+        {enviados > 0 ? ` · ${enviados} comprovante${enviados > 1 ? 's' : ''} enviado${enviados > 1 ? 's' : ''}` : ''}
+      </p>
+      {daSemana && (
+        <a
+          href={daSemana.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-blue-600 hover:underline block"
+        >
+          Ver o comprovante desta semana
+        </a>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) onArquivo(f)
+          e.target.value = ''
+        }}
+      />
+      <Button
+        variant={daSemana ? 'secondary' : 'default'}
+        disabled={enviando}
+        onClick={() => fileRef.current?.click()}
+      >
+        {enviando ? 'Enviando...' : daSemana ? 'Substituir comprovante' : 'Anexar comprovante'}
+      </Button>
+    </section>
+  )
+}
+
+/**
  * Tela inicial de quem está em período de acolhida.
  *
  * Duas ações da semana em cima de tudo — confirmar que quer receber e anexar o comprovante —
@@ -36,10 +99,11 @@ export function AcolhidaPage() {
 
   const [semana, setSemana] = useState<AcolhidaSemana | null>(null)
   const [cota, setCota] = useState<Payment | null>(null)
+  const [frete, setFrete] = useState<Payment | null>(null)
+  const [enviandoId, setEnviandoId] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
-  const fileRef = useRef<HTMLInputElement>(null)
   const { uploadProof } = useUploadProof()
 
   const carregar = useCallback(async () => {
@@ -52,7 +116,8 @@ export function AcolhidaPage() {
         paymentsApi.getMy(month, tenantId),
       ])
       setSemana(s)
-      setCota(faturas.find((f) => f.producerName === 'Cota') ?? null)
+      setCota(faturas.find((f) => f.producerName === PRODUCER_COTA) ?? null)
+      setFrete(faturas.find((f) => f.producerName === PRODUCER_FRETE) ?? null)
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Não consegui carregar sua semana')
     } finally {
@@ -93,27 +158,27 @@ export function AcolhidaPage() {
     }
   }
 
-  async function enviarComprovante(file: File) {
-    if (!tenantId || !user || !cota) return
-    setSalvando(true)
+  async function enviarComprovante(fatura: Payment, file: File) {
+    if (!tenantId || !user) return
+    setEnviandoId(fatura.id)
     setErro('')
     try {
       const url = await uploadProof(file, tenantId, user.id, month)
-      await paymentsApi.anexarComprovante(cota.id, weekId, url, tenantId)
+      await paymentsApi.anexarComprovante(fatura.id, weekId, url, tenantId)
       await carregar()
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Não consegui enviar o comprovante')
     } finally {
-      setSalvando(false)
-      if (fileRef.current) fileRef.current.value = ''
+      setEnviandoId(null)
     }
   }
 
   const confirmada = semana?.confirmacao?.confirmado === true
   const respondeu = semana?.confirmacao != null
   const fechado = semana != null && !semana.aberto
-  const comprovanteDaSemana = cota?.proofs?.find((p) => p.weekId === weekId)
   const emCasa = isEntrega(user ?? {})
+  // Só quem recebe em casa tem fatura de frete — e ela só existe depois da confirmação.
+  const freteDaSemana = emCasa ? frete : null
 
   if (carregando) return <div className="py-8 text-center text-muted-foreground">Carregando...</div>
 
@@ -200,47 +265,31 @@ export function AcolhidaPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between gap-2">
-            <span>Comprovante desta semana</span>
-            {comprovanteDaSemana && <Badge variant="secondary">Enviado</Badge>}
+          <CardTitle>
+            {freteDaSemana ? 'Comprovantes desta semana' : 'Comprovante desta semana'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {cota ? (
+          {cota || freteDaSemana ? (
             <>
-              <p className="text-sm text-muted-foreground">
-                Total do mês até agora: <strong>R$ {cota.amount.toFixed(2)}</strong>
-                {cota.proofs?.length
-                  ? ` · ${cota.proofs.length} comprovante${cota.proofs.length > 1 ? 's' : ''} enviado${cota.proofs.length > 1 ? 's' : ''}`
-                  : ''}
-              </p>
-              {comprovanteDaSemana && (
-                <a
-                  href={comprovanteDaSemana.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline block"
-                >
-                  Ver o comprovante desta semana
-                </a>
+              {cota && (
+                <BlocoComprovante
+                  fatura={cota}
+                  titulo={config.tenantDefaults.quotaTerm}
+                  weekId={weekId}
+                  enviando={enviandoId === cota.id}
+                  onArquivo={(f) => void enviarComprovante(cota, f)}
+                />
               )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) void enviarComprovante(f)
-                }}
-              />
-              <Button
-                variant={comprovanteDaSemana ? 'secondary' : 'default'}
-                disabled={salvando}
-                onClick={() => fileRef.current?.click()}
-              >
-                {salvando ? 'Enviando...' : comprovanteDaSemana ? 'Substituir comprovante' : 'Anexar comprovante'}
-              </Button>
+              {freteDaSemana && (
+                <BlocoComprovante
+                  fatura={freteDaSemana}
+                  titulo={config.vocabulary.deliveryFeeLabel}
+                  weekId={weekId}
+                  enviando={enviandoId === freteDaSemana.id}
+                  onArquivo={(f) => void enviarComprovante(freteDaSemana, f)}
+                />
+              )}
             </>
           ) : (
             <p className="text-sm text-muted-foreground">

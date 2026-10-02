@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Payment, User } from '@/types'
 
@@ -8,7 +8,7 @@ import type { Payment, User } from '@/types'
 // packages/core/src/domain/acolhida.test.ts (×3 fusos); aqui o que importa é a tela
 // respeitar o `aberto` que o servidor devolve e mandar a confirmação certa.
 
-const { membro, confirmarSpy, anexarSpy, updateMeSpy, semana, cota } = vi.hoisted(() => ({
+const { membro, confirmarSpy, anexarSpy, uploadSpy, updateMeSpy, semana, cota, frete, faturas } = vi.hoisted(() => ({
   membro: {
     id: 'u1', name: 'Novo', email: 'novo@ex.com', address: 'Rua 1', contact: '11999999999',
     frequency: 'semanal', deliveryType: 'retirada', tenantId: 'c1', acesso: 'user',
@@ -16,17 +16,20 @@ const { membro, confirmarSpy, anexarSpy, updateMeSpy, semana, cota } = vi.hoiste
   } as User,
   confirmarSpy: vi.fn().mockResolvedValue({ ok: true }),
   anexarSpy: vi.fn().mockResolvedValue({ id: 'p1', proofs: [] }),
+  uploadSpy: vi.fn().mockResolvedValue('http://s/pix.jpg'),
   updateMeSpy: vi.fn().mockResolvedValue({}),
   semana: { confirmacao: null, prazo: '2099-09-01T02:59:59.999Z', aberto: true },
   cota: { id: 'p1', producerName: 'Cota', amount: 65, proofs: [] } as unknown as Payment,
+  frete: { id: 'p2', producerName: 'Entrega', amount: 12, proofs: [] } as unknown as Payment,
+  faturas: [] as Payment[],
 }))
 
 const mockUseAuth = vi.fn()
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => mockUseAuth() }))
-vi.mock('@/hooks/useUploadProof', () => ({ useUploadProof: () => ({ uploadProof: vi.fn() }) }))
+vi.mock('@/hooks/useUploadProof', () => ({ useUploadProof: () => ({ uploadProof: uploadSpy }) }))
 vi.mock('@/services/api', () => ({
   acolhidaApi: { getSemana: vi.fn(() => Promise.resolve(semana)), confirmar: confirmarSpy },
-  paymentsApi: { getMy: vi.fn(() => Promise.resolve([cota])), anexarComprovante: anexarSpy },
+  paymentsApi: { getMy: vi.fn(() => Promise.resolve(faturas)), anexarComprovante: anexarSpy },
   usersApi: { updateMe: updateMeSpy },
 }))
 
@@ -36,6 +39,11 @@ beforeEach(() => {
   vi.clearAllMocks()
   semana.confirmacao = null
   semana.aberto = true
+  cota.proofs = []
+  frete.proofs = []
+  faturas.length = 0
+  faturas.push(cota)
+  membro.deliveryType = 'retirada'
   mockUseAuth.mockReturnValue({
     colmeia: { id: 'c1', name: 'CSA', weekChangeDay: 0 },
     user: membro,
@@ -74,5 +82,41 @@ describe('AcolhidaPage', () => {
   it('mostra o total do mês da fatura de cota', async () => {
     render(<AcolhidaPage />)
     expect(await screen.findByText(/R\$ 65,00|R\$ 65\.00/)).toBeInTheDocument()
+  })
+})
+
+// A fatura de frete da acolhida é gerada na confirmação da semana (routes/acolhida.ts) e
+// até aqui não tinha onde receber comprovante: a tela só oferecia o anexo da cota.
+describe('comprovante do delivery na acolhida', () => {
+  it('quem retira na colmeia não vê o bloco do delivery', async () => {
+    render(<AcolhidaPage />)
+    expect(await screen.findByLabelText('Cota')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Delivery')).not.toBeInTheDocument()
+    expect(screen.getByText('Comprovante desta semana')).toBeInTheDocument()
+  })
+
+  it('quem recebe em casa anexa os dois, cada um na sua fatura', async () => {
+    membro.deliveryType = 'entrega'
+    faturas.push(frete)
+    render(<AcolhidaPage />)
+
+    const bloco = within(await screen.findByLabelText('Delivery'))
+    expect(bloco.getByText(/R\$ 12\.00/)).toBeInTheDocument()
+    expect(screen.getByText('Comprovantes desta semana')).toBeInTheDocument()
+
+    const inputDoDelivery = (await screen.findByLabelText('Delivery'))
+      .querySelector('input[type="file"]') as HTMLInputElement
+    await userEvent.upload(inputDoDelivery, new File(['x'], 'pix.jpg', { type: 'image/jpeg' }))
+    // vai para a fatura 'Entrega' (p2), não para a da cota
+    expect(anexarSpy).toHaveBeenCalledWith('p2', expect.any(String), 'http://s/pix.jpg', 'c1')
+    // o arquivo sobe na pasta do próprio membro
+    expect(uploadSpy).toHaveBeenCalledWith(expect.any(File), 'c1', 'u1', expect.any(String))
+  })
+
+  it('sem fatura de frete (frete zero) o bloco não aparece, mesmo recebendo em casa', async () => {
+    membro.deliveryType = 'entrega'
+    render(<AcolhidaPage />)
+    expect(await screen.findByLabelText('Cota')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Delivery')).not.toBeInTheDocument()
   })
 })

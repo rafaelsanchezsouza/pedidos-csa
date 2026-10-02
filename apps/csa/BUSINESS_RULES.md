@@ -51,6 +51,10 @@
   - Frete = `frete × semanas confirmadas`, para quem recebe em casa — **elegibilidade inalterada**: segue `isEntrega(u)`, o `deliveryType` do próprio membro
   - **`deliveryType` continua sendo do usuário**, não da semana: o membro em acolhida troca o dele pela tela principal, como qualquer outro membro. A acolhida muda *quantas semanas contam*, não *como ele recebe*
   - Faturas da acolhida **não têm vencimento** (`dueDate` ausente): o membro anexa o comprovante da semana
+  - Quem recebe em casa tem **duas** faturas na semana (cota e delivery) e anexa **uma por
+    fatura**, cada uma com seu bloco na tela. Até 2026-10-02 a tela só oferecia o anexo da
+    cota, e a fatura de frete — gerada junto, na confirmação — não tinha onde receber
+    comprovante. Sem fatura de frete (frete zero, ou retirada) o bloco não aparece
   - Encerrada a acolhida, volta à cobrança mensal cheia automaticamente
 - **Tela inicial**: quem está em acolhida cai em `/acolhida` ao entrar, com as duas ações de prazo na frente (confirmar a semana e anexar o comprovante) e o tique de retirada/entrega. O menu segue completo — ele está decidindo se fica, e esconder ofertas e pedidos seria esconder o que ele veio conhecer
 - Item **"Minha Semana"** aparece na navegação enquanto a acolhida está aberta; some quando encerra
