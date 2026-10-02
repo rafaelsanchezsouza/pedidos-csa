@@ -133,6 +133,13 @@ export interface OrderDoc {
   weeklyNote?: string
   weeklyAddress?: string
   suspensa?: boolean
+  /**
+   * Exceção da semana: entra na lista de entrega mesmo que os filtros semanais (quinzenal,
+   * doação, acolhida não confirmada) ou o próprio `deliveryType` o deixem de fora. Fica no
+   * pedido da semana, ao lado de `suspensa`, e NÃO no usuário — `deliveryType` é do membro,
+   * e mexer nele mudaria todas as semanas e a cobrança do mês.
+   */
+  incluida?: boolean
   dateCreated: string
   dateUpdated: string
 }

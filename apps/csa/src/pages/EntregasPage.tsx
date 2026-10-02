@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { acolhidaApi, ordersApi, usersApi } from '@/services/api'
 import type { AcolhidaWeek, Order, User } from '@/types'
 import { formatQuota } from '@/lib/quota'
-import { Card, CardContent, CardHeader, CardTitle, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, EstadoLista, WeekNavigator } from '@pedidos/core/ui'
+import { Card, CardContent, CardHeader, CardTitle, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, EstadoLista, WeekNavigator, Input } from '@pedidos/core/ui'
 import { StickyNote, Ban, MapPin, GripVertical } from 'lucide-react'
 import { getWeekStart, getWeekDelivery, isFixoWeek, isUserDeliveryWeek, emAcolhida, UTC_OFFSET_PADRAO } from '@pedidos/core'
 import { config } from '@/config'
@@ -39,6 +39,8 @@ export function EntregasPage() {
   const [savingNote, setSavingNote] = useState(false)
   const [togglingSuspend, setTogglingSuspend] = useState<string | null>(null)
   const [editingAddress, setEditingAddress] = useState<{ userId: string; userName: string; order: Order | null; defaultAddress: string } | null>(null)
+  const [busca, setBusca] = useState('')
+  const [incluindo, setIncluindo] = useState<string | null>(null)
   const [addressText, setAddressText] = useState('')
   const [savingAddress, setSavingAddress] = useState(false)
 
@@ -73,23 +75,47 @@ export function EntregasPage() {
   const confirmouSemana = new Map(confirmacoes.map((c) => [c.userId, c.confirmado]))
   const utcOffset = config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO
 
-  const activeUsers = users.filter((u) => {
-    if (u.disabled || u.deleted) return false
-    if (isFornecedor(u)) return false
-    if (!isUserDeliveryWeek(u, weekId)) return false
-    if (orderByUser.get(u.id)?.doacao) return false
-    if (emAcolhida(u, new Date(), utcOffset) && confirmouSemana.get(u.id) !== true) return false
-    return true
-  })
+  // Quem pode aparecer, por cadastro — independe da semana.
+  const elegivelBase = (u: User) => !u.disabled && !u.deleted && !isFornecedor(u)
+
+  // Quem a semana traz sozinho: quinzenal na vez, não doou e, se em acolhida, confirmou.
+  const naSemana = (u: User) =>
+    isUserDeliveryWeek(u, weekId) &&
+    !orderByUser.get(u.id)?.doacao &&
+    !(emAcolhida(u, new Date(), utcOffset) && confirmouSemana.get(u.id) !== true)
+
+  // Exceção da semana: o admin incluiu à mão. Vence os filtros semanais E o `isEntrega` —
+  // o caso principal é justamente quem normalmente retira na colmeia e nesta semana precisa
+  // receber em casa.
+  const incluidaManual = (u: User) => orderByUser.get(u.id)?.incluida === true
 
   // Visíveis nesta semana, na ordem manual salva (novos caem no fim, alfabético).
-  const porEntrega = sortByDeliveryOrder(activeUsers.filter(isEntrega))
-
-  // Conjunto completo de entrega (todas as semanas) — base do merge que preserva a posição
-  // de quem não aparece nesta semana. Só atributos de membro, não flags semanais (doacao).
-  const todosEntrega = users.filter(
-    (u) => isEntrega(u) && !u.disabled && !u.deleted && !isFornecedor(u),
+  const porEntrega = sortByDeliveryOrder(
+    users.filter((u) => elegivelBase(u) && (incluidaManual(u) || (naSemana(u) && isEntrega(u)))),
   )
+
+  // Base do merge que preserva a posição de quem não aparece nesta semana. Precisa conter
+  // todo mundo que PODE aparecer: sem os incluídos à mão, arrastar a lista com um membro de
+  // retirada dentro dela o perderia no merge, em silêncio.
+  const todosEntrega = users.filter((u) => elegivelBase(u) && (isEntrega(u) || incluidaManual(u)))
+
+  // Quem está fora da lista desta semana e por quê — o motivo evita o admin incluir alguém
+  // sem entender o que mudou (e perceber, por exemplo, que o caso era confirmar a acolhida).
+  const motivoDeFora = (u: User): string => {
+    if (orderByUser.get(u.id)?.doacao) return 'doou a cota'
+    if (emAcolhida(u, new Date(), utcOffset) && confirmouSemana.get(u.id) !== true) return 'acolhida não confirmada'
+    if (!isUserDeliveryWeek(u, weekId)) return 'quinzenal — outra semana'
+    if (!isEntrega(u)) return `retira na ${config.vocabulary.pickupLabel.toLowerCase()}`
+    return ''
+  }
+
+  const semAcento = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const naLista = new Set(porEntrega.map((u) => u.id))
+  const candidatos = users
+    .filter((u) => elegivelBase(u) && !naLista.has(u.id))
+    .filter((u) => semAcento(u.name).includes(semAcento(busca.trim())))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  const MAX_SUGESTOES = 8
 
   const sensors = useSensors(
     // distância de ativação: um toque curto ainda clica nos botões da linha
@@ -203,6 +229,29 @@ export function EntregasPage() {
     }
   }
 
+  // Marca a exceção no pedido da semana (cria um mínimo se o membro ainda não tem),
+  // exatamente como nota, endereço e suspensão já fazem.
+  async function marcarInclusao(u: User, incluida: boolean) {
+    if (!colmeia) return
+    setIncluindo(u.id)
+    try {
+      const order = orderByUser.get(u.id)
+      if (order) {
+        await ordersApi.update(order.id, { incluida }, colmeia.id)
+        setOrders((prev) => prev.map((o) => (o.userId === u.id ? { ...o, incluida } : o)))
+      } else {
+        const created = await ordersApi.create({
+          userId: u.id, userName: u.name, tenantId: colmeia.id, weekId,
+          items: [], status: 'rascunho', incluida,
+        }, colmeia.id)
+        setOrders((prev) => [...prev, created])
+      }
+      setBusca('')
+    } finally {
+      setIncluindo(null)
+    }
+  }
+
   async function handleSuspend(u: User) {
     if (!colmeia) return
     setTogglingSuspend(u.id)
@@ -229,7 +278,7 @@ export function EntregasPage() {
         title="Entregas da Semana"
         subtitle={fixoThisWeek ? 'Semana de fixo (quinzenais recebem)' : 'Semana sem fixo (quinzenais não recebem)'}
         secondaryAction={
-          <Button variant="outline" size="sm" onClick={() => { setReportOpen(true); setCopied(false) }} disabled={loading || activeUsers.length === 0}>
+          <Button variant="outline" size="sm" onClick={() => { setReportOpen(true); setCopied(false) }} disabled={loading || porEntrega.length === 0}>
             Relatório
           </Button>
         }
@@ -310,8 +359,8 @@ export function EntregasPage() {
 
       <EstadoLista
         loading={loading}
-        vazio={activeUsers.length === 0}
-        mensagemVazia="Nenhum membro ativo para esta semana."
+        vazio={porEntrega.length === 0}
+        mensagemVazia="Ninguém recebe em casa nesta semana."
       >
         {porEntrega.length === 0 ? null : (
         <Card>
@@ -339,10 +388,13 @@ export function EntregasPage() {
                         key={u.id}
                         user={u}
                         order={orderByUser.get(u.id) ?? null}
-                        isSuspending={togglingSuspend === u.id}
+                        isSuspending={togglingSuspend === u.id || incluindo === u.id}
+                        incluida={incluidaManual(u)}
                         onEditAddress={() => openEditAddress(u)}
                         onEditNote={() => openEditNote(u)}
-                        onSuspend={() => handleSuspend(u)}
+                        onSuspend={() =>
+                          incluidaManual(u) ? marcarInclusao(u, false) : handleSuspend(u)
+                        }
                       />
                     ))}
                   </SortableContext>
@@ -353,6 +405,50 @@ export function EntregasPage() {
         </Card>
         )}
       </EstadoLista>
+
+      {/* Dá para TIRAR alguém da semana (suspender) desde sempre; faltava o caminho inverso. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Adicionar à entrega desta semana</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Input
+            aria-label="Buscar membro para adicionar"
+            placeholder="Buscar pelo nome..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+          {candidatos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {busca.trim() ? 'Ninguém com esse nome fora da lista.' : 'Todo mundo já está na lista.'}
+            </p>
+          ) : (
+            <ul className="divide-y rounded border">
+              {candidatos.slice(0, MAX_SUGESTOES).map((u) => (
+                <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">{u.name}</span>
+                    <span className="block text-xs text-muted-foreground">{motivoDeFora(u)}</span>
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={incluindo === u.id}
+                    onClick={() => marcarInclusao(u, true)}
+                  >
+                    {incluindo === u.id ? '...' : 'Adicionar'}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {candidatos.length > MAX_SUGESTOES && (
+            <p className="text-xs text-muted-foreground">
+              +{candidatos.length - MAX_SUGESTOES} fora da lista — refine a busca.
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -361,12 +457,13 @@ interface LinhaEntregaProps {
   user: User
   order: Order | null
   isSuspending: boolean
+  incluida: boolean
   onEditAddress: () => void
   onEditNote: () => void
   onSuspend: () => void
 }
 
-function LinhaEntrega({ user: u, order, isSuspending, onEditAddress, onEditNote, onSuspend }: LinhaEntregaProps) {
+function LinhaEntrega({ user: u, order, isSuspending, incluida, onEditAddress, onEditNote, onSuspend }: LinhaEntregaProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: u.id })
   const suspensa = order?.suspensa ?? false
   const style = {
@@ -392,7 +489,14 @@ function LinhaEntrega({ user: u, order, isSuspending, onEditAddress, onEditNote,
         </button>
       </td>
       <td className="px-4 py-2 font-medium">
-        <div className={suspensa ? 'line-through text-muted-foreground' : ''}>{u.name}</div>
+        <div className={suspensa ? 'line-through text-muted-foreground' : ''}>
+          {u.name}
+          {incluida && (
+            <span className="ml-2 text-xs font-normal bg-blue-100 text-blue-800 rounded px-1">
+              Adicionada
+            </span>
+          )}
+        </div>
         {formatQuota(u) && <div className="text-xs text-muted-foreground">{formatQuota(u)}</div>}
         {u.contact && <div className="text-xs text-muted-foreground">{u.contact}</div>}
         {u.frequency === 'quinzenal' && <span className="text-xs text-muted-foreground">quinzenal</span>}
@@ -439,7 +543,11 @@ function LinhaEntrega({ user: u, order, isSuspending, onEditAddress, onEditNote,
             disabled={isSuspending}
             onClick={onSuspend}
             className={`${suspensa ? 'text-red-500' : 'text-muted-foreground hover:text-red-400'} ${isSuspending ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title={suspensa ? 'Reativar entrega' : 'Suspender entrega esta semana'}
+            title={
+              incluida
+                ? 'Tirar da entrega desta semana'
+                : suspensa ? 'Reativar entrega' : 'Suspender entrega esta semana'
+            }
           >
             <Ban className="h-4 w-4" />
           </button>

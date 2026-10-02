@@ -152,6 +152,25 @@
 - Só vale para a lista de entrega; a lista de retirada na colmeia não é ordenável
 - A lista de membros na **Administração** é sempre alfabética (não usa `deliveryOrder`)
 
+### Exceções da semana na lista de entrega
+
+- **Tirar**: o admin suspende a entrega de um membro na semana (`order.suspensa`) — a linha fica
+  riscada e ele sai do relatório dos motoboys
+- **Pôr**: o admin adiciona à mão quem os filtros semanais deixaram de fora (`order.incluida`).
+  A inclusão vence os filtros **e** o `deliveryType`: o caso principal é quem normalmente
+  retira na colmeia e nesta semana precisa receber em casa
+- A busca lista os candidatos com o **motivo** de estarem fora ("retira na colmeia",
+  "quinzenal — outra semana", "doou a cota", "acolhida não confirmada"), para o admin ver que
+  às vezes o certo é resolver a causa, não incluir
+- A linha incluída ganha o selo **"Adicionada"**, e o mesmo botão que suspende os outros
+  **remove a inclusão** dela
+- Os dois campos ficam no **pedido da semana**, nunca no usuário: `deliveryType` é do membro, e
+  mexer nele mudaria todas as semanas e a cobrança do mês
+- **Nenhum dos dois mexe no dinheiro.** O frete continua sendo
+  `frete × countDeliveryWeeks(...)`, puro calendário (é assim para `suspensa` desde sempre).
+  Quando a semana foge do calendário, o ajuste é a **correção de valor da fatura**, que
+  registra autor, motivo e histórico
+
 ### Consolidado Geral
 
 - Tela administrativa que mostra **todos** os membros ativos da semana (tanto `entrega` quanto `colmeia`)

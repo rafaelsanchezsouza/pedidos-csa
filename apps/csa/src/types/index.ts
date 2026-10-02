@@ -105,6 +105,8 @@ export interface Order {
   weeklyNote?: string
   weeklyAddress?: string
   suspensa?: boolean
+  /** Exceção da semana: incluído à mão na entrega pelo admin. */
+  incluida?: boolean
   dateCreated: string
   dateUpdated: string
 }
