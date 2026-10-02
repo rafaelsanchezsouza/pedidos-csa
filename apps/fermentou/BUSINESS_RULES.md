@@ -216,6 +216,27 @@ O modal de criar/editar usuário tem um seletor de **tipo** (radio, mutuamente e
 - **Geração automática:** mesmo cron da cota (dia 1, 08h); `upsertPaymentsForOrder` nunca toca em `'Entrega'`
 - `POST /payments/frete/all` disponível para reprocessamento manual via API; `POST /payments/frete` garante a fatura do próprio membro (auto-ensure ao abrir Meus Pagamentos)
 
+#### Herdado do motor em 2026-10-02 (sem tela própria aqui)
+
+O trabalho de frete da CSA mexeu no engine, então estas regras **já valem para esta padaria**,
+mesmo sem as telas correspondentes. Nada muda no comportamento atual: o Fermentou usa só o
+padrão do tenant, e o caminho antigo foi preservado de propósito.
+
+- **`freteDelivery` voltou a ser salvável.** Ele nunca esteve na whitelist do `PUT /tenants/:id`:
+  a tela mandava, o servidor descartava calado e respondia "Salvo!". Valia para os dois apps
+- **Precedência**: override do membro → `fretePorBairro` (vazio aqui) → padrão do tenant, **só
+  se > 0** → indefinido. Com o padrão preenchido, nada muda; com ele em 0, o membro passa a ser
+  **pendência** em vez de "entrega grátis" silenciosa
+- **`freteVigenteDesde`**: ausente = sem trava, que é o estado desta padaria. Passa a existir no
+  primeiro salvamento em que o frete passar a valer, e aí meses anteriores deixam de ser geráveis
+- **Correção de fatura pelo admin** (`POST`/`DELETE /payments/:id/correcao`) vale para qualquer
+  fatura, e trava a geração automática daquele doc. O `PUT /payments/:id` **deixou de aceitar**
+  `amount`/`corrigido`/`correcoes` — o histórico é carimbado pelo servidor
+- **`neighborhood` saiu de `CAMPOS_DO_PROPRIO_PERFIL`**: o cliente não altera mais o próprio
+  bairro pelo perfil, aqui também
+- O `quotaJob` avisa `tenant.responsavelEntregasId` por WhatsApp quando alguém fica sem frete
+  definido; sem responsável configurado, só loga
+
 ---
 
 ## Herança da CSA ainda não decidida

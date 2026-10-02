@@ -53,7 +53,7 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 
 | **5. Engine** | `packages/core/server`: portas (`Repo`, `AuthGateway`, `WhatsAppGateway`, `MessageParser`) + **todas as rotas/serviços como factories `(deps, config)`**; modelo canônico em `types.ts`; CSA usando acesso-lista. Detalhe fatia a fatia abaixo | core 150, csa 25, fermentou 22 + 4 builds |
 
-**Placar atual:** `@pedidos/core` **167 testes**, `apps/csa` **28**, `apps/fermentou` **9** — todos
+**Placar atual (2026-10-02):** `@pedidos/core` **281 testes**, `apps/csa` **73**, `apps/fermentou` **9** — todos
 × 3 fusos (BR/UTC/UTC+14). Builds front + backend dos dois apps verdes.
 > Os números dos apps **caíram** de propósito na task 6: os testes de UI que eram cópia nos dois
 > (PageHeader, EstadoLista) subiram para o core. Soma cresceu; a duplicação sumiu.
@@ -656,6 +656,41 @@ volta** em vez de apagar a linha: quem conferiu a fatura ontem precisa achar o q
 *Consequência aceita:* fatura travada não acompanha mais mudança de cadastro (trocou de tier,
 confirmou outra semana). É o ponto — o admin destrava com o desfazer, e a próxima passada
 recalcula.
+
+### 4.10 Controle de pagamentos do delivery (2026-10-02)
+
+Conferência do frete em tela própria (`/verificar-delivery`), correção de fatura pelo admin e
+preço por bairro. As decisões que valem além da feature:
+
+- **Correção vence a geração** (§4.9) — a trava `corrigido` é o que torna o ajuste possível.
+- **"Indefinido" ≠ "grátis".** `freteDoMembro` devolve resultado discriminado
+  (`membro`/`bairro`/`padrao`/`indefinido`) em vez de número. Sem isso, membro sem preço viraria
+  fatura de R$ 0 — cadastro incompleto escondido atrás de um número. Indefinido não gera fatura
+  e vira pendência, mostrada na tela e avisada por WhatsApp ao responsável.
+- **`freteVigenteDesde` protege o passado**, e a guarda mora no `paymentService`, não na rota:
+  `ensureFrete`, o cron e o `acolhida.ts` são três caminhos para a mesma geração. O gatilho é
+  mais perigoso do que parece — `POST /payments/frete` dispara para o mês que o membro estiver
+  **navegando** em Meus Pagamentos, então sem a trava abrir setembro criaria a fatura de
+  setembro. O carimbo é do **servidor**, no 1º salvamento em que o frete passa a existir (tabela
+  **ou** padrão > 0): depender de alguém preencher esse campo seria depender de ninguém errar
+  justamente onde o erro cobra retroativo.
+- **Bairro é dado de cobrança, não texto livre.** Virou dropdown e saiu de
+  `CAMPOS_DO_PROPRIO_PERFIL` — quem paga não escolhe o próprio valor trocando de bairro. O
+  import por CSV é o caminho em que o texto chega sujo, então ele **casa** com a tabela
+  (`normalizarBairro`) e grava a grafia canônica; sem match, cria e marca para correção.
+- **Sentinelas `PRODUCER_COTA`/`PRODUCER_FRETE` desceram para `types.ts`**: o front precisa
+  distinguir as faturas e não pode importar `@pedidos/core/server`. O serviço re-exporta, então
+  a API do engine não mudou.
+- **WhatsApp fica no job do app.** `generateFreteForAll` devolve `semFrete[]` e o `quotaJob`
+  avisa — cron e integração são infra do app, o motor só apura. Evitou injetar
+  `WhatsAppGateway` no `paymentService`.
+- `Comprovantes` subiu para `@pedidos/core/ui`: só conhece `{ proofUrl?, proofs? }`, cabe na
+  fronteira do kit, e a tela nova precisava do mesmo seletor de semana.
+
+⚠️ **Bug de fundo encontrado aqui:** `freteDelivery` **nunca esteve** na whitelist do
+`PUT /tenants/:id`. A tela mandava, o servidor descartava calado e respondia "Salvo!" — por isso
+o frete da CSA era 0. Não foi configuração esquecida; foi salvamento que nunca funcionou, nos
+dois apps.
 
 ## 5. O que falta
 

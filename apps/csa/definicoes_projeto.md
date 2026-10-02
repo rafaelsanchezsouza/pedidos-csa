@@ -96,13 +96,13 @@ aqui (duplicar campo em doc só cria divergência). O que importa saber:
 
 | Coleção | ID do Doc | Campos principais |
 |---|---|---|
-| `tenants` | auto | name, adminId, quotaInteira, quotaMeia, freteDelivery, dueDay, orderSendDay, orderSendHour, weekChangeDay, extrasAberto |
-| `users` | uid Firebase | name, email, contact, address, acesso, role, tenantId, frequency, deliveryType, quota, quotaQty, acolhidaExpiry |
+| `tenants` | auto | name, adminId, quotaInteira, quotaMeia, freteDelivery, **fretePorBairro[]**, **freteVigenteDesde**, **responsavelEntregasId**, dueDay, orderSendDay, orderSendHour, weekChangeDay, extrasAberto |
+| `users` | uid Firebase | name, email, contact, address, **neighborhood** (só admin edita — define o frete), acesso, role, tenantId, frequency, deliveryType, quota, quotaQty, freteDelivery, deliveryOrder, acolhidaExpiry |
 | `products` | auto | name, unit, price, producerId, tenantId, dateUpdated |
 | `producers` | auto | name, contact, pixKey, tenantId |
 | `weekly_offerings` | auto | producerId, producerName, tenantId, items[], weekStart, rawMessage |
-| `orders` | auto | userId, userName, tenantId, weekId, items[], status, doacao, recebido, suspensa |
-| `payments` | auto | userId, tenantId, month, producerName, amount, proofs[], verified, dueDate |
+| `orders` | auto | userId, userName, tenantId, weekId, items[], status, doacao, recebido, suspensa, **incluida** (exceção da semana: entra na entrega) |
+| `payments` | auto | userId, tenantId, month, producerName, amount, proofs[], verified, dueDate, **corrigido**, **amountOriginal**, **correcoes[]** |
 | `acolhida_weeks` | auto | userId, tenantId, weekId, confirmado |
 | `tenant_roles` | auto | name, tenantId |
 
