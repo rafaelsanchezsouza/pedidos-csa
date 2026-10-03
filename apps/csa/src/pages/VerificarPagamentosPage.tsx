@@ -6,6 +6,7 @@ import type { Payment } from '@/types'
 import { statusLabel, statusVariant, isAdmin, isFornecedor, PRODUCER_FRETE } from '@pedidos/core'
 import { Button, Card, CardContent, Badge, EstadoLista, MonthNavigator, Comprovantes } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
+import { DialogEdicaoFatura } from '@/components/DialogEdicaoFatura'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
@@ -18,11 +19,13 @@ export function VerificarPagamentosPage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState<string | null>(null)
+  const [editando, setEditando] = useState<Payment | null>(null)
 
   const isAllowed = isAdmin(user) || isFornecedor(user)
   if (user && !isAllowed) return <Navigate to="/pedidos" replace />
 
   const isProdutor = isFornecedor(user)
+  const ehAdmin = isAdmin(user)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -85,7 +88,14 @@ export function VerificarPagamentosPage() {
                   <tbody>
                     {payments.map((p) => (
                       <tr key={p.id} className="border-b last:border-0">
-                        <td className="px-4 py-3 font-medium">{p.userName}</td>
+                        <td className="px-4 py-3 font-medium">
+                          {p.userName}
+                          {p.corrigido && (
+                            <span className="block text-xs font-normal text-muted-foreground">
+                              Corrigido · R$ {(p.amountOriginal ?? p.amount).toFixed(2)} → R$ {p.amount.toFixed(2)}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-muted-foreground">{p.producerName}</td>
                         <td className="px-4 py-3 text-right">R$ {p.amount.toFixed(2)}</td>
                         <td className="px-4 py-3 text-center">
@@ -94,7 +104,11 @@ export function VerificarPagamentosPage() {
                         <td className="px-4 py-3 text-center">
                           <Comprovantes payment={p} compacto />
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          {/* Correção é do admin: o servidor recusa fornecedor (ehAdmin). */}
+                          {ehAdmin && (
+                            <Button size="sm" variant="ghost" onClick={() => setEditando(p)}>Editar</Button>
+                          )}
                           {!p.verified && (p.proofUrl || p.proofs?.length) && (
                             <Button size="sm" variant="secondary" disabled={verifying === p.id} onClick={() => handleVerify(p)}>
                               {verifying === p.id ? '...' : 'Verificar'}
@@ -122,6 +136,9 @@ export function VerificarPagamentosPage() {
                   <div className="text-sm font-semibold">R$ {p.amount.toFixed(2)}</div>
                   <div className="flex items-center gap-3 pt-1">
                     <Comprovantes payment={p} />
+                    {ehAdmin && (
+                      <Button size="sm" variant="ghost" onClick={() => setEditando(p)}>Editar</Button>
+                    )}
                     {!p.verified && (p.proofUrl || p.proofs?.length) && (
                       <Button size="sm" variant="secondary" disabled={verifying === p.id} onClick={() => handleVerify(p)}>
                         {verifying === p.id ? '...' : 'Verificar'}
@@ -134,6 +151,16 @@ export function VerificarPagamentosPage() {
           </div>
         </>
       </EstadoLista>
+
+      {editando && (
+        <DialogEdicaoFatura
+          payment={editando}
+          tenantId={tenantId}
+          month={month}
+          onFechar={() => setEditando(null)}
+          onSalvo={load}
+        />
+      )}
     </div>
   )
 }

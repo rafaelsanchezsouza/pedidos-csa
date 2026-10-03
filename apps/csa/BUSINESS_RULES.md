@@ -298,6 +298,10 @@
 
 - Admin (nunca fornecedor, nunca o dono) ajusta o valor de **qualquer** fatura — cota, frete ou
   produtor — por `POST /payments/:id/correcao` (`{ amount, motivo? }`)
+- **Na tela**: botão `Editar` por linha, nas **duas** telas de conferência (Verificar Pagamentos
+  e Conferir Delivery), com o mesmo dialog (`components/DialogEdicaoFatura.tsx`). Corrige o
+  valor, troca/anexa o comprovante, desfaz a correção e mostra o histórico. Só aparece para
+  admin — o servidor recusa fornecedor, então oferecer o botão a ele seria oferecer um 403
 - A correção **trava a geração automática**: enquanto `corrigido: true`, nem o cron do dia 1,
   nem o auto-ensure de Meus Pagamentos, nem a confirmação de semana da acolhida reescrevem o
   valor; e `upsertPaymentsForOrder` também não recalcula nem zera a fatura de produtor
