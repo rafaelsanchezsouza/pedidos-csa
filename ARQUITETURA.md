@@ -53,7 +53,7 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 
 | **5. Engine** | `packages/core/server`: portas (`Repo`, `AuthGateway`, `WhatsAppGateway`, `MessageParser`) + **todas as rotas/serviços como factories `(deps, config)`**; modelo canônico em `types.ts`; CSA usando acesso-lista. Detalhe fatia a fatia abaixo | core 150, csa 25, fermentou 22 + 4 builds |
 
-**Placar atual (2026-10-02):** `@pedidos/core` **281 testes**, `apps/csa` **73**, `apps/fermentou` **9** — todos
+**Placar atual (2026-10-03):** `@pedidos/core` **281 testes**, `apps/csa` **74**, `apps/fermentou` **9** — todos
 × 3 fusos (BR/UTC/UTC+14). Builds front + backend dos dois apps verdes.
 > Os números dos apps **caíram** de propósito na task 6: os testes de UI que eram cópia nos dois
 > (PageHeader, EstadoLista) subiram para o core. Soma cresceu; a duplicação sumiu.
@@ -663,6 +663,10 @@ Conferência do frete em tela própria (`/verificar-delivery`), correção de fa
 preço por bairro. As decisões que valem além da feature:
 
 - **Correção vence a geração** (§4.9) — a trava `corrigido` é o que torna o ajuste possível.
+  Ela **nunca foi do delivery**: o motor não distingue por `producerName`, e os dois geradores
+  respeitam a flag. Por isso o dialog de edição virou `components/DialogEdicaoFatura.tsx`, usado
+  pelas **duas** telas de conferência — cota e produtor se corrigem igual. A composição do valor
+  ("R$ 12 por entrega × 3") é parâmetro opcional, porque só o frete tem conta a explicar.
 - **"Indefinido" ≠ "grátis".** `freteDoMembro` devolve resultado discriminado
   (`membro`/`bairro`/`padrao`/`indefinido`) em vez de número. Sem isso, membro sem preço viraria
   fatura de R$ 0 — cadastro incompleto escondido atrás de um número. Indefinido não gera fatura

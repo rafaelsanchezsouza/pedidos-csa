@@ -1,6 +1,6 @@
 # Handoff — monorepo `pedidos`
 
-Estado em **2026-10-02**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
+Estado em **2026-10-03**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
 (`apps/csa`, `apps/fermentou`). **Os dois estão no ar rodando deste monorepo.** Os repos
 pré-monorepo (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) foram **apagados em 2026-09-28** —
 a limpeza do legado (2026-08-31) já tinha encerrado o papel de rollback deles; ver §4.
@@ -100,7 +100,7 @@ npm run build -w pedidos-csa  && npm run build:backend -w pedidos-csa
 npm run build -w fermentou  && npm run build:backend -w fermentou
 ```
 
-Placar atual (2026-10-02): **core 281**, **csa 73**, **fermentou 9** — todos ×3 fusos.
+Placar atual (2026-10-03): **core 281**, **csa 74**, **fermentou 9** — todos ×3 fusos.
 **Sem CI: o verde local é o único portão.** Mudou estrutura de emissão? `rm -rf apps/*/dist-server`
 antes (o `tsc` não limpa o `outDir`).
 
@@ -341,12 +341,10 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
    workspace, que virou `fermentou` em 2026-09-28. Procedimento pronto em **§4.1**.
 10. **Backup offline das credenciais** — ver o aviso do topo: `apps/csa/private/` e os `.env`
     não têm mais segunda cópia em lugar nenhum.
-11. **Ligar a cobrança do delivery** (deployado em 2026-10-02, **não ativado**): em
-    Administração → Configurações → Entregas, "Carregar tabela padrão" → Salvar. Esse clique
-    grava os 35 bairros, faz o `freteDelivery` finalmente persistir e **carimba
-    `freteVigenteDesde` com o mês do clique** — salvar em novembro significa outubro nunca
-    cobrado. Enquanto não for salvo, `freteDoMembro` devolve `indefinido` e nenhuma fatura de
-    entrega nasce.
+11. ~~**Ligar a cobrança do delivery**~~ — **tabela gravada em 2026-10-03**, com
+    `freteVigenteDesde` carimbado em `2026-10`. O bloco de pendência da tela Conferir Delivery
+    já lista quem ficou sem preço de bairro. Falta rodar **"Gerar faturas do mês"** uma vez:
+    o cron do dia 1 já tinha passado quando a tabela foi salva.
 12. **Regras do Storage não estão no repo** (só no console do Firebase). O "Substituir
     comprovante" da tela Conferir Delivery sobe o arquivo na pasta do **membro**, não na do
     admin: se a regra for `request.auth.uid == userId`, falha **em runtime** e nem build nem
