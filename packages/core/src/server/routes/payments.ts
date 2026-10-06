@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express'
 import type { EngineDeps } from '../repo.js'
 import type { PaymentService, PaymentDoc } from '../services/payments.js'
+import type { AuditoriaVerificacaoDoc } from '../../types.js'
 import '../types.js'
 import { carregarAtor, ehAdmin, ehAdminOuFornecedor, negar } from '../auth.js'
 
@@ -216,7 +217,19 @@ export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
       } else {
         negar(res); return
       }
-      const comData = { ...updates, dateUpdated: new Date().toISOString() }
+      const agora = new Date().toISOString()
+      // Troca de `verified` deixa rastro — inclusive a verificação SEM comprovante, que é a
+      // forma de o admin dar baixa em pagamento em dinheiro. Rastro antes da escrita: se ele
+      // falhar, a fatura não muda.
+      if (updates.verified !== undefined && !!updates.verified !== !!atual.verified) {
+        await repo.createDoc<AuditoriaVerificacaoDoc>('auditoria', {
+          tipo: 'verificacao', paymentId: id, tenantId: atual.tenantId,
+          de: !!atual.verified, para: !!updates.verified,
+          comComprovante: !!(atual.proofUrl || atual.proofs?.length),
+          por: ator.uid, em: agora,
+        })
+      }
+      const comData = { ...updates, dateUpdated: agora }
       await repo.updateDoc<PaymentDoc>('payments', id, comData)
       res.json({ id, ...comData })
     } catch (err) {

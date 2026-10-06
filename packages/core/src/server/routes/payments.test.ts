@@ -177,3 +177,59 @@ describe('correcao de valor — só admin, histórico do servidor', () => {
     expect(doc.correcoes).toBeUndefined()
   })
 })
+
+describe('PUT /:id — troca de verified deixa rastro em auditoria', () => {
+  const fatura = (extra: Partial<PaymentDoc> = {}) => ({
+    p1: {
+      userId: 'm1', userName: 'Ana', tenantId: 't1', month: '2026-09',
+      producerName: 'Cota', amount: 65, verified: false, dateCreated: 'd', dateUpdated: 'd', ...extra,
+    },
+  })
+  const comAdmin = (extra: Partial<PaymentDoc> = {}) => createMemoryRepo({
+    users: { ...adminDeTeste('t1'), m1: { name: 'Ana', tenantId: 't1', acesso: ['consumidor'] } },
+    payments: fatura(extra),
+  })
+  const rota = (repo: ReturnType<typeof createMemoryRepo>) =>
+    createPaymentsRouter({ repo, payments: createPaymentService({ repo }, config) })
+  const put = (get: (p: string, i?: RequestInit) => Promise<Response>, body: object) =>
+    get('/api/payments/p1', { method: 'PUT', body: JSON.stringify(body), ...json })
+
+  it('admin verifica sem comprovante: grava a fatura e o rastro', async () => {
+    const repo = comAdmin()
+    await withRouter('/api/payments', rota(repo), async (get) => {
+      expect((await put(get, { verified: true })).status).toBe(200)
+    })
+    expect((await repo.getDoc<PaymentDoc>('payments', 'p1'))!.verified).toBe(true)
+    expect(await repo.listDocs('auditoria')).toEqual([expect.objectContaining({
+      tipo: 'verificacao', paymentId: 'p1', tenantId: 't1',
+      de: false, para: true, comComprovante: false, por: 'u1', em: expect.any(String),
+    })])
+  })
+
+  it('desfazer também é registrado', async () => {
+    const repo = comAdmin({ verified: true, proofUrl: 'http://s/1.jpg' })
+    await withRouter('/api/payments', rota(repo), async (get) => {
+      expect((await put(get, { verified: false })).status).toBe(200)
+    })
+    expect(await repo.listDocs('auditoria')).toEqual([
+      expect.objectContaining({ de: true, para: false, comComprovante: true }),
+    ])
+  })
+
+  it('PUT que não muda verified não grava rastro', async () => {
+    const repo = comAdmin()
+    await withRouter('/api/payments', rota(repo), async (get) => {
+      expect((await put(get, { verified: false, proofUrl: 'http://s/1.jpg' })).status).toBe(200)
+    })
+    expect(await repo.listDocs('auditoria')).toEqual([])
+  })
+
+  it('membro não verifica a própria fatura e não sobra rastro', async () => {
+    const repo = comAdmin()
+    await withRouter('/api/payments', rota(repo), async (get) => {
+      expect((await put(get, { verified: true })).status).toBe(403)
+    }, { uid: 'm1' })
+    expect((await repo.getDoc<PaymentDoc>('payments', 'p1'))!.verified).toBe(false)
+    expect(await repo.listDocs('auditoria')).toEqual([])
+  })
+})

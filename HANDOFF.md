@@ -1,6 +1,6 @@
 # Handoff — monorepo `pedidos`
 
-Estado em **2026-10-03**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
+Estado em **2026-10-05**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
 (`apps/csa`, `apps/fermentou`). **Os dois estão no ar rodando deste monorepo.** Os repos
 pré-monorepo (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) foram **apagados em 2026-09-28** —
 a limpeza do legado (2026-08-31) já tinha encerrado o papel de rollback deles; ver §4.
@@ -100,7 +100,7 @@ npm run build -w pedidos-csa  && npm run build:backend -w pedidos-csa
 npm run build -w fermentou  && npm run build:backend -w fermentou
 ```
 
-Placar atual (2026-10-03): **core 281**, **csa 74**, **fermentou 9** — todos ×3 fusos.
+Placar atual (2026-10-05): **core 291**, **csa 77**, **fermentou 9** — todos ×3 fusos.
 **Sem CI: o verde local é o único portão.** Mudou estrutura de emissão? `rm -rf apps/*/dist-server`
 antes (o `tsc` não limpa o `outDir`).
 
@@ -359,6 +359,11 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
    `ARQUITETURA.md` §5 "Questões em aberto" #3. Hoje o repo é **público** e um cliente novo
    custa ~6k linhas copiadas. Decisão adiada conscientemente em 2026-08-28: a solução tem que
    servir a N clientes, não ser um remendo pro Fermentou.
+15. **Fornecedor verifica fatura alheia** — achado em 2026-10-05, **não corrigido**: o
+    `PUT /payments/:id` checa `ehAdminOuFornecedor` (só o tenant), não `podeMexerNoProducer`.
+    Um fornecedor marca como paga **qualquer** fatura do tenant — cota, frete, de outro
+    produtor. A tela só lista as dele, então é furo de API, não de UI. Desde 05/10 cada troca
+    fica na coleção `auditoria` (ARQUITETURA §4.11), o que ao menos deixa rastro.
 
 ## 7. Riscos conhecidos
 

@@ -3,11 +3,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi, usersApi } from '@/services/api'
 import type { Payment, User } from '@/types'
 import {
-  statusLabel, statusVariant, resolveFrete, formatDeliveryDate, PRODUCER_FRETE,
+  resolveFrete, formatDeliveryDate, PRODUCER_FRETE,
   freteDoMembro, isEntrega,
 } from '@pedidos/core'
 import {
-  Button, Card, CardContent, Badge, EstadoLista, MonthNavigator, PageHeader, Comprovantes,
+  Button, Card, CardContent, EstadoLista, MonthNavigator, PageHeader, Comprovantes, StatusFatura,
 } from '@pedidos/core/ui'
 import { config } from '@/config'
 import { DialogEdicaoFatura } from '@/components/DialogEdicaoFatura'
@@ -122,6 +122,21 @@ export function VerificarDeliveryPage() {
     }
   }
 
+  // Atalho do badge: frete pago por fora (sem comprovante) ou desfazer. A tela já é só admin.
+  async function alterarVerificacao(p: Payment, verified: boolean) {
+    await paymentsApi.update(p.id, { verified }, tenantId)
+    await load()
+  }
+
+  const status = (p: Payment) => (
+    <StatusFatura
+      payment={p}
+      podeAlterar
+      descricao={`${p.userName} · ${p.producerName} · ${brl(p.amount)} · ${month}`}
+      onAlterar={(v) => alterarVerificacao(p, v)}
+    />
+  )
+
   async function gerarFaturas() {
     setGerando(true)
     setAviso('')
@@ -215,7 +230,7 @@ export function VerificarDeliveryPage() {
                           <td className="px-4 py-3 text-center text-muted-foreground">{entregas ?? '—'}</td>
                           <td className="px-4 py-3 text-right">{brl(p.amount)}</td>
                           <td className="px-4 py-3 text-center">
-                            <Badge variant={statusVariant(p)}>{statusLabel(p)}</Badge>
+                            {status(p)}
                           </td>
                           <td className="px-4 py-3 text-center"><Comprovantes payment={p} compacto /></td>
                           <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -245,7 +260,7 @@ export function VerificarDeliveryPage() {
                   <CardContent className="py-3 px-4 space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{p.userName}</span>
-                      <Badge variant={statusVariant(p)}>{statusLabel(p)}</Badge>
+                      {status(p)}
                     </div>
                     <div className="text-sm font-semibold">{brl(p.amount)}</div>
                     <div className="text-xs text-muted-foreground">

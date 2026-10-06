@@ -3,8 +3,8 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { paymentsApi } from '@/services/api'
 import type { Payment } from '@/types'
-import { statusLabel, statusVariant, isAdmin, isFornecedor, PRODUCER_FRETE } from '@pedidos/core'
-import { Button, Card, CardContent, Badge, EstadoLista, MonthNavigator, Comprovantes } from '@pedidos/core/ui'
+import { isAdmin, isFornecedor, PRODUCER_FRETE } from '@pedidos/core'
+import { Button, Card, CardContent, EstadoLista, MonthNavigator, Comprovantes, StatusFatura } from '@pedidos/core/ui'
 import { PageHeader } from '@pedidos/core/ui'
 import { DialogEdicaoFatura } from '@/components/DialogEdicaoFatura'
 
@@ -57,6 +57,22 @@ export function VerificarPagamentosPage() {
     }
   }
 
+  // Atalho do admin no badge (pagamento sem comprovante, ou desfazer). A confirmação é do
+  // StatusFatura; o rastro, do servidor.
+  async function alterarVerificacao(p: Payment, verified: boolean) {
+    await paymentsApi.update(p.id, { verified }, tenantId)
+    await load()
+  }
+
+  const status = (p: Payment) => (
+    <StatusFatura
+      payment={p}
+      podeAlterar={ehAdmin}
+      descricao={`${p.userName} · ${p.producerName} · R$ ${p.amount.toFixed(2)} · ${month}`}
+      onAlterar={(v) => alterarVerificacao(p, v)}
+    />
+  )
+
   return (
     <div className="max-w-3xl space-y-6">
       <PageHeader
@@ -99,7 +115,7 @@ export function VerificarPagamentosPage() {
                         <td className="px-4 py-3 text-muted-foreground">{p.producerName}</td>
                         <td className="px-4 py-3 text-right">R$ {p.amount.toFixed(2)}</td>
                         <td className="px-4 py-3 text-center">
-                          <Badge variant={statusVariant(p)}>{statusLabel(p)}</Badge>
+                          {status(p)}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <Comprovantes payment={p} compacto />
@@ -130,7 +146,7 @@ export function VerificarPagamentosPage() {
                 <CardContent className="py-3 px-4 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium">{p.userName}</span>
-                    <Badge variant={statusVariant(p)}>{statusLabel(p)}</Badge>
+                    {status(p)}
                   </div>
                   <div className="text-sm text-muted-foreground">{p.producerName}</div>
                   <div className="text-sm font-semibold">R$ {p.amount.toFixed(2)}</div>

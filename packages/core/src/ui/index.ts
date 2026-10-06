@@ -22,6 +22,7 @@ export { MonthNavigator } from './MonthNavigator.js'
 export {
   Comprovantes, type ComprovanteDaSemana, type FaturaComComprovantes,
 } from './Comprovantes.js'
+export { StatusFatura, type FaturaComStatus } from './StatusFatura.js'
 
 // Primitives shadcn — eram cópia byte a byte nos dois apps.
 export { Badge, badgeVariants, type BadgeProps } from './primitives/badge.js'

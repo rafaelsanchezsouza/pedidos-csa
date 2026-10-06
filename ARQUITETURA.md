@@ -53,7 +53,7 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 
 | **5. Engine** | `packages/core/server`: portas (`Repo`, `AuthGateway`, `WhatsAppGateway`, `MessageParser`) + **todas as rotas/serviços como factories `(deps, config)`**; modelo canônico em `types.ts`; CSA usando acesso-lista. Detalhe fatia a fatia abaixo | core 150, csa 25, fermentou 22 + 4 builds |
 
-**Placar atual (2026-10-03):** `@pedidos/core` **281 testes**, `apps/csa` **74**, `apps/fermentou` **9** — todos
+**Placar atual (2026-10-05):** `@pedidos/core` **291 testes**, `apps/csa` **77**, `apps/fermentou` **9** — todos
 × 3 fusos (BR/UTC/UTC+14). Builds front + backend dos dois apps verdes.
 > Os números dos apps **caíram** de propósito na task 6: os testes de UI que eram cópia nos dois
 > (PageHeader, EstadoLista) subiram para o core. Soma cresceu; a duplicação sumiu.
@@ -695,6 +695,29 @@ preço por bairro. As decisões que valem além da feature:
 `PUT /tenants/:id`. A tela mandava, o servidor descartava calado e respondia "Salvo!" — por isso
 o frete da CSA era 0. Não foi configuração esquecida; foi salvamento que nunca funcionou, nos
 dois apps.
+
+### 4.11 Verificar sem comprovante, com rastro (2026-10-05)
+
+Pagamento em dinheiro ou Pix sem print ficava preso em "Pendente": o botão `Verificar` só
+aparecia com comprovante. A trava era **só de tela** — o `PUT /payments/:id` sempre aceitou
+`verified` de admin com ou sem comprovante. Então liberar o atalho não abre buraco no servidor;
+o risco é **clique errado** e **ninguém saber depois quem deu a baixa**.
+
+- **Atalho no badge, com confirmação** (`StatusFatura`, no kit `core/ui`): `Pendente` →
+  dialog "Marcar como pago sem comprovante?" com membro, produtor, valor e mês; `Verificado` →
+  dialog de desfazer. `Aguardando verificação` **não** é atalho: tem evidência, e o botão
+  `Verificar` continua sendo o caminho. Só admin, nas duas telas de conferência da CSA. O
+  componente só recebe `onAlterar` — sem `api`/`useAuth`, cabe na fronteira do kit.
+- **Rastro em coleção própria (`auditoria`), não no `PaymentDoc`.** Decisão do usuário: o
+  registro vive só no banco, nenhuma tela lê. Diferente do `correcoes[]` (§4.9), que a tela
+  mostra no dialog de edição. Grava toda troca de `verified` — não só a sem comprovante —
+  com `comComprovante` para filtrar; PUT que não muda o valor não grava.
+- **Rastro antes da escrita:** se o `createDoc` falhar, a fatura não muda (500). Fatura paga
+  sem rastro é exatamente o que a feature quer evitar.
+- Continua no `PUT /:id` em vez de endpoint próprio: o histórico não vem do corpo (o servidor
+  carimba `por`/`em`/`de`), que era a razão dos endpoints da §4.9.
+- ⚠️ Achado aqui, **fora da fatia**: o PUT confia em `ehAdminOuFornecedor` — fornecedor
+  verifica fatura de qualquer produtor do tenant. HANDOFF §6 #15.
 
 ## 5. O que falta
 

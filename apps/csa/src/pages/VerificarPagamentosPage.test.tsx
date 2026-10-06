@@ -7,17 +7,18 @@ import type { Payment } from '@/types'
 // O delivery saiu desta tela: tem conferência própria em /verificar-delivery. Deixar as duas
 // listando a mesma fatura faria dois lugares para marcar o mesmo pagamento como verificado.
 
-const { listSpy, corrigirSpy } = vi.hoisted(() => ({
-  listSpy: vi.fn(), corrigirSpy: vi.fn().mockResolvedValue({}),
+const { listSpy, corrigirSpy, updateSpy, auth } = vi.hoisted(() => ({
+  listSpy: vi.fn(), corrigirSpy: vi.fn().mockResolvedValue({}), updateSpy: vi.fn().mockResolvedValue({}),
+  auth: { user: { id: 'a1', acesso: ['admin'] } as { id: string; acesso: string[]; name?: string } },
 }))
 
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({ colmeia: { id: 'c1', name: 'CSA' }, user: { id: 'a1', acesso: ['admin'] } }),
+  useAuth: () => ({ colmeia: { id: 'c1', name: 'CSA' }, user: auth.user }),
 }))
 vi.mock('react-router-dom', () => ({ Navigate: () => null }))
 vi.mock('@/hooks/useUploadProof', () => ({ useUploadProof: () => ({ uploadProof: vi.fn() }) }))
 vi.mock('@/services/api', () => ({
-  paymentsApi: { list: listSpy, update: vi.fn(), corrigirValor: corrigirSpy, desfazerCorrecao: vi.fn(), anexarComprovante: vi.fn() },
+  paymentsApi: { list: listSpy, update: updateSpy, corrigirValor: corrigirSpy, desfazerCorrecao: vi.fn(), anexarComprovante: vi.fn() },
 }))
 
 import { VerificarPagamentosPage } from './VerificarPagamentosPage'
@@ -28,7 +29,10 @@ const fatura = (over: Partial<Payment>): Payment => ({
   ...over,
 } as Payment)
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  auth.user = { id: 'a1', acesso: ['admin'] }
+})
 
 describe('VerificarPagamentosPage', () => {
   it('não lista mais a fatura de delivery', async () => {
@@ -63,5 +67,24 @@ describe('VerificarPagamentosPage', () => {
     listSpy.mockResolvedValue([fatura({ id: 'p3', producerName: 'Entrega', amount: 36 })])
     render(<VerificarPagamentosPage />)
     expect(await screen.findByText(/Nenhum pagamento registrado para este mês/)).toBeInTheDocument()
+  })
+
+  // Pagamento por fora (dinheiro, Pix sem print): o admin dá baixa pelo badge, com confirmação.
+  it('admin marca Pendente como verificado depois de confirmar', async () => {
+    listSpy.mockResolvedValue([fatura({ id: 'p1', producerName: 'Cota', amount: 65 })])
+    render(<VerificarPagamentosPage />)
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Pendente' }))[0]!)
+    expect(updateSpy).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Marcar como verificado' }))
+    expect(updateSpy).toHaveBeenCalledWith('p1', { verified: true }, 'c1')
+  })
+
+  it('fornecedor vê o status, mas sem o atalho', async () => {
+    auth.user = { id: 'f1', acesso: ['fornecedor'], name: 'Sítio' }
+    listSpy.mockResolvedValue([fatura({ id: 'p2', producerName: 'Sítio', amount: 50 })])
+    render(<VerificarPagamentosPage />)
+    expect((await screen.findAllByText('Pendente')).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: 'Pendente' })).not.toBeInTheDocument()
   })
 })

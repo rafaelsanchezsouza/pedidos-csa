@@ -192,6 +192,22 @@ export interface CorrecaoPagamento {
   motivo?: string
 }
 
+/**
+ * Coleção `auditoria` — rastro escrito só pelo servidor, que nenhuma tela lê. Hoje registra
+ * cada troca de `verified`: o admin pode dar uma fatura por paga **sem comprovante**, e aí o
+ * único registro de quem confirmou dinheiro sem evidência é este.
+ */
+export interface AuditoriaVerificacaoDoc {
+  tipo: 'verificacao'
+  paymentId: string
+  tenantId: string
+  de: boolean
+  para: boolean
+  comComprovante: boolean
+  por: string // uid
+  em: string // ISO
+}
+
 export interface PaymentDoc {
   userId: string
   userName: string

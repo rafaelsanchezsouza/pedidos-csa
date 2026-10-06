@@ -158,4 +158,12 @@ describe('VerificarDeliveryPage', () => {
     expect(gerarSpy).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}$/), 'c1')
     expect(await screen.findByText(/2 fatura\(s\) criada\(s\)/)).toBeInTheDocument()
   })
+
+  it('verificado pode ser desfeito pelo badge, com confirmação', async () => {
+    listSpy.mockResolvedValue([fatura({ verified: true, proofUrl: 'http://s/1.jpg' })])
+    render(<VerificarDeliveryPage />)
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Verificado' }))[0]!)
+    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }))
+    expect(updateSpy).toHaveBeenCalledWith('p1', { verified: false }, 'c1')
+  })
 })

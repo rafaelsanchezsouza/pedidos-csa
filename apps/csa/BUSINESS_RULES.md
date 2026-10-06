@@ -213,6 +213,8 @@
 - Uma fatura (`PaymentDoc`) por usuário **por produtor** por mês — chave única: `(userId, tenantId, month, producerName)`
 - Mês representado como string `"YYYY-MM"`
 - Usuário envia comprovante por fatura → URL em `proofUrl`; admin verifica → `verified: true`
+- **Pagamento sem comprovante** (dinheiro, Pix sem print): o admin clica no badge `Pendente` e confirma num dialog → `verified: true`. Clicar em `Verificado` desfaz, também com confirmação. Só admin — fornecedor vê o badge sem o atalho
+- Toda troca de `verified` grava um registro na coleção `auditoria` (`{ tipo: 'verificacao', paymentId, de, para, comComprovante, por, em }`), escrito pelo servidor e não exibido em tela
 - **Comprovante por semana** (acolhida): `proofs[]` guarda `{ weekId, url, dateUploaded }`. `proofUrl` continua com o último enviado (telas antigas leem dele). Reenviar a mesma semana **substitui**; o dono acrescenta via `POST /payments/:id/comprovante`, nunca reescreve a lista
 - Arquivo no Storage: `comprovantes/{tenantId}/{userId}/{mês}/{timestamp}-{nome}` — o carimbo evita que dois envios de mesmo nome no mês se sobrescrevam
 
