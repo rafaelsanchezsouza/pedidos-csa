@@ -698,6 +698,9 @@ dois apps.
 
 ### 4.11 Verificar sem comprovante, com rastro (2026-10-05)
 
+**No ar na CSA desde 2026-10-06.** O Fermentou não foi deployado: a tela dele não mudou, e a
+auditoria do `PUT` (que é do core) só chega lá no próximo redeploy (HANDOFF §6 #8).
+
 Pagamento em dinheiro ou Pix sem print ficava preso em "Pendente": o botão `Verificar` só
 aparecia com comprovante. A trava era **só de tela** — o `PUT /payments/:id` sempre aceitou
 `verified` de admin com ou sem comprovante. Então liberar o atalho não abre buraco no servidor;

@@ -1,6 +1,6 @@
 # Handoff — monorepo `pedidos`
 
-Estado em **2026-10-05**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
+Estado em **2026-10-06**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
 (`apps/csa`, `apps/fermentou`). **Os dois estão no ar rodando deste monorepo.** Os repos
 pré-monorepo (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) foram **apagados em 2026-09-28** —
 a limpeza do legado (2026-08-31) já tinha encerrado o papel de rollback deles; ver §4.
@@ -363,7 +363,8 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
     `PUT /payments/:id` checa `ehAdminOuFornecedor` (só o tenant), não `podeMexerNoProducer`.
     Um fornecedor marca como paga **qualquer** fatura do tenant — cota, frete, de outro
     produtor. A tela só lista as dele, então é furo de API, não de UI. Desde 05/10 cada troca
-    fica na coleção `auditoria` (ARQUITETURA §4.11), o que ao menos deixa rastro.
+    fica na coleção `auditoria` (ARQUITETURA §4.11, no ar na CSA desde 06/10), o que ao menos
+    deixa rastro. No Fermentou nem isso, até o redeploy do #8.
 
 ## 7. Riscos conhecidos
 
