@@ -340,9 +340,11 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
 10. **Backup offline das credenciais** — ver o aviso do topo: `apps/csa/private/` e os `.env`
     não têm mais segunda cópia em lugar nenhum.
 11. ~~**Ligar a cobrança do delivery**~~ — **tabela gravada em 2026-10-03**, com
-    `freteVigenteDesde` carimbado em `2026-10`. O bloco de pendência da tela Conferir Delivery
-    já lista quem ficou sem preço de bairro. Falta rodar **"Gerar faturas do mês"** uma vez:
-    o cron do dia 1 já tinha passado quando a tabela foi salva.
+    `freteVigenteDesde` carimbado em `2026-10`. ~~Falta rodar "Gerar faturas do mês"~~ —
+    **conferido em 2026-10-19** com ensaio só de leitura do mesmo serviço: as 16 faturas de
+    Entrega de outubro da Flor de Quilombo já existiam e a geração não criaria nem mudaria
+    nenhuma. A **Flor de Mel** não tem frete configurado (sem vigência) e tem 1 membro de
+    entrega sem preço: o `quotaJob` do dia 1 vai listá-lo como pendência e avisar por WhatsApp.
 12. **Regras do Storage não estão no repo** (só no console do Firebase). O "Substituir
     comprovante" da tela Conferir Delivery sobe o arquivo na pasta do **membro**, não na do
     admin: se a regra for `request.auth.uid == userId`, falha **em runtime** e nem build nem
