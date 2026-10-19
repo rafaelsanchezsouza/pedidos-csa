@@ -1,6 +1,6 @@
 # Handoff — monorepo `pedidos`
 
-Estado em **2026-10-06**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
+Estado em **2026-10-18**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
 (`apps/csa`, `apps/fermentou`). **Os dois estão no ar rodando deste monorepo.** Os repos
 pré-monorepo (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) foram **apagados em 2026-09-28** —
 a limpeza do legado (2026-08-31) já tinha encerrado o papel de rollback deles; ver §4.
@@ -332,11 +332,9 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
    `dev-csa` abre issue e o bot responde com o link (validado: issue #59). A entrada é
    compartilhada com o note-app pelo `zap-hub` (`~/repos/zap-hub`, ver `ZAP-PROTOCOL.md` §8).
    **O zap-hub não tem remote** — só existe nesta máquina.
-8. **Redeploy do fermentou** — a produção dele é de **2026-08-22** e roda um core de antes do
-   `fix(jobs)` de 31/08 (relógio do tenant nos jobs) e das correções de 21/09. Nada quebrado
-   hoje — a oferta dele nasce do catálogo, não do parser —, mas o `sendOrdersJob` de lá ainda
-   lê o relógio do processo (UTC). Um `./deploy.sh` em `apps/fermentou` resolve, e já sai com
-   o `package.json` sem devDependencies.
+8. ~~**Redeploy do fermentou**~~ — **feito em 2026-10-18**: saiu do core de 22/08 direto para
+   o atual (relógio do tenant nos jobs, auditoria de verificação, travas de #13/#15) e já sem
+   devDependencies no `package.json`.
 9. **Renomear a infra do Fermentou na VM** (pm2, `/opt/pedidos-app`, nginx) para bater com o
    workspace, que virou `fermentou` em 2026-09-28. Procedimento pronto em **§4.1**.
 10. **Backup offline das credenciais** — ver o aviso do topo: `apps/csa/private/` e os `.env`
@@ -349,15 +347,15 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
     comprovante" da tela Conferir Delivery sobe o arquivo na pasta do **membro**, não na do
     admin: se a regra for `request.auth.uid == userId`, falha **em runtime** e nem build nem
     teste acusam. É o único ponto da entrega de 02/10 sem cobertura.
-13. **Autorização de `routes/orders.ts`** — **corrigido no código em 2026-10-18, não
-    deployado** (ARQUITETURA §4.13): pedido só é escrito pelo dono ou pelo admin da tenant do
+13. **Autorização de `routes/orders.ts`** — **corrigido e no ar nos dois apps em
+    2026-10-18** (ARQUITETURA §4.13): pedido só é escrito pelo dono ou pelo admin da tenant do
     pedido, semana bloqueada dá 403 para quem não é admin e `PATCH /recebido` exige admin.
 14. **Isolamento por cliente + onboarding sem código novo** — questão em aberto, ver
    `ARQUITETURA.md` §5 "Questões em aberto" #3. Hoje o repo é **público** e um cliente novo
    custa ~6k linhas copiadas. Decisão adiada conscientemente em 2026-08-28: a solução tem que
    servir a N clientes, não ser um remendo pro Fermentou.
-15. **Fornecedor verifica fatura alheia** — **corrigido no código em 2026-10-18, não
-    deployado** (ARQUITETURA §4.12): o fornecedor só lista e verifica as faturas do produtor do
+15. **Fornecedor verifica fatura alheia** — **corrigido e no ar nos dois apps em
+    2026-10-18** (ARQUITETURA §4.12): o fornecedor só lista e verifica as faturas do produtor do
     seu `producerId`. Sem risco de trancar alguém na CSA: a produção tem **0 fornecedores**
     (conferido em 2026-10-18; quem confere fatura lá é só admin). Achado lateral da mesma
     leitura: **2 faturas sem `producerName`** na produção — não afetam a trava, mas merecem olhar.
