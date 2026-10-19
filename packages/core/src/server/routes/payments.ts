@@ -1,12 +1,26 @@
 import { Router, type Request, type Response } from 'express'
 import type { EngineDeps } from '../repo.js'
 import type { PaymentService, PaymentDoc } from '../services/payments.js'
-import type { AuditoriaVerificacaoDoc } from '../../types.js'
+import type { AuditoriaVerificacaoDoc, ProducerDoc } from '../../types.js'
 import '../types.js'
-import { carregarAtor, ehAdmin, ehAdminOuFornecedor, negar } from '../auth.js'
+import { carregarAtor, ehAdmin, ehAdminOuFornecedor, ehFornecedor, negar, type Ator } from '../auth.js'
+import type { Repo } from '../repo.js'
 
 export interface PaymentsDeps extends EngineDeps {
   payments: PaymentService
+}
+
+/**
+ * Nome do produtor vinculado ao fornecedor (`User.producerId`) — é por ele que a fatura é
+ * "dele": o `PaymentDoc` só guarda `producerName`. Sem `producerId`, ou produtor de outra
+ * tenant, não há fatura dele (nega em vez de liberar, como em `podeMexerNoProducer`).
+ * O `name` do USUÁRIO não serve: ele está em `CAMPOS_DO_PROPRIO_PERFIL`, então quem quisesse
+ * conferir a fatura de outro produtor bastaria trocar o próprio nome.
+ */
+async function produtorDoFornecedor(repo: Repo, ator: Ator, tenantId: string): Promise<string | undefined> {
+  if (!ator.producerId || !ehFornecedor(ator, tenantId)) return undefined
+  const produtor = await repo.getDoc<ProducerDoc>('producers', ator.producerId)
+  return produtor && produtor.tenantId === tenantId ? produtor.name : undefined
 }
 
 export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
@@ -97,7 +111,11 @@ export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
         ['tenantId', '==', tenantId],
         ['month', '==', month],
       ])
-      res.json(list)
+      if (ehAdmin(ator, tenantId)) { res.json(list); return }
+      // Fornecedor vê só as faturas do seu produtor — o filtro era só da tela, e a API
+      // entregava nome e valor de todo mundo.
+      const meuProdutor = await produtorDoFornecedor(repo, ator, tenantId)
+      res.json(list.filter((p) => !!meuProdutor && p.producerName === meuProdutor))
     } catch (err) {
       res.status(500).json({ message: String(err) })
     }
@@ -205,11 +223,19 @@ export function createPaymentsRouter({ repo, payments }: PaymentsDeps): Router {
       const ator = await carregarAtor(repo, req.user!.uid)
       const corpo = req.body as Partial<PaymentDoc>
       let updates: Partial<PaymentDoc>
-      if (ehAdminOuFornecedor(ator, atual.tenantId)) {
+      if (ehAdmin(ator, atual.tenantId)) {
         // Valor e histórico saem daqui: quem muda `amount` é POST /:id/correcao, que carimba
         // de-para, autor e data. Aceitar os campos aqui deixaria forjar o registro pelo corpo.
         const { amount: _a, corrigido: _c, amountOriginal: _o, correcoes: _h, ...resto } = corpo
         updates = resto
+      } else if (
+        atual.producerName !== undefined &&
+        (await produtorDoFornecedor(repo, ator, atual.tenantId)) === atual.producerName
+      ) {
+        // Fornecedor confere a fatura do SEU produtor, e só isso. Até 2026-10 bastava ser
+        // fornecedor da tenant: marcava como paga qualquer fatura — cota, frete, de outro produtor.
+        if (corpo.verified === undefined) { negar(res, 'Fornecedor só altera a verificação'); return }
+        updates = { verified: corpo.verified }
       } else if (atual.userId === ator.uid) {
         // O dono anexa comprovante — quem confere é outra pessoa.
         if (corpo.proofUrl === undefined) { negar(res, 'Só o comprovante pode ser alterado'); return }

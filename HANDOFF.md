@@ -100,7 +100,7 @@ npm run build -w pedidos-csa  && npm run build:backend -w pedidos-csa
 npm run build -w fermentou  && npm run build:backend -w fermentou
 ```
 
-Placar atual (2026-10-05): **core 291**, **csa 77**, **fermentou 9** — todos ×3 fusos.
+Placar atual (2026-10-18): **core 298**, **csa 77**, **fermentou 9** — todos ×3 fusos.
 **Sem CI: o verde local é o único portão.** Mudou estrutura de emissão? `rm -rf apps/*/dist-server`
 antes (o `tsc` não limpa o `outDir`).
 
@@ -359,12 +359,12 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
    `ARQUITETURA.md` §5 "Questões em aberto" #3. Hoje o repo é **público** e um cliente novo
    custa ~6k linhas copiadas. Decisão adiada conscientemente em 2026-08-28: a solução tem que
    servir a N clientes, não ser um remendo pro Fermentou.
-15. **Fornecedor verifica fatura alheia** — achado em 2026-10-05, **não corrigido**: o
-    `PUT /payments/:id` checa `ehAdminOuFornecedor` (só o tenant), não `podeMexerNoProducer`.
-    Um fornecedor marca como paga **qualquer** fatura do tenant — cota, frete, de outro
-    produtor. A tela só lista as dele, então é furo de API, não de UI. Desde 05/10 cada troca
-    fica na coleção `auditoria` (ARQUITETURA §4.11, no ar na CSA desde 06/10), o que ao menos
-    deixa rastro. No Fermentou nem isso, até o redeploy do #8.
+15. **Fornecedor verifica fatura alheia** — **corrigido no código em 2026-10-18, não
+    deployado** (ARQUITETURA §4.12): o fornecedor só lista e verifica as faturas do produtor do
+    seu `producerId`. ⚠️ **Antes do deploy da CSA**, confira no console que todo usuário com
+    `acesso: 'produtor'` tem `producerId` apontando para o produtor certo: a tela da CSA casava
+    pelo **nome do usuário**, e fornecedor sem `producerId` passa a ver a lista vazia (nega em
+    vez de liberar). No Fermentou a tela já usava o `producerId`.
 
 ## 7. Riscos conhecidos
 

@@ -53,7 +53,7 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 
 | **5. Engine** | `packages/core/server`: portas (`Repo`, `AuthGateway`, `WhatsAppGateway`, `MessageParser`) + **todas as rotas/serviços como factories `(deps, config)`**; modelo canônico em `types.ts`; CSA usando acesso-lista. Detalhe fatia a fatia abaixo | core 150, csa 25, fermentou 22 + 4 builds |
 
-**Placar atual (2026-10-05):** `@pedidos/core` **291 testes**, `apps/csa` **77**, `apps/fermentou` **9** — todos
+**Placar atual (2026-10-18):** `@pedidos/core` **298 testes**, `apps/csa` **77**, `apps/fermentou` **9** — todos
 × 3 fusos (BR/UTC/UTC+14). Builds front + backend dos dois apps verdes.
 > Os números dos apps **caíram** de propósito na task 6: os testes de UI que eram cópia nos dois
 > (PageHeader, EstadoLista) subiram para o core. Soma cresceu; a duplicação sumiu.
@@ -719,8 +719,24 @@ o risco é **clique errado** e **ninguém saber depois quem deu a baixa**.
   sem rastro é exatamente o que a feature quer evitar.
 - Continua no `PUT /:id` em vez de endpoint próprio: o histórico não vem do corpo (o servidor
   carimba `por`/`em`/`de`), que era a razão dos endpoints da §4.9.
-- ⚠️ Achado aqui, **fora da fatia**: o PUT confia em `ehAdminOuFornecedor` — fornecedor
-  verifica fatura de qualquer produtor do tenant. HANDOFF §6 #15.
+- ~~⚠️ Achado aqui, fora da fatia: o PUT confia em `ehAdminOuFornecedor`~~ — fechado na §4.12.
+
+### 4.12 Fatura do fornecedor é a do seu `producerId` (2026-10-18)
+
+O `PUT /payments/:id` e o `GET /payments` aceitavam qualquer fornecedor da tenant: ele
+marcava como paga **qualquer** fatura (cota, frete, de outro produtor) e lia nome e valor de
+todo mundo. O escopo existia só na tela, e as duas telas discordavam do critério: o Fermentou
+casava `producerName` com o produtor do `producerId`, e a CSA com o **nome do usuário**.
+
+- **O critério é o `producerId`**, como em `podeMexerNoProducer`. O `PaymentDoc` só guarda
+  `producerName`, então o servidor resolve o nome pelo doc do produtor, e exige que ele seja
+  da mesma tenant. O `name` do usuário foi descartado de propósito: está em
+  `CAMPOS_DO_PROPRIO_PERFIL`, então bastaria trocar o próprio nome para abrir a fatura alheia.
+- **No PUT, o fornecedor só muda `verified`.** Antes ele herdava o ramo do admin e podia
+  reescrever `userId`, `producerName` e `tenantId` pelo corpo.
+- **O `GET /` filtra no servidor** e as duas telas perderam o filtro local: um critério só.
+- *Custo aceito:* fornecedor sem `producerId` vê lista vazia e não verifica nada. Nega em vez
+  de liberar, mas exige conferir o cadastro da CSA antes do deploy (HANDOFF §6 #15).
 
 ## 5. O que falta
 

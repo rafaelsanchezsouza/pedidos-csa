@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import { paymentsApi, producersApi } from '@/services/api'
+import { paymentsApi } from '@/services/api'
 import type { Payment } from '@/types'
 import { statusLabel, statusVariant } from '@pedidos/core'
 import { isAdmin, isFornecedor } from '@pedidos/core'
@@ -23,20 +23,13 @@ export function VerificarPagamentosPage() {
   const isAllowed = isAdmin(user) || isFornecedor(user)
   if (user && !isAllowed) return <Navigate to="/pedidos" replace />
 
-  // Fornecedor que NÃO é admin vê só o que é dele; admin vê tudo.
-  const soFornecedor = isFornecedor(user) && !isAdmin(user)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const all = await paymentsApi.list(month, tenantId)
-      let filtered = all
-      if (soFornecedor) {
-        // Faturas do próprio fornecedor: producerName == nome da entidade vinculada (producerId).
-        const producers = await producersApi.list(tenantId)
-        const meuNome = producers.find((p) => p.id === user?.producerId)?.name
-        filtered = all.filter((p) => p.producerName === meuNome)
-      }
+      // Fornecedor já recebe só as faturas do seu produtor — o escopo é do servidor.
+      const filtered = all
       filtered.sort((a, b) =>
   a.userName.localeCompare(b.userName, 'pt-BR') ||
   a.producerName.localeCompare(b.producerName, 'pt-BR')
@@ -45,7 +38,7 @@ export function VerificarPagamentosPage() {
     } finally {
       setLoading(false)
     }
-  }, [month, tenantId, soFornecedor, user?.name])
+  }, [month, tenantId])
 
   useEffect(() => { load() }, [load])
 

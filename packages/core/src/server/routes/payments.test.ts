@@ -233,3 +233,93 @@ describe('PUT /:id — troca de verified deixa rastro em auditoria', () => {
     expect(await repo.listDocs('auditoria')).toEqual([])
   })
 })
+
+describe('fornecedor confere só as faturas do SEU produtor', () => {
+  const base = { tenantId: 't1', month: '2026-09', amount: 30, verified: false, dateCreated: 'd', dateUpdated: 'd' }
+  const repoDe = (fornecedor: Record<string, unknown> = {}) => createMemoryRepo({
+    users: {
+      f1: { name: 'Sítio', tenantId: 't1', acesso: ['fornecedor'], producerId: 'pr1', ...fornecedor },
+      m1: { name: 'Ana', tenantId: 't1', acesso: ['consumidor'] },
+    },
+    producers: {
+      pr1: { name: 'Sítio Boa Vista', contact: '', tenantId: 't1' },
+      pr2: { name: 'Horta Vizinha', contact: '', tenantId: 't1' },
+      prOutraTenant: { name: 'Horta Vizinha', contact: '', tenantId: 't2' },
+    },
+    payments: {
+      minha: { ...base, userId: 'm1', userName: 'Ana', producerName: 'Sítio Boa Vista' },
+      vizinho: { ...base, userId: 'm1', userName: 'Ana', producerName: 'Horta Vizinha' },
+      cota: { ...base, userId: 'm1', userName: 'Ana', producerName: 'Cota' },
+    },
+  })
+  const rota = (repo: ReturnType<typeof createMemoryRepo>) =>
+    createPaymentsRouter({ repo, payments: createPaymentService({ repo }, config) })
+  const put = (get: (p: string, i?: RequestInit) => Promise<Response>, id: string, body: object) =>
+    get(`/api/payments/${id}`, { method: 'PUT', body: JSON.stringify(body), ...json })
+
+  it('verifica a fatura do próprio produtor', async () => {
+    const repo = repoDe()
+    await withRouter('/api/payments', rota(repo), async (get) => {
+      expect((await put(get, 'minha', { verified: true })).status).toBe(200)
+    }, { uid: 'f1' })
+    expect((await repo.getDoc<PaymentDoc>('payments', 'minha'))!.verified).toBe(true)
+  })
+
+  it('não verifica fatura de outro produtor nem a cota', async () => {
+    const repo = repoDe()
+    await withRouter('/api/payments', rota(repo), async (get) => {
+      expect((await put(get, 'vizinho', { verified: true })).status).toBe(403)
+      expect((await put(get, 'cota', { verified: true })).status).toBe(403)
+    }, { uid: 'f1' })
+    expect((await repo.getDoc<PaymentDoc>('payments', 'vizinho'))!.verified).toBe(false)
+    expect((await repo.getDoc<PaymentDoc>('payments', 'cota'))!.verified).toBe(false)
+    expect(await repo.listDocs('auditoria')).toEqual([])
+  })
+
+  it('na fatura dele, só mexe em verified — não reescreve dono, produtor nem tenant', async () => {
+    const repo = repoDe()
+    await withRouter('/api/payments', rota(repo), async (get) => {
+      expect((await put(get, 'minha', { userId: 'f1', producerName: 'Cota' })).status).toBe(403)
+      expect((await put(get, 'minha', { verified: true, tenantId: 't2' })).status).toBe(200)
+    }, { uid: 'f1' })
+    const doc = (await repo.getDoc<PaymentDoc>('payments', 'minha'))!
+    expect([doc.userId, doc.producerName, doc.tenantId]).toEqual(['m1', 'Sítio Boa Vista', 't1'])
+  })
+
+  it('sem producerId não confere nada (nega em vez de liberar)', async () => {
+    const repo = repoDe({ producerId: undefined })
+    await withRouter('/api/payments', rota(repo), async (get) => {
+      expect((await put(get, 'minha', { verified: true })).status).toBe(403)
+    }, { uid: 'f1' })
+  })
+
+  it('produtor de outra tenant não vale, mesmo com o mesmo nome', async () => {
+    const repo = repoDe({ producerId: 'prOutraTenant' })
+    await withRouter('/api/payments', rota(repo), async (get) => {
+      expect((await put(get, 'vizinho', { verified: true })).status).toBe(403)
+    }, { uid: 'f1' })
+  })
+
+  it('trocar o próprio nome para o de outro produtor não abre a fatura dele', async () => {
+    const repo = repoDe({ name: 'Horta Vizinha' })
+    await withRouter('/api/payments', rota(repo), async (get) => {
+      expect((await put(get, 'vizinho', { verified: true })).status).toBe(403)
+    }, { uid: 'f1' })
+  })
+
+  it('GET / devolve ao fornecedor só as faturas dele; ao admin, todas', async () => {
+    const repo = repoDe()
+    await repo.setDoc('users', 'adm', { name: 'Adm', tenantId: 't1', acesso: ['admin'] })
+    const ids = async (uid: string) => {
+      let lista: PaymentDoc[] = []
+      await withRouter('/api/payments', rota(repo), async (get) => {
+        const r = await get('/api/payments?tenantId=t1&month=2026-09')
+        expect(r.status).toBe(200)
+        lista = await r.json()
+      }, { uid })
+      return lista.map((p) => p.producerName).sort()
+    }
+    expect(await ids('f1')).toEqual(['Sítio Boa Vista'])
+    expect(await ids('adm')).toEqual(['Cota', 'Horta Vizinha', 'Sítio Boa Vista'])
+  })
+})

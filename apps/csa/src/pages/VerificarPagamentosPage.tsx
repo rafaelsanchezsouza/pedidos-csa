@@ -24,7 +24,6 @@ export function VerificarPagamentosPage() {
   const isAllowed = isAdmin(user) || isFornecedor(user)
   if (user && !isAllowed) return <Navigate to="/pedidos" replace />
 
-  const isProdutor = isFornecedor(user)
   const ehAdmin = isAdmin(user)
 
   const load = useCallback(async () => {
@@ -34,7 +33,8 @@ export function VerificarPagamentosPage() {
       // O delivery tem tela própria (/verificar-delivery), com frete por entrega, correção de
       // valor e resumo do mês. Deixá-lo aqui também duplicaria a conferência.
       const semDelivery = all.filter((p) => p.producerName !== PRODUCER_FRETE)
-      const filtered = isProdutor ? semDelivery.filter((p) => p.producerName === user?.name) : semDelivery
+      // Fornecedor já recebe só as faturas do seu produtor — o escopo é do servidor.
+      const filtered = semDelivery
       filtered.sort((a, b) =>
   a.userName.localeCompare(b.userName, 'pt-BR') ||
   a.producerName.localeCompare(b.producerName, 'pt-BR')
@@ -43,7 +43,7 @@ export function VerificarPagamentosPage() {
     } finally {
       setLoading(false)
     }
-  }, [month, tenantId, isProdutor, user?.name])
+  }, [month, tenantId])
 
   useEffect(() => { load() }, [load])
 
