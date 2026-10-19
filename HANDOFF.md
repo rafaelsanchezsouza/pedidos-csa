@@ -100,7 +100,7 @@ npm run build -w pedidos-csa  && npm run build:backend -w pedidos-csa
 npm run build -w fermentou  && npm run build:backend -w fermentou
 ```
 
-Placar atual (2026-10-18): **core 298**, **csa 77**, **fermentou 9** — todos ×3 fusos.
+Placar atual (2026-10-18): **core 312**, **csa 77**, **fermentou 9** — todos ×3 fusos.
 **Sem CI: o verde local é o único portão.** Mudou estrutura de emissão? `rm -rf apps/*/dist-server`
 antes (o `tsc` não limpa o `outDir`).
 
@@ -349,12 +349,9 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
     comprovante" da tela Conferir Delivery sobe o arquivo na pasta do **membro**, não na do
     admin: se a regra for `request.auth.uid == userId`, falha **em runtime** e nem build nem
     teste acusam. É o único ponto da entrega de 02/10 sem cobertura.
-13. **Autorização de `routes/orders.ts`** — achado em 2026-10-02, **não corrigido**: `POST /`
-    e `PUT /:id` não checam dono nem semana bloqueada (só `bloqueioDeExtras`, que passa para
-    admin e para membro com extras abertos), e `PATCH /recebido` não checa admin. Um membro
-    comum edita o pedido de outro pelo id, e a regra "semana bloqueada → 403" do
-    `BUSINESS_RULES.md` não está nesse router. É pré-existente, da mesma família da falha
-    fechada em 21/08.
+13. **Autorização de `routes/orders.ts`** — **corrigido no código em 2026-10-18, não
+    deployado** (ARQUITETURA §4.13): pedido só é escrito pelo dono ou pelo admin da tenant do
+    pedido, semana bloqueada dá 403 para quem não é admin e `PATCH /recebido` exige admin.
 14. **Isolamento por cliente + onboarding sem código novo** — questão em aberto, ver
    `ARQUITETURA.md` §5 "Questões em aberto" #3. Hoje o repo é **público** e um cliente novo
    custa ~6k linhas copiadas. Decisão adiada conscientemente em 2026-08-28: a solução tem que

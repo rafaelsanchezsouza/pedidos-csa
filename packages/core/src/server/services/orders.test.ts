@@ -88,7 +88,7 @@ describe('createOrdersRouter', () => {
     const base = {
       ...seed,
       tenants: { t1: { name: 'Loja', extrasAberto: false } },
-      users: { comum: { acesso: ['consumidor'] }, adm: { acesso: ['admin'] } },
+      users: { comum: { tenantId: 't1', acesso: ['consumidor'] }, adm: { tenantId: 't1', acesso: ['admin'] } },
     }
     const body = { method: 'POST', body: JSON.stringify({ userId: 'x', userName: 'X', tenantId: 't1', weekId: WEEK, items: [], status: 'rascunho' }), ...json }
     for (const [uid, status] of [['comum', 403], ['adm', 201]] as const) {

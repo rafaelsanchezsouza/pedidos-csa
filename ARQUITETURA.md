@@ -53,7 +53,7 @@ um app configurado sobre ele. Custo escondido mais caro: a lógica de semana/qui
 
 | **5. Engine** | `packages/core/server`: portas (`Repo`, `AuthGateway`, `WhatsAppGateway`, `MessageParser`) + **todas as rotas/serviços como factories `(deps, config)`**; modelo canônico em `types.ts`; CSA usando acesso-lista. Detalhe fatia a fatia abaixo | core 150, csa 25, fermentou 22 + 4 builds |
 
-**Placar atual (2026-10-18):** `@pedidos/core` **298 testes**, `apps/csa` **77**, `apps/fermentou` **9** — todos
+**Placar atual (2026-10-18):** `@pedidos/core` **312 testes**, `apps/csa` **77**, `apps/fermentou` **9** — todos
 × 3 fusos (BR/UTC/UTC+14). Builds front + backend dos dois apps verdes.
 > Os números dos apps **caíram** de propósito na task 6: os testes de UI que eram cópia nos dois
 > (PageHeader, EstadoLista) subiram para o core. Soma cresceu; a duplicação sumiu.
@@ -737,6 +737,25 @@ casava `producerName` com o produtor do `producerId`, e a CSA com o **nome do us
 - **O `GET /` filtra no servidor** e as duas telas perderam o filtro local: um critério só.
 - *Custo aceito:* fornecedor sem `producerId` vê lista vazia e não verifica nada. Nega em vez
   de liberar, mas exige conferir o cadastro da CSA antes do deploy (HANDOFF §6 #15).
+
+### 4.13 Pedido é do dono ou do admin da tenant (2026-10-18)
+
+O router de pedidos só tinha o gate de extras, e ele passava para admin **de qualquer
+tenant** (`isAdmin` cru, sem olhar o tenant). Bastava estar autenticado para criar pedido em
+nome de outro membro (`userId` vinha do corpo), editar pedido alheio sabendo o id, marcar
+`recebido` por `PATCH /recebido` e editar semana já enviada ao produtor. A regra "semana
+bloqueada → 403" estava no `BUSINESS_RULES.md`, não no código.
+
+- **Quem escreve:** o dono, na própria tenant, ou o admin da tenant **do pedido** (`ehAdmin`).
+  Não abre nada para o fornecedor: as telas que gravam pedido alheio (Entregas, Consolidado
+  Geral) são `adminOnly` nos dois apps.
+- **Semana bloqueada** entra no `bloqueioDeExtras`, depois de acolhida e extras: o
+  consolidado já foi ao produtor, mudar o pedido é mudar o que ninguém vai entregar. Admin
+  segue editando.
+- **O PUT não move o pedido** (`userId`/`tenantId`/`weekId` são ignorados, inclusive para o
+  admin): são os campos pelos quais as outras checagens decidem. Para o membro também saem
+  `recebido`/`suspensa`/`incluida`, que são do bastidor da entrega.
+- `PUT` em pedido inexistente é 404 (antes o `updateDoc` seguia sem dono para checar).
 
 ## 5. O que falta
 

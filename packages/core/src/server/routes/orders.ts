@@ -1,6 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import { isAdmin } from '../../acesso.js'
-import { carregarAtor, ehAdmin, ehAdminOuFornecedor, negar } from '../auth.js'
+import { carregarAtor, ehAdmin, ehAdminOuFornecedor, negar, type Ator } from '../auth.js'
 import type { EngineDeps, WhatsAppGateway } from '../repo.js'
 import type { PaymentService } from '../services/payments.js'
 import type { OrdersService } from '../services/orders.js'
@@ -15,6 +14,19 @@ export interface OrdersDeps extends EngineDeps {
   payments: PaymentService
   orders: OrdersService
   whatsapp: WhatsAppGateway
+}
+
+/** Identidade do pedido: ninguém a reescreve pelo PUT — mover pedido de dono, tenant ou
+ *  semana não é edição, e é por esses campos que as outras checagens decidem. */
+const CAMPOS_DE_IDENTIDADE = ['userId', 'tenantId', 'weekId'] as const
+/** Bastidor da entrega (Consolidado Geral, Entregas — telas `adminOnly`): o membro não marca
+ *  o próprio pedido como recebido nem se inclui/suspende na lista da semana. */
+const CAMPOS_DO_ADMIN = ['recebido', 'suspensa', 'incluida'] as const
+
+function semCampos<T extends object>(corpo: T, campos: readonly string[]): Partial<T> {
+  const saida = { ...corpo } as Record<string, unknown>
+  for (const c of campos) delete saida[c]
+  return saida as Partial<T>
 }
 
 export function createOrdersRouter({ repo, payments, orders, whatsapp }: OrdersDeps, config: AppConfig): Router {
@@ -130,6 +142,8 @@ export function createOrdersRouter({ repo, payments, orders, whatsapp }: OrdersD
       if (!userId || !weekId || !tenantId) {
         res.status(400).json({ message: 'userId, weekId e tenantId obrigatórios' }); return
       }
+      // Era aberto a qualquer autenticado — inclusive criar pedido em nome de outro membro.
+      if (!ehAdmin(await carregarAtor(repo, req.user!.uid), tenantId)) { negar(res); return }
       const existing = await repo.listDocs<OrderDoc>('orders', [
         ['userId', '==', userId],
         ['tenantId', '==', tenantId],
@@ -195,26 +209,42 @@ export function createOrdersRouter({ repo, payments, orders, whatsapp }: OrdersD
   //
   // A trava mora aqui, no servidor, e não só na tela: esconder o menu não impede um POST, e
   // foi exatamente esse o buraco fechado em 2026-08-21 (o gate existia só no front).
-  const bloqueioDeExtras = async (uid: string, tenantId: string): Promise<string | null> => {
+  const bloqueioDeExtras = async (ator: Ator, tenantId: string, weekId: string): Promise<string | null> => {
+    // Admin do PRÓPRIO tenant: o `isAdmin` cru deixava admin de outra tenant passar.
+    if (ehAdmin(ator, tenantId)) return null
     const [user, tenant] = await Promise.all([
-      repo.getDoc<UserDoc>('users', uid),
+      repo.getDoc<UserDoc>('users', ator.uid),
       repo.getDoc<{ extrasAberto?: boolean }>('tenants', tenantId),
     ])
-    if (isAdmin(user?.acesso)) return null
 
     const utcOffset = config.tenantDefaults.utcOffset ?? UTC_OFFSET_PADRAO
     if (user && emAcolhida(user, new Date(), utcOffset)) {
       return 'Durante o período de acolhida o pedido é só a cesta da semana. Extras ficam disponíveis quando a acolhida terminar.'
     }
     if (!(tenant?.extrasAberto ?? true)) return 'Pedidos de extras estão encerrados no momento'
+    // A regra estava no BUSINESS_RULES e não aqui: o consolidado já foi ao produtor, então
+    // mudar o pedido depois disso é mudar o que ninguém vai entregar.
+    if (await orders.isWeekLocked(tenantId, weekId)) return 'A semana já foi fechada e enviada ao produtor'
     return null
   }
 
+  /** Pedido é do dono (na tenant dele) ou do admin da tenant do pedido. */
+  const podeEscrever = (ator: Ator, pedido: { userId?: string; tenantId?: string }): boolean =>
+    ehAdmin(ator, pedido.tenantId) ||
+    (!!pedido.userId && pedido.userId === ator.uid && !!pedido.tenantId && ator.tenantId === pedido.tenantId)
+
   router.post('/', async (req: Request, res: Response) => {
     try {
-      const data = req.body as Omit<OrderDoc, 'dateCreated' | 'dateUpdated'>
-      const bloqueio = await bloqueioDeExtras(req.user!.uid, data.tenantId)
+      const corpo = req.body as Omit<OrderDoc, 'dateCreated' | 'dateUpdated'>
+      if (!corpo.userId || !corpo.tenantId || !corpo.weekId) {
+        res.status(400).json({ message: 'userId, tenantId e weekId obrigatórios' }); return
+      }
+      const ator = await carregarAtor(repo, req.user!.uid)
+      // Até 2026-10 o corpo decidia de quem era o pedido: membro criava pedido em nome de outro.
+      if (!podeEscrever(ator, corpo)) { negar(res); return }
+      const bloqueio = await bloqueioDeExtras(ator, corpo.tenantId, corpo.weekId)
       if (bloqueio) { res.status(403).json({ message: bloqueio }); return }
+      const data = ehAdmin(ator, corpo.tenantId) ? corpo : semCampos(corpo, CAMPOS_DO_ADMIN) as typeof corpo
       const now = new Date().toISOString()
       const order = await repo.createDoc<OrderDoc>('orders', { ...data, dateCreated: now, dateUpdated: now })
       if (order.status === 'enviado') {
@@ -229,12 +259,19 @@ export function createOrdersRouter({ repo, payments, orders, whatsapp }: OrdersD
   router.put('/:id', async (req: Request, res: Response) => {
     try {
       const existing = await repo.getDoc<OrderDoc>('orders', req.params['id'] as string)
-      const bloqueio = existing ? await bloqueioDeExtras(req.user!.uid, existing.tenantId) : null
+      if (!existing) { res.status(404).json({ message: 'Pedido não encontrado' }); return }
+      const ator = await carregarAtor(repo, req.user!.uid)
+      // Até 2026-10 bastava saber o id: um membro editava o pedido de outro.
+      if (!podeEscrever(ator, existing)) { negar(res); return }
+      const bloqueio = await bloqueioDeExtras(ator, existing.tenantId, existing.weekId)
       if (bloqueio) { res.status(403).json({ message: bloqueio }); return }
-      const updates = { ...req.body as Partial<OrderDoc>, dateUpdated: new Date().toISOString() }
+      const proibidos = ehAdmin(ator, existing.tenantId)
+        ? CAMPOS_DE_IDENTIDADE
+        : [...CAMPOS_DE_IDENTIDADE, ...CAMPOS_DO_ADMIN]
+      const updates = { ...semCampos(req.body as Partial<OrderDoc>, proibidos), dateUpdated: new Date().toISOString() }
       await repo.updateDoc<OrderDoc>('orders', req.params['id'] as string, updates)
       const updatedStatus = (req.body as Partial<OrderDoc>).status
-      if ((updatedStatus === 'enviado' || updatedStatus === 'rascunho') && existing) {
+      if (updatedStatus === 'enviado' || updatedStatus === 'rascunho') {
         await payments.upsertPaymentsForOrder(existing.userId, existing.userName, existing.tenantId, existing.weekId.slice(0, 7))
       }
       res.json({ id: req.params['id'], ...updates })
