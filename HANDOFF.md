@@ -358,10 +358,9 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
    servir a N clientes, não ser um remendo pro Fermentou.
 15. **Fornecedor verifica fatura alheia** — **corrigido no código em 2026-10-18, não
     deployado** (ARQUITETURA §4.12): o fornecedor só lista e verifica as faturas do produtor do
-    seu `producerId`. ⚠️ **Antes do deploy da CSA**, confira no console que todo usuário com
-    `acesso: 'produtor'` tem `producerId` apontando para o produtor certo: a tela da CSA casava
-    pelo **nome do usuário**, e fornecedor sem `producerId` passa a ver a lista vazia (nega em
-    vez de liberar). No Fermentou a tela já usava o `producerId`.
+    seu `producerId`. Sem risco de trancar alguém na CSA: a produção tem **0 fornecedores**
+    (conferido em 2026-10-18; quem confere fatura lá é só admin). Achado lateral da mesma
+    leitura: **2 faturas sem `producerName`** na produção — não afetam a trava, mas merecem olhar.
 
 ## 7. Riscos conhecidos
 

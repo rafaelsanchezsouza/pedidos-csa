@@ -736,7 +736,7 @@ casava `producerName` com o produtor do `producerId`, e a CSA com o **nome do us
   reescrever `userId`, `producerName` e `tenantId` pelo corpo.
 - **O `GET /` filtra no servidor** e as duas telas perderam o filtro local: um critério só.
 - *Custo aceito:* fornecedor sem `producerId` vê lista vazia e não verifica nada. Nega em vez
-  de liberar, mas exige conferir o cadastro da CSA antes do deploy (HANDOFF §6 #15).
+  de liberar. Na CSA não pega ninguém: a produção tem 0 fornecedores (2026-10-18).
 
 ### 4.13 Pedido é do dono ou do admin da tenant (2026-10-18)
 
