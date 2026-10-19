@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// Único uso do Storage pelo front: comprovante de pagamento (useUploadProof), em
+// comprovantes/{tenant}/{membro}/{mês}/{arquivo}, seguido de getDownloadURL. Quem abre o
+// comprovante depois usa a URL com token gravada na fatura, que não passa por estas regras.
+// Listar e apagar ficam fechados para todo mundo.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /comprovantes/{tenantId}/{userId}/{month}/{arquivo} {
+      allow get: if podeMexer(tenantId, userId);
+      // update: o fermentou ainda grava pelo nome do arquivo, sem carimbo.
+      allow create, update: if podeMexer(tenantId, userId)
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*|application/pdf');
+    }
+  }
+
+  // O próprio membro, ou o admin da tenant do comprovante: "Substituir comprovante"
+  // (Conferir Delivery, DialogEdicaoFatura) sobe na pasta do membro.
+  function podeMexer(tenantId, userId) {
+    return request.auth != null
+      && (request.auth.uid == userId || ehAdmin(tenantId));
+  }
+
+  // Espelha o ehAdmin do core (server/auth.ts): `acesso` é string legada ou lista; 'superadmin'
+  // (ou role legado) atravessa tenants.
+  function ehAdmin(tenantId) {
+    let u = firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    let acesso = u.get('acesso', []);
+    let lista = acesso is list ? acesso : [acesso];
+    let superadmin = lista.hasAny(['superadmin']) || u.get('role', '') == 'superadmin';
+    return superadmin || (lista.hasAny(['admin']) && u.get('tenantId', '') == tenantId);
+  }
+}

@@ -122,6 +122,9 @@ o resultado bom — 401 é o esperado sem token.
 
 **Merge em `main` não faz deploy.** Produção só muda rodando `deploy.sh`.
 
+**Regras do Firebase** (Firestore e Storage) não vão no `deploy.sh`:
+`bash firebase/deploy-rules.sh <csa|fermentou> [production|development]`.
+
 ### Segredos — não estão no git
 Cada app precisa de dois arquivos **gitignored**, que não vieram no `git subtree`:
 
@@ -345,10 +348,12 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
     Entrega de outubro da Flor de Quilombo já existiam e a geração não criaria nem mudaria
     nenhuma. A **Flor de Mel** não tem frete configurado (sem vigência) e tem 1 membro de
     entrega sem preço: o `quotaJob` do dia 1 vai listá-lo como pendência e avisar por WhatsApp.
-12. **Regras do Storage não estão no repo** (só no console do Firebase). O "Substituir
-    comprovante" da tela Conferir Delivery sobe o arquivo na pasta do **membro**, não na do
-    admin: se a regra for `request.auth.uid == userId`, falha **em runtime** e nem build nem
-    teste acusam. É o único ponto da entrega de 02/10 sem cobertura.
+12. **Regras do Firestore e do Storage** — **versionadas em 2026-10-19** (`firebase/*.rules`,
+    ARQUITETURA §4.14); **publicar é manual**: `bash firebase/deploy-rules.sh <csa|fermentou>
+    [production|development]` (pede `npx firebase-tools login` uma vez). Antes delas as regras só
+    existiam no console e ninguém sabia o que estava lá. O "Substituir comprovante" do admin
+    sobe na pasta do **membro**: a regra cobre via `firestore.get` do usuário (cross-service) —
+    se o upload do admin falhar depois da publicação, é a permissão do agente do Storage.
 13. **Autorização de `routes/orders.ts`** — **corrigido e no ar nos dois apps em
     2026-10-18** (ARQUITETURA §4.13): pedido só é escrito pelo dono ou pelo admin da tenant do
     pedido, semana bloqueada dá 403 para quem não é admin e `PATCH /recebido` exige admin.

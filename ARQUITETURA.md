@@ -757,6 +757,23 @@ bloqueada → 403" estava no `BUSINESS_RULES.md`, não no código.
   `recebido`/`suspensa`/`incluida`, que são do bastidor da entrega.
 - `PUT` em pedido inexistente é 404 (antes o `updateDoc` seguia sem dono para checar).
 
+### 4.14 Regras do Firebase no repo, Firestore trancado (2026-10-19)
+
+As regras do Firestore e do Storage viviam só no console, sem versão e sem ninguém saber o
+conteúdo — com o `projectId` e o bucket públicos no bundle do front, regra aberta seria
+vazamento de `users` (nome, e-mail, telefone, endereço) e dos comprovantes Pix.
+
+- **Firestore: nega tudo.** O front não toca no Firestore (só Auth e Storage); todo dado passa
+  pelo backend, cujo Admin SDK ignora regras. Qualquer leitura direta pelo cliente seria um
+  atalho em volta de `server/auth.ts`.
+- **Storage: só `comprovantes/{tenant}/{membro}/{mês}/{arquivo}`**, e só para o próprio
+  membro ou o admin da tenant (`ehAdmin` espelhado na regra, via `firestore.get` do usuário).
+  `get` (para o `getDownloadURL` logo após o upload), `create`/`update` com até 5 MB de
+  imagem/PDF. Listar e apagar: ninguém. Ver o comprovante depois usa a URL com token gravada
+  na fatura, que não passa pelas regras — fornecedor continua vendo.
+- **Publicação é manual** (`firebase/deploy-rules.sh`), separada do `deploy.sh`: são do
+  projeto Firebase, não da VM. Os dois apps usam as mesmas regras.
+
 ## 5. O que falta
 
 - ~~**Task 6**~~ **concluída.** Os dois apps rodam do monorepo em produção e a CSA está no
