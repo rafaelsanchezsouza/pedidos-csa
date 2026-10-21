@@ -354,6 +354,10 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
     existiam no console e ninguém sabia o que estava lá. O "Substituir comprovante" do admin
     sobe na pasta do **membro**: a regra cobre via `firestore.get` do usuário (cross-service) —
     se o upload do admin falhar depois da publicação, é a permissão do agente do Storage.
+    **Aconteceu na CSA** (2026-10-20, Débora substituindo comprovante de membra: `storage/unauthorized`).
+    Corrigido concedendo `roles/firebaserules.firestoreServiceAgent` (Firebase Rules System →
+    "Firebase Rules Firestore Service Agent") a `service-<nº do projeto>@gcp-sa-firebasestorage.iam.gserviceaccount.com`
+    no IAM de `pedidos-csa`. **Falta no fermentou e no `pedidos-csa-dev`** (ou aceitar o prompt do CLI no deploy-rules).
 13. **Autorização de `routes/orders.ts`** — **corrigido e no ar nos dois apps em
     2026-10-18** (ARQUITETURA §4.13): pedido só é escrito pelo dono ou pelo admin da tenant do
     pedido, semana bloqueada dá 403 para quem não é admin e `PATCH /recebido` exige admin.
