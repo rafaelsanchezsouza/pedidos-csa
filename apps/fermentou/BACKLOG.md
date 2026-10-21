@@ -34,3 +34,9 @@ Ordem de execução. Fases em `requirements.md`. O que depende do usuário está
 | 11 | ~~`weekUtils.ts` (client) e `weekMath.ts` (server) duplicam a mesma regra~~ ✅ unificados em `packages/core/src/domain/week.ts` na task 2 do monorepo (eram 4 cópias, 2 apps × client/server) |
 | 12 | Decidir o destino de: período de acolhida, quinzenal, doação de cota, `role` livre |
 | 13 | ~~Renomear identificador do tenant~~ | ✅ feito — `colmeiaId`→`tenantId` no app novo |
+
+## Infra Firebase
+
+| # | Item | Nota |
+|---|------|------|
+| 14 | Conceder `roles/firebaserules.firestoreServiceAgent` ao agente do Storage | sem isso, upload de comprovante feito por admin na pasta do cliente dá `storage/unauthorized` (regra cross-service). Mesma correção feita na CSA em 2026-10-20 — ver `HANDOFF.md` raiz, item 12 |

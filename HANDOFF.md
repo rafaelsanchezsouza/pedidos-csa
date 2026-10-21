@@ -357,7 +357,7 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
     **Aconteceu na CSA** (2026-10-20, Débora substituindo comprovante de membra: `storage/unauthorized`).
     Corrigido concedendo `roles/firebaserules.firestoreServiceAgent` (Firebase Rules System →
     "Firebase Rules Firestore Service Agent") a `service-<nº do projeto>@gcp-sa-firebasestorage.iam.gserviceaccount.com`
-    no IAM de `pedidos-csa`. **Falta no fermentou e no `pedidos-csa-dev`** (ou aceitar o prompt do CLI no deploy-rules).
+    no IAM de `pedidos-csa`. **Falta no fermentou (`apps/fermentou/BACKLOG.md` #14) e no `pedidos-csa-dev`** (ou aceitar o prompt do CLI no deploy-rules).
 13. **Autorização de `routes/orders.ts`** — **corrigido e no ar nos dois apps em
     2026-10-18** (ARQUITETURA §4.13): pedido só é escrito pelo dono ou pelo admin da tenant do
     pedido, semana bloqueada dá 403 para quem não é admin e `PATCH /recebido` exige admin.
