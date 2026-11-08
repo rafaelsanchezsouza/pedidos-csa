@@ -64,6 +64,11 @@ export function VerificarPagamentosPage() {
     await load()
   }
 
+  // Fatura zerada (acolhida, quem saiu, extra não entregue) não deve nada: sai da lista de
+  // conferência para não parecer dívida, mas fica recolhida embaixo para o admin desfazer.
+  const ativas = payments.filter((p) => p.amount > 0)
+  const zeradas = payments.filter((p) => p.amount <= 0)
+
   const status = (p: Payment) => (
     <StatusFatura
       payment={p}
@@ -82,7 +87,7 @@ export function VerificarPagamentosPage() {
 
       <EstadoLista
         loading={loading}
-        vazio={payments.length === 0}
+        vazio={ativas.length === 0}
         mensagemVazia="Nenhum pagamento registrado para este mês."
       >
         <>
@@ -102,7 +107,7 @@ export function VerificarPagamentosPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {payments.map((p) => (
+                    {ativas.map((p) => (
                       <tr key={p.id} className="border-b last:border-0">
                         <td className="px-4 py-3 font-medium">
                           {p.userName}
@@ -141,7 +146,7 @@ export function VerificarPagamentosPage() {
 
           {/* Mobile */}
           <div className="md:hidden space-y-3">
-            {payments.map((p) => (
+            {ativas.map((p) => (
               <Card key={p.id}>
                 <CardContent className="py-3 px-4 space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -167,6 +172,31 @@ export function VerificarPagamentosPage() {
           </div>
         </>
       </EstadoLista>
+
+      {!loading && zeradas.length > 0 && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted-foreground">
+            Faturas zeradas ({zeradas.length})
+          </summary>
+          <ul className="mt-2 divide-y rounded-md border">
+            {zeradas.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-2 px-4 py-2">
+                <span>
+                  {p.userName} · <span className="text-muted-foreground">{p.producerName}</span>
+                  {p.corrigido && (
+                    <span className="block text-xs text-muted-foreground">
+                      Era R$ {(p.amountOriginal ?? 0).toFixed(2)}
+                    </span>
+                  )}
+                </span>
+                {ehAdmin && (
+                  <Button size="sm" variant="ghost" onClick={() => setEditando(p)}>Editar</Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {editando && (
         <DialogEdicaoFatura

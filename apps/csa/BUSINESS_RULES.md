@@ -309,6 +309,10 @@
   valor; e `upsertPaymentsForOrder` também não recalcula nem zera a fatura de produtor
   corrigida. Sem essa trava o ajuste sumia sozinho — a geração roda muitas vezes por mês, não
   só no dia 1, e o próprio membro a dispara ao abrir a tela de pagamentos
+- **Zerar é o jeito de dizer "não deve"** (acolhida, quem saiu, extra não entregue): em
+  Verificar Pagamentos a fatura de valor 0 **sai da lista** — no meio dela parecia dívida
+  pendente — e fica recolhida em "Faturas zeradas", com o `Editar` para desfazer. Não se apaga
+  a fatura: a trava acima já impede a geração de recriá-la, e o histórico fica
 - `amountOriginal` guarda o valor que a **geração** produziu (congelado na 1ª correção); numa
   segunda correção ele não muda, senão "desfazer" devolveria a correção anterior
 - `correcoes[]` é o histórico — `{ de, para, por (uid), em, motivo? }` — e **acumula**: nada é

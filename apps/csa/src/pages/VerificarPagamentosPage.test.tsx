@@ -87,4 +87,24 @@ describe('VerificarPagamentosPage', () => {
     expect((await screen.findAllByText('Pendente')).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Pendente' })).not.toBeInTheDocument()
   })
+
+  // Acolhida / quem saiu: o admin zera a fatura e ela não pode mais parecer dívida.
+  it('fatura zerada sai da lista e fica recolhida em "Faturas zeradas"', async () => {
+    listSpy.mockResolvedValue([
+      fatura({ id: 'p1', userName: 'Ana', amount: 160 }),
+      fatura({ id: 'p2', userName: 'Bia', amount: 0, corrigido: true, amountOriginal: 80 }),
+    ])
+    render(<VerificarPagamentosPage />)
+
+    expect(await screen.findByText('Faturas zeradas (1)')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Pendente' })).toHaveLength(2) // Ana, desktop + mobile
+    expect(screen.getByText('Era R$ 80.00')).toBeInTheDocument()
+  })
+
+  it('mês só com faturas zeradas mostra a lista vazia', async () => {
+    listSpy.mockResolvedValue([fatura({ id: 'p2', amount: 0 })])
+    render(<VerificarPagamentosPage />)
+    expect(await screen.findByText(/Nenhum pagamento registrado para este mês/)).toBeInTheDocument()
+    expect(screen.getByText('Faturas zeradas (1)')).toBeInTheDocument()
+  })
 })
