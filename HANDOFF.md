@@ -1,6 +1,6 @@
 # Handoff — monorepo `pedidos`
 
-Estado em **2026-10-18**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
+Estado em **2026-11-08**. Motor único (`packages/core`) + dois apps deployáveis sozinhos
 (`apps/csa`, `apps/fermentou`). **Os dois estão no ar rodando deste monorepo.** Os repos
 pré-monorepo (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) foram **apagados em 2026-09-28** —
 a limpeza do legado (2026-08-31) já tinha encerrado o papel de rollback deles; ver §4.
@@ -100,7 +100,7 @@ npm run build -w pedidos-csa  && npm run build:backend -w pedidos-csa
 npm run build -w fermentou  && npm run build:backend -w fermentou
 ```
 
-Placar atual (2026-10-18): **core 312**, **csa 77**, **fermentou 9** — todos ×3 fusos.
+Placar atual (2026-11-08): **core 312**, **csa 79**, **fermentou 9** — todos ×3 fusos.
 **Sem CI: o verde local é o único portão.** Mudou estrutura de emissão? `rm -rf apps/*/dist-server`
 antes (o `tsc` não limpa o `outDir`).
 
@@ -357,7 +357,8 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
     **Aconteceu na CSA** (2026-10-20, Débora substituindo comprovante de membra: `storage/unauthorized`).
     Corrigido concedendo `roles/firebaserules.firestoreServiceAgent` (Firebase Rules System →
     "Firebase Rules Firestore Service Agent") a `service-<nº do projeto>@gcp-sa-firebasestorage.iam.gserviceaccount.com`
-    no IAM de `pedidos-csa`. **Falta no fermentou (`apps/fermentou/BACKLOG.md` #14) e no `pedidos-csa-dev`** (ou aceitar o prompt do CLI no deploy-rules).
+    no IAM de `pedidos-csa`. Conferido em 2026-11-08: 32 comprovantes entraram desde então
+    (membros e admins, JPEG/PNG/PDF) — mas o caso admin→pasta do membro ainda não foi visto. **Falta no fermentou (`apps/fermentou/BACKLOG.md` #14) e no `pedidos-csa-dev`** (ou aceitar o prompt do CLI no deploy-rules).
 13. **Autorização de `routes/orders.ts`** — **corrigido e no ar nos dois apps em
     2026-10-18** (ARQUITETURA §4.13): pedido só é escrito pelo dono ou pelo admin da tenant do
     pedido, semana bloqueada dá 403 para quem não é admin e `PATCH /recebido` exige admin.
@@ -370,6 +371,12 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
     seu `producerId`. Sem risco de trancar alguém na CSA: a produção tem **0 fornecedores**
     (conferido em 2026-10-18; quem confere fatura lá é só admin). Achado lateral da mesma
     leitura: **2 faturas sem `producerName`** na produção — não afetam a trava, mas merecem olhar.
+16. **Fatura zerada sai de Verificar Pagamentos (CSA)** — **no ar em 2026-11-08**
+    (`apps/csa/BUSINESS_RULES.md`, "Correção de fatura pelo admin"): valor 0 vai para
+    "Faturas zeradas", recolhida, com `Editar` para desfazer. Veio de pedido da tesouraria
+    (acolhida e quem saiu, zerados em outubro). **Não apagar fatura zerada**: sem o doc com
+    `corrigido`, a geração (Meus Pagamentos, acolhida) a recria com valor cheio. Só nesta tela —
+    Conferir Delivery e o fermentou seguem listando valor 0.
 
 ## 7. Riscos conhecidos
 
