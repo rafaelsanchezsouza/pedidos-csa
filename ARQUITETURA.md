@@ -820,6 +820,9 @@ vazamento de `users` (nome, e-mail, telefone, endereço) e dos comprovantes Pix.
    `.gitignore` **não** é opção: o código já está rastreado e no histórico, e sumir com
    `apps/fermentou` quebraria build e deploy.
 
+4. **Fluxos — a ação do dia como tela inicial** — *em desenho* (2026-11-08), ver
+   [`FLUXOS.md`](FLUXOS.md). Decisões entram aqui quando a implementação começar.
+
 ---
 
 ## 6. Como rodar e testar
@@ -841,6 +844,7 @@ Sem CI: **o verde local é o único portão**. `test:tz` cobre a regra de fuso (
 ---
 
 ## 7. Docs relacionados
+- `FLUXOS.md` — desenho da próxima feature (ação do dia como tela inicial), documento vivo.
 - `apps/csa/ARQUITETURA_MOTOR_COMPARTILHADO.md` — plano original aprovado (veio do repo antigo
   em 2026-09-28, quando ele foi apagado).
 - `apps/fermentou/MERGE.md` — mapa seção-a-seção das divergências fork×CSA (segue válido como

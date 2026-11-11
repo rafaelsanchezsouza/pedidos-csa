@@ -377,6 +377,10 @@ o site abriria normal, com os dados errados, sem erro nenhum. O `deploy.sh` agor
     (acolhida e quem saiu, zerados em outubro). **Não apagar fatura zerada**: sem o doc com
     `corrigido`, a geração (Meus Pagamentos, acolhida) a recria com valor cheio. Só nesta tela —
     Conferir Delivery e o fermentou seguem listando valor 0.
+17. **Fluxos — em desenho, não implementado** ([`FLUXOS.md`](FLUXOS.md)): a ação do dia vira a
+    tela inicial (generaliza a `/acolhida`). **Documento vivo**: toda mudança que tocar calendário,
+    prazos, faturas, pedidos ou telas de início/conferência deve ser conferida contra ele e
+    atualizá-lo no mesmo commit (catálogo §4, histórico §10).
 
 ## 7. Riscos conhecidos
 

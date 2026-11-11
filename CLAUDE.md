@@ -3,7 +3,8 @@
 Motor único `packages/core` consumido por apps **deployáveis sozinhos** (`apps/csa`,
 `apps/fermentou`). **Os dois estão no ar rodando deste monorepo** (desde 2026-08-21).
 **Leia `HANDOFF.md` primeiro** (onde roda, como deployar, armadilhas, pendências) e
-`ARQUITETURA.md` para as decisões e o histórico. Os repos originais
+`ARQUITETURA.md` para as decisões e o histórico. **`FLUXOS.md`** é o desenho da próxima
+feature (ação do dia como tela inicial) — mantê-lo atualizado com o que for implementado. Os repos originais
 (`~/repos/pedidos-csa`, `~/repos/pedidos-app`) foram **apagados em 2026-09-28** — nada deles
 sobrevivia fora daqui. Notas e segredos soltos que viviam lá estão em `apps/csa/private/`,
 gitignored e **sem outra cópia**.
